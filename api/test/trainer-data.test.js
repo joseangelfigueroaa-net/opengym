@@ -140,7 +140,7 @@ const WO = { date: '2026-10-21', name: 'Torso: empuje', note: 'Baja lento', ex: 
 
 test('an assignment keeps its exercises and rep range', () => {
   const a = A.makeAssignment(WO, 't1', NOW);
-  assert.deepEqual(a.ex, [{ id: '0025', sets: 3, repsMin: 6, reps: 8 }]);
+  assert.deepEqual(a.ex, [{ id: '0025', mode: 'reps', sets: 3, reps: 8, repsMin: 6 }]);
   assert.equal(a.by, 't1');
 });
 
@@ -149,7 +149,7 @@ test('assignments refuse bad dates, names, ranges and exercise ids', () => {
   assert.match(err(() => A.makeAssignment({ ...WO, name: ' ' }, 't1', NOW)), /name/);
   assert.match(err(() => A.makeAssignment({ ...WO, ex: [] }, 't1', NOW)), /at least one/);
   assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '0025', sets: 3, repsMin: 10, reps: 8 }] }, 't1', NOW)), /above the maximum/);
-  assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '../x', sets: 3, reps: 8 }] }, 't1', NOW)), /not valid/);
+  assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '../x', sets: 3, reps: 8 }] }, 't1', NOW)), /not a valid exercise/);
   assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '0025', sets: 30, reps: 8 }] }, 't1', NOW)), /sets/);
 });
 
@@ -182,4 +182,19 @@ test('a month plan is checked whole: one bad day sends nothing', () => {
 test('the client profile keeps only known keys', () => {
   assert.deepEqual(A.cleanProfile({ goal: 'muscle', limits: ['knee', 'knee', 'evil'], focus: 'zzz', days: '4', notes: ' x ' }),
     { goal: 'muscle', limits: ['knee'], focus: null, days: 4, notes: 'x' });
+});
+
+test('assigned exercises carry their mode: reps with weight, time, cardio, and rest', () => {
+  const a = A.makeAssignment({ ...WO, ex: [
+    { id: '0025', sets: 4, repsMin: 6, reps: 8, weight: 62.5, rest: 120 },
+    { id: '0276', mode: 'time', sets: 3, sec: 45 },
+    { id: '0685', mode: 'cardio', sets: 6, min: 2, speed: 12, rest: 60 }
+  ] }, 't1', NOW);
+  assert.deepEqual(a.ex, [
+    { id: '0025', mode: 'reps', sets: 4, reps: 8, repsMin: 6, weight: 62.5, rest: 120 },
+    { id: '0276', mode: 'time', sets: 3, sec: 45 },
+    { id: '0685', mode: 'cardio', sets: 6, min: 2, speed: 12, rest: 60 }
+  ]);
+  assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '0276', mode: 'time', sets: 3, sec: 2 }] }, 't1', NOW)), /exercise 1: seconds/);
+  assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '0025', sets: 3, reps: 8, weight: 900 }] }, 't1', NOW)), /weight/);
 });

@@ -41,3 +41,15 @@ describe('assigned workouts in the client state', () => {
     expect(JSON.stringify(S)).toBe(once)
   })
 })
+
+import { toConfig } from './trainer.js'
+describe('assigned exercise modes', () => {
+  it('map onto the app’s own exercise configs', () => {
+    expect(toConfig({ id: '0025', mode: 'reps', sets: 4, repsMin: 6, reps: 8, weight: 60, rest: 120 }))
+      .toEqual({ id: '0025', sets: 4, reps: 8, repsMin: 6, weight: 60, mode: 'reps', prog: 'double', rest: 120 })
+    expect(toConfig({ id: '0276', mode: 'time', sets: 3, sec: 45 }))
+      .toEqual({ id: '0276', sets: 3, sec: 45, weight: 0, mode: 'time', prog: 'time' })
+    expect(toConfig({ id: '0685', mode: 'cardio', sets: 6, min: 2, speed: 12 }))
+      .toEqual({ id: '0685', sets: 6, min: 2, speed: 12, mode: 'cardio', prog: 'off' })
+  })
+})

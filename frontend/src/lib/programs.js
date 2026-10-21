@@ -27,6 +27,29 @@ export const FOCUS = {
   glutes_legs: 'Glúteo y pierna', conditioning: 'Acondicionamiento'
 }
 
+// The method a model is built on, as the reference books classify them (lib/knowledge.js):
+// what kind of work its exercises must be, and the rest that goes with it by default.
+// `modes` and the rep window are checked against every model in programs.test.js, so an
+// exercise that does not belong to its method cannot slip in.
+export const METHODS = {
+  salud: { name: 'Acondicionamiento general', rest: 75, modes: ['reps', 'time'], reps: [8, 25],
+    about: 'Desarrollo multilateral de todas las capacidades con cargas moderadas; la base sobre la que luego se especializa.' },
+  hipertrofia: { name: 'Hipertrofia', rest: 90, modes: ['reps'], reps: [6, 20],
+    about: 'Series de 6 a 12 repeticiones (hasta 20 cerca del fallo) con volumen semanal suficiente por grupo muscular.' },
+  fuerza_maxima: { name: 'Fuerza máxima', rest: 180, modes: ['reps'], reps: [1, 6],
+    about: 'Cargas altas, pocas repeticiones y recuperación completa entre series (método de repeticiones).' },
+  fuerza_resistencia: { name: 'Fuerza resistencia en circuito', rest: 30, modes: ['reps', 'time'], reps: [10, 25],
+    about: 'Muchas repeticiones con poca pausa entre ejercicios: alta densidad y demanda cardiovascular.' },
+  potencia: { name: 'Fuerza velocidad (potencia)', rest: 120, modes: ['reps'], reps: [3, 10],
+    about: 'Movimientos rápidos y explosivos con cargas ligeras o medias, siempre sin llegar a la fatiga.' },
+  interval: { name: 'Interválico', rest: 90, modes: ['cardio'],
+    about: 'Bloques de trabajo intenso con pausas fijas e incompletas: cortos (menos de 1,5 min), medios (1,5 a 6) o largos (6 a 20).' },
+  continuo: { name: 'Continuo y fartlek', rest: 0, modes: ['cardio'],
+    about: 'Trabajo aeróbico sin pausas, a ritmo uniforme o con cambios de ritmo (fartlek).' },
+  terapeutico: { name: 'Ejercicio terapéutico', rest: 75, modes: ['reps', 'time'], reps: [8, 20],
+    about: 'Fortalecimiento con rangos y cargas tolerables para una zona sensible, priorizando el control.' }
+}
+
 /* ---------- references (real, citable) ---------- */
 const R = {
   acsm2009: { text: 'ACSM (2009). Progression models in resistance training for healthy adults. Med Sci Sports Exerc 41(3):687-708.', url: 'https://pubmed.ncbi.nlm.nih.gov/19204579/' },
@@ -87,16 +110,25 @@ export const EX_NOTES = {
   '0417': 'Elevación de talones con mancuernas: misma función con carga añadida.',
   '0276': 'Dead bug: estabilidad del tronco con la columna neutra, sin flexionarla; recomendado en programas de espalda baja.',
   '0979': 'Press Pallof con banda: anti-rotación; el tronco resiste el giro, que es como trabaja en la vida diaria.',
-  '1004': 'Sentadilla con banda: patrón de sentadilla con resistencia elástica para entrenar en casa.'
+  '1004': 'Sentadilla con banda: patrón de sentadilla con resistencia elástica para entrenar en casa.',
+  '0685': 'Carrera: el medio más natural de resistencia aeróbica; la velocidad y la duración se ajustan con precisión.',
+  '2138': 'Bicicleta estática: trabajo aeróbico o interválico sin impacto, amable con rodillas y peso alto.',
+  '2612': 'Cuerda: intervalos cortos de alta intensidad; también coordinación y rigidez del tobillo.',
+  '2135': 'Plancha con carga: estabilidad del tronco en tiempo; resiste la extensión de la columna.',
+  '0514': 'Salto con sentadilla: potencia de piernas; aterrizar suave y detenerse antes de perder calidad.',
+  '1312': 'Lanzamiento de balón medicinal al pecho: potencia de empuje sin frenar el movimiento al final.',
+  '1700': 'Push press con mancuernas: empuje vertical explosivo que transfiere la fuerza de las piernas a los brazos.'
 }
 
 /* ---------- helpers to keep the sessions readable ---------- */
-const e = (id, sets, repsMin, reps) => ({ id, sets, repsMin, reps })
+const e = (id, sets, repsMin, reps, more) => ({ id, mode: 'reps', sets, repsMin, reps, ...more })
+const tm = (id, sets, sec, more) => ({ id, mode: 'time', sets, sec, ...more })          // timed hold
+const cd = (id, sets, min, more) => ({ id, mode: 'cardio', sets, min, ...more })        // cardio block
 
 /* ---------- the models ---------- */
 export const PROGRAMS = [
   {
-    id: 'fundamentos',
+    id: 'fundamentos', method: 'salud', books: ['b06', 'b12'],
     concepts: ['multilateralidad', 'progresion', 'sobrecarga', 'supercompensacion'],
     name: 'Fundamentos de cuerpo completo',
     summary: 'Dos sesiones (A y B) alternadas, 3 días por semana, con los patrones básicos: sentadilla, bisagra, empuje y tracción.',
@@ -110,7 +142,7 @@ export const PROGRAMS = [
     ]
   },
   {
-    id: 'torso-pierna',
+    id: 'torso-pierna', method: 'hipertrofia', books: ['b01', 'b09'],
     concepts: ['componentes-carga', 'especificidad', 'supercompensacion', 'progresion'],
     name: 'Torso / pierna para hipertrofia',
     summary: 'Cuatro días: dos de torso y dos de pierna. Cada músculo se entrena dos veces por semana con 6 a 12 repeticiones.',
@@ -126,7 +158,7 @@ export const PROGRAMS = [
     ]
   },
   {
-    id: 'empuje-jalon-pierna',
+    id: 'empuje-jalon-pierna', method: 'hipertrofia', books: ['b01', 'b09'],
     concepts: ['componentes-carga', 'recuperacion', 'supercompensacion'],
     name: 'Empuje / jalón / pierna',
     summary: 'Tres sesiones especializadas que se repiten dos veces por semana (6 días) o una vez (3 días) según el tiempo del cliente.',
@@ -136,12 +168,12 @@ export const PROGRAMS = [
     refs: [R.volume2017, R.freq2016],
     sessions: [
       { name: 'Empuje', ex: [e('0025', 4, 6, 10), e('0405', 3, 8, 10), e('0314', 3, 8, 12), e('0334', 3, 12, 15), e('0201', 3, 10, 12)] },
-      { name: 'Jalón', ex: [e('0652', 3, 5, 10), e('0027', 4, 6, 10), e('0861', 3, 10, 12), e('0993', 3, 12, 15), e('1648', 3, 10, 12)] },
+      { name: 'Jalón', ex: [e('0652', 3, 6, 10), e('0027', 4, 6, 10), e('0861', 3, 10, 12), e('0993', 3, 12, 15), e('1648', 3, 10, 12)] },
       { name: 'Pierna', ex: [e('0043', 4, 6, 10), e('0085', 3, 8, 10), e('2287', 3, 10, 12), e('0586', 3, 10, 12), e('0417', 3, 12, 15)] }
     ]
   },
   {
-    id: 'fuerza-basica',
+    id: 'fuerza-basica', method: 'fuerza_maxima', books: ['b07', 'b09'],
     concepts: ['especificidad', 'fuerza', 'recuperacion', 'energia'],
     name: 'Fuerza con básicos',
     summary: 'Tres días de cuerpo completo con los grandes levantamientos en rangos bajos (3 a 6 repeticiones), pocos ejercicios y descansos largos.',
@@ -155,7 +187,7 @@ export const PROGRAMS = [
     ]
   },
   {
-    id: 'perdida-grasa',
+    id: 'perdida-grasa', method: 'fuerza_resistencia', books: ['b09', 'b02'],
     concepts: ['metodos', 'componentes-carga', 'energia'],
     name: 'Fuerza en circuito para perder grasa',
     summary: 'Tres días de fuerza en formato de circuito, con poco descanso y repeticiones moderadas. Se complementa con 150 a 300 minutos de actividad aeróbica a la semana.',
@@ -164,12 +196,12 @@ export const PROGRAMS = [
     basis: 'El aeróbico es lo que más reduce peso y grasa, pero el entrenamiento de fuerza preserva y aumenta la masa magra mientras se pierde peso. Combinar ambos da la mejor recomposición corporal. La OMS recomienda 150 a 300 minutos semanales de actividad moderada más fuerza al menos 2 días. El formato en circuito mantiene alta la demanda cardiovascular.',
     refs: [R.willis2012, R.who2020],
     sessions: [
-      { name: 'Circuito A', ex: [e('1760', 3, 12, 15), e('0662', 3, 8, 15), e('0293', 3, 12, 15), e('0549', 3, 15, 20), e('0276', 3, 10, 12)] },
+      { name: 'Circuito A', ex: [e('1760', 3, 12, 15), e('0662', 3, 10, 15), e('0293', 3, 12, 15), e('0549', 3, 15, 20), e('0276', 3, 10, 12)] },
       { name: 'Circuito B', ex: [e('1460', 3, 10, 12), e('0405', 3, 12, 15), e('0861', 3, 12, 15), e('1409', 3, 12, 15), e('0979', 3, 10, 12)] }
     ]
   },
   {
-    id: 'gluteo-pierna',
+    id: 'gluteo-pierna', method: 'hipertrofia', books: ['b01'],
     concepts: ['componentes-carga', 'especificidad', 'individualidad'],
     name: 'Énfasis en glúteo y pierna',
     summary: 'Cuatro días: dos de pierna con énfasis en glúteos (extensión de cadera y trabajo a una pierna) y dos de torso para mantener el equilibrio.',
@@ -185,7 +217,7 @@ export const PROGRAMS = [
     ]
   },
   {
-    id: 'rodilla-cuidada',
+    id: 'rodilla-cuidada', method: 'terapeutico', books: ['b12'],
     concepts: ['individualidad', 'sobrecarga', 'progresion'],
     name: 'Rodilla cuidada',
     summary: 'Tres días que fortalecen cadera y rodilla con ejercicios de bajo impacto, en rangos tolerables y sin saltos.',
@@ -199,7 +231,7 @@ export const PROGRAMS = [
     ]
   },
   {
-    id: 'espalda-cuidada',
+    id: 'espalda-cuidada', method: 'terapeutico', books: ['b12'],
     concepts: ['individualidad', 'progresion', 'pedagogicos'],
     name: 'Espalda baja cuidada',
     summary: 'Tres días de fuerza general con columna neutra: estabilidad del tronco, bisagra ligera aprendida con control y tracciones con el pecho apoyado.',
@@ -213,7 +245,7 @@ export const PROGRAMS = [
     ]
   },
   {
-    id: 'casa',
+    id: 'casa', method: 'hipertrofia', books: ['b06'],
     concepts: ['sobrecarga', 'progresion', 'especificidad'],
     name: 'En casa sin equipo',
     summary: 'Tres días con peso corporal y una banda elástica. La progresión se logra con más repeticiones y variantes más difíciles.',
@@ -227,7 +259,7 @@ export const PROGRAMS = [
     ]
   },
   {
-    id: 'salud-60',
+    id: 'salud-60', method: 'salud', books: ['b12', 'b04'],
     concepts: ['mayores', 'individualidad', 'calentamiento'],
     name: 'Salud y autonomía (60+)',
     summary: 'Dos o tres días de fuerza para todo el cuerpo, con ejercicios estables, carga moderada y trabajo de piernas para la marcha y el equilibrio.',
@@ -238,6 +270,65 @@ export const PROGRAMS = [
     sessions: [
       { name: 'Autonomía A', ex: [e('1760', 2, 8, 12), e('0577', 2, 10, 12), e('1350', 2, 10, 12), e('0431', 2, 8, 10), e('1373', 2, 10, 15)] },
       { name: 'Autonomía B', ex: [e('2287', 2, 10, 12), e('2330', 2, 10, 12), e('0405', 2, 10, 12), e('3013', 2, 10, 15), e('0979', 2, 10, 12)] }
+    ]
+  },
+  /* ---------- models built on the methods of the reference books ---------- */
+  {
+    id: 'intervalico', method: 'interval', books: ['b09', 'b01', 'b02'],
+    concepts: ['metodos', 'componentes-carga', 'energia', 'recuperacion'],
+    name: 'Método interválico',
+    summary: 'Tres días de resistencia con bloques de trabajo intenso y pausas fijas: intervalos cortos, medios y largos, en bicicleta, carrera o cuerda.',
+    level: 'Intermedio', days: 3, weekdays: [2, 4, 6],
+    goals: ['endurance', 'fat_loss'], suits: ['no_gym'], avoid: ['beginner', 'knee'], focus: 'conditioning',
+    basis: 'Los libros clasifican el método interválico por la duración del trabajo: corto (menos de 1,5 minutos, intensidad máxima o alta), medio (1,5 a 6 minutos) y largo (6 a 20 minutos), siempre con pausas predeterminadas e incompletas. La pausa incompleta es la clave: el siguiente bloque empieza sin recuperar del todo y eso estimula la resistencia. Cada sesión cambia la duración para trabajar distintas vías energéticas.',
+    refs: [],
+    sessions: [
+      { name: 'Intervalos cortos', ex: [cd('2138', 8, 1, { rest: 90 }), cd('2612', 4, 1, { rest: 60 })] },
+      { name: 'Intervalos medios', ex: [cd('0685', 5, 3, { rest: 120 })] },
+      { name: 'Intervalos largos', ex: [cd('2138', 3, 8, { rest: 180 })] }
+    ]
+  },
+  {
+    id: 'continuo-fartlek', method: 'continuo', books: ['b09', 'b02'],
+    concepts: ['metodos', 'componentes-carga', 'energia'],
+    name: 'Continuo y fartlek',
+    summary: 'Tres días de trabajo aeróbico sin pausas: dos a ritmo uniforme y uno con cambios de ritmo (fartlek), aumentando la duración semana a semana.',
+    level: 'Todos', days: 3, weekdays: [1, 3, 5],
+    goals: ['endurance', 'fat_loss', 'health'], suits: ['beginner', 'no_gym'], avoid: [], focus: 'conditioning',
+    basis: 'El método continuo trabaja sin pausas: uniforme cuando se mantiene el mismo ritmo, y variable o fartlek («juego de velocidad») cuando se alternan ritmos sin detenerse. Es la base de la resistencia aeróbica y se progresa primero en volumen (más minutos) y después en intensidad, como se hace en el periodo preparatorio.',
+    refs: [],
+    sessions: [
+      { name: 'Continuo uniforme', ex: [cd('0685', 1, 30)] },
+      { name: 'Fartlek', ex: [cd('0685', 1, 25)] },
+      { name: 'Continuo en bicicleta', ex: [cd('2138', 1, 40)] }
+    ]
+  },
+  {
+    id: 'fuerza-resistencia', method: 'fuerza_resistencia', books: ['b07', 'b09'],
+    concepts: ['fuerza', 'componentes-carga', 'metodos', 'energia'],
+    name: 'Fuerza resistencia en circuito',
+    summary: 'Tres días de circuito con muchas repeticiones y pausas cortas entre ejercicios; se dan 3 vueltas al circuito.',
+    level: 'Principiante a intermedio', days: 3, weekdays: [1, 3, 5],
+    goals: ['endurance', 'fat_loss', 'health'], suits: ['beginner', 'no_gym'], avoid: [], focus: 'conditioning',
+    basis: 'La fuerza resistencia es la capacidad de mantener un esfuerzo muscular durante mucho tiempo. Se entrena con cargas ligeras o moderadas, muchas repeticiones y una densidad alta (poco descanso respecto al trabajo). El formato en circuito alterna grupos musculares, así uno descansa mientras trabaja el siguiente.',
+    refs: [],
+    sessions: [
+      { name: 'Circuito A', ex: [e('1760', 3, 15, 20), e('0662', 3, 10, 20), e('0499', 3, 10, 15), e('0431', 3, 12, 15), tm('2135', 3, 30)] },
+      { name: 'Circuito B', ex: [e('1460', 3, 12, 20), e('0405', 3, 15, 20), e('0861', 3, 15, 20), e('3013', 3, 15, 25), e('0276', 3, 10, 15)] }
+    ]
+  },
+  {
+    id: 'potencia', method: 'potencia', books: ['b07', 'b01'],
+    concepts: ['fuerza', 'energia', 'recuperacion', 'especificidad'],
+    name: 'Fuerza velocidad (potencia)',
+    summary: 'Dos días de movimientos explosivos con pocas repeticiones y pausas largas, combinados con un ejercicio de fuerza para sostener la técnica.',
+    level: 'Intermedio a avanzado', days: 2, weekdays: [2, 5],
+    goals: ['strength'], suits: [], avoid: ['beginner', 'knee', 'lower_back'], focus: 'full_body',
+    basis: 'La fuerza velocidad es producir mucha fuerza en el menor tiempo; su máxima expresión es la potencia. Se entrena con movimientos rápidos, pocas repeticiones y recuperación completa, porque depende del sistema de fosfágenos, que se agota en segundos. Entrenarla fatigado enseña a moverse lento, justo lo contrario de lo que se busca.',
+    refs: [],
+    sessions: [
+      { name: 'Potencia de piernas y cadera', ex: [e('0514', 4, 3, 5), e('0549', 4, 8, 10), e('0043', 3, 4, 6, { rest: 180 })] },
+      { name: 'Potencia de torso', ex: [e('1312', 4, 4, 6), e('1700', 4, 4, 6), e('0652', 3, 3, 6)] }
     ]
   }
 ]
@@ -256,6 +347,12 @@ export function fitScore(p, profile) {
   return s
 }
 
+/** An exercise with the rest its method calls for, unless the model or the trainer set one. */
+export const withRest = (x, program) => {
+  const rest = x.rest ?? METHODS[program.method]?.rest
+  return rest ? { ...x, rest } : { ...x }
+}
+
 /** Lays a model over the calendar: sessions rotate A, B, C… on the chosen weekdays from `start`
  *  for `weeks` weeks. Returns [{ date, name, ex, note }] ready for the batch call. */
 export function layOut(program, { start, weeks, weekdays, note = '' }) {
@@ -268,7 +365,7 @@ export function layOut(program, { start, weeks, weekdays, note = '' }) {
     if (!weekdays.includes(d.getDay())) continue
     const s = program.sessions[k % program.sessions.length]
     k++
-    out.push({ date: d.toISOString().slice(0, 10), name: s.name, note, ex: s.ex.map(x => ({ ...x })) })
+    out.push({ date: d.toISOString().slice(0, 10), name: s.name, note, ex: s.ex.map(x => withRest(x, program)) })
   }
   return out
 }

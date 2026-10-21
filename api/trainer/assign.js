@@ -35,13 +35,41 @@ export function makeAssignment({ date, name, note, ex }, trainerId, now = Date.n
   if (!Array.isArray(ex) || !ex.length) throw new AssignError('add at least one exercise');
   if (ex.length > MAX_EX) throw new AssignError(`up to ${MAX_EX} exercises per workout`);
   const items = ex.map((e, i) => {
-    if (!e || !EX_ID.test(String(e.id || ''))) throw new AssignError(`exercise ${i + 1} is not valid`);
-    const reps = int(e.reps, 1, 50, 'reps');
-    const repsMin = int(e.repsMin ?? reps, 1, 50, 'minimum reps');
-    if (repsMin > reps) throw new AssignError(`exercise ${i + 1}: the minimum reps are above the maximum`);
-    return { id: String(e.id), sets: int(e.sets, 1, 10, 'sets'), repsMin, reps };
+    try { return cleanItem(e); }
+    catch (err) { throw new AssignError(`exercise ${i + 1}: ${err.message}`); }
   });
   return { id: crypto.randomBytes(8).toString('hex'), date, name, note, ex: items, by: trainerId, sentAt: new Date(now).toISOString() };
+}
+
+const num = (v, lo, hi, what, step = 0.5) => {
+  const n = Math.round(Number(v) / step) * step;
+  if (!Number.isFinite(n) || n < lo || n > hi) throw new AssignError(`${what} must be from ${lo} to ${hi}`);
+  return n;
+};
+
+/** One exercise as the app logs it: reps (a rep range and an optional starting weight), time
+ *  (seconds held, optionally loaded) or cardio (minutes, optional speed). `rest` is the pause
+ *  after it, in seconds; absent means the client's own default. */
+export function cleanItem(e) {
+  if (!e || !EX_ID.test(String(e.id || ''))) throw new AssignError('not a valid exercise');
+  const mode = ['reps', 'time', 'cardio'].includes(e.mode) ? e.mode : 'reps';
+  const out = { id: String(e.id), mode };
+  if (mode === 'reps') {
+    out.sets = int(e.sets, 1, 10, 'sets');
+    out.reps = int(e.reps, 1, 50, 'reps');
+    out.repsMin = int(e.repsMin ?? out.reps, 1, 50, 'minimum reps');
+    if (out.repsMin > out.reps) throw new AssignError('the minimum reps are above the maximum');
+  } else if (mode === 'time') {
+    out.sets = int(e.sets, 1, 10, 'sets');
+    out.sec = int(e.sec, 5, 1800, 'seconds');
+  } else {
+    out.sets = int(e.sets ?? 1, 1, 20, 'rounds');
+    out.min = num(e.min, 0.5, 180, 'minutes');
+    if (e.speed) out.speed = num(e.speed, 0, 40, 'speed');
+  }
+  if (mode !== 'cardio' && e.weight) out.weight = num(e.weight, 0, 500, 'weight', 0.25);
+  if (e.rest) out.rest = int(e.rest, 0, 900, 'rest');
+  return out;
 }
 
 /** Puts `a` on its day, replacing whatever was assigned for that date. */

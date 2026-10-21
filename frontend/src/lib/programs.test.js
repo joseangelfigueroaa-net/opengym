@@ -1,26 +1,55 @@
 import { describe, it, expect } from 'vitest'
-import { PROGRAMS, EX_NOTES, GOALS, LIMITS, FOCUS, fitScore, layOut } from './programs.js'
+import { PROGRAMS, EX_NOTES, GOALS, LIMITS, FOCUS, METHODS, fitScore, layOut } from './programs.js'
 import { EXDB } from './exercises-data.js'
 
 const byId = Object.fromEntries(EXDB.map(e => [e.id, e]))
 
 describe('training models', () => {
-  it('only use exercises that exist, are logged by reps, and are explained', () => {
+  it('only use exercises that exist and are explained', () => {
     for (const p of PROGRAMS) for (const s of p.sessions) for (const x of s.ex) {
       expect(byId[x.id], `${p.id}/${s.name}: ${x.id}`).toBeTruthy()
-      expect(byId[x.id].bp, `${x.id} is cardio`).not.toBe('cardio')
       expect(EX_NOTES[x.id], `${x.id} has no note`).toBeTruthy()
-      expect(x.repsMin).toBeLessThanOrEqual(x.reps)
       expect(x.sets).toBeGreaterThanOrEqual(1)
     }
   })
 
-  it('every model states its rationale with at least one reference', () => {
+  it('every exercise is congruent with its model’s method', () => {
+    for (const p of PROGRAMS) {
+      const m = METHODS[p.method]
+      expect(m, `${p.id} has no method`).toBeTruthy()
+      for (const s of p.sessions) for (const x of s.ex) {
+        const where = `${p.id}/${s.name}/${x.id}`
+        expect(m.modes, `${where}: ${x.mode} not in ${p.method}`).toContain(x.mode)
+        // cardio exercises are logged as cardio, and only they are
+        expect(byId[x.id].bp === 'cardio', `${where}: cardio exercise vs mode ${x.mode}`).toBe(x.mode === 'cardio')
+        if (x.mode === 'reps') {
+          expect(x.repsMin, where).toBeLessThanOrEqual(x.reps)
+          expect(x.repsMin, `${where}: below ${p.method} window`).toBeGreaterThanOrEqual(m.reps[0])
+          expect(x.reps, `${where}: above ${p.method} window`).toBeLessThanOrEqual(m.reps[1])
+        }
+        if (x.mode === 'time') expect(x.sec).toBeGreaterThanOrEqual(5)
+        if (x.mode === 'cardio') expect(x.min).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('every model states its rationale and cites research or a reference book', () => {
     for (const p of PROGRAMS) {
       expect(p.basis.length).toBeGreaterThan(80)
-      expect(p.refs.length).toBeGreaterThan(0)
+      expect(p.refs.length + p.books.length, p.id).toBeGreaterThan(0)
       for (const r of p.refs) expect(r.url).toMatch(/^https:\/\//)
+      for (const b of p.books) expect(SOURCES, `${p.id} → ${b}`).toHaveProperty(b)
     }
+  })
+
+  it('method rest fills in where a model sets none, and an explicit rest wins', () => {
+    const fm = PROGRAMS.find(x => x.id === 'fuerza-basica')
+    const plan = layOut(fm, { start: '2026-10-19', weeks: 1, weekdays: [1] })
+    expect(plan[0].ex.every(x => x.rest === METHODS.fuerza_maxima.rest)).toBe(true)
+    const pw = PROGRAMS.find(x => x.id === 'potencia')
+    const legs = layOut(pw, { start: '2026-10-19', weeks: 1, weekdays: [2] })[0]
+    expect(legs.ex.find(x => x.id === '0043').rest).toBe(180)
+    expect(legs.ex.find(x => x.id === '0514').rest).toBe(METHODS.potencia.rest)
   })
 
   it('only use the vocabulary the server accepts', () => {

@@ -58,6 +58,16 @@ export const deleteRecord = (id, clientId) => clientId
   ? api('/api/trainer/client/records/delete', { method: 'POST', body: JSON.stringify({ id: clientId, record: id }) })
   : api('/api/records/delete', { method: 'POST', body: JSON.stringify({ id }) })
 
+/** "4 × 6–8 · 60 kg · 90 s rest", "3 × 45 s", "6 × 2 min · 12 km/h": one prescribed exercise. */
+export function prescription(x, unit = 'kg') {
+  const mode = x.mode || 'reps'
+  const main = mode === 'time' ? `${x.sets} × ${x.sec} s` : mode === 'cardio' ? `${x.sets} × ${fmtNum(x.min)} min` : `${x.sets} × ${x.repsMin}–${x.reps}`
+  const w = x.weight ? ` · ${fmtNum(x.weight)} ${unit}` : ''
+  const sp = x.speed ? ` · ${fmtNum(x.speed)} km/h` : ''
+  const rest = x.rest ? ` · ${t('{0} s rest', x.rest)}` : ''
+  return main + w + sp + rest
+}
+
 /* ---------- client status, as the server computes it ---------- */
 export function statusTag(status) {
   if (!status || status.code === 'new') return { cls: '', text: t('No activity yet') }
@@ -104,6 +114,17 @@ export function useUnread(enabled) {
 // when the client starts. Routines for assignments the trainer withdrew (or replaced) go away;
 // past ones are kept two weeks so a just-finished session still reads right in History.
 export const ASSIGNED = 'tr-'
+
+/** One assigned exercise as a routine entry. Reps progress with double progression over the
+ *  trainer's range (the weight, if given, is where a first session starts); timed holds add
+ *  time; cardio stays as prescribed. `rest` overrides the client's rest timer for it. */
+export function toConfig(x) {
+  const mode = x.mode || 'reps'
+  const rest = x.rest > 0 ? { rest: x.rest } : {}
+  if (mode === 'time') return { id: x.id, sets: x.sets, sec: x.sec, weight: x.weight || 0, mode, prog: 'time', ...rest }
+  if (mode === 'cardio') return { id: x.id, sets: x.sets || 1, min: x.min, speed: x.speed || 8, mode, prog: 'off', ...rest }
+  return { id: x.id, sets: x.sets, reps: x.reps, repsMin: x.repsMin, weight: x.weight || 0, mode: 'reps', prog: 'double', ...rest }
+}
 export function applyAssignments(S, assignments, today) {
   const keepFrom = new Date(Date.parse(today) - 14 * 86400000).toISOString().slice(0, 10)
   const live = new Set(assignments.map(a => ASSIGNED + a.id))
@@ -118,7 +139,7 @@ export function applyAssignments(S, assignments, today) {
     const routine = {
       id, name: a.name, emoji: '💪', prog: 'double',
       assigned: { date: a.date, note: a.note || '', sentAt: a.sentAt },
-      ex: a.ex.map(x => ({ id: x.id, sets: x.sets, reps: x.reps, repsMin: x.repsMin, weight: 0, mode: 'reps', prog: 'double' }))
+      ex: a.ex.map(toConfig)
     }
     const i = S.routines.findIndex(r => r.id === id)
     if (i >= 0) S.routines[i] = { ...S.routines[i], ...routine }; else S.routines.push(routine)

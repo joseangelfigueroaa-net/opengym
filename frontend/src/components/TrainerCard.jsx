@@ -4,7 +4,7 @@ import { api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
 import { fmtDate, todayISO } from '../lib/format.js'
 import { exOr } from '../lib/exercises.js'
-import { useMyTrainer, useUnread } from '../lib/trainer.js'
+import { useMyTrainer, useUnread, prescription } from '../lib/trainer.js'
 import { startFlow } from '../sheets.jsx'
 import Icon from './Icon.jsx'
 
@@ -42,7 +42,7 @@ export default function TrainerCard({ nav }) {
       <div style={{ marginTop: 6 }}>
         {assigned.ex.map((x, i) => <div key={i} className="row between small" style={{ padding: '6px 0', borderTop: i ? '1px solid var(--sep)' : 'none', gap: 8 }}>
           <span className="capitalize" style={{ minWidth: 0 }}>{exOr(x.id).n}</span>
-          <span className="muted" style={{ flexShrink: 0 }}>{x.sets} × {x.repsMin}–{x.reps}</span>
+          <span className="muted" style={{ flexShrink: 0, textAlign: 'right' }}>{prescription(x, S.unit)}</span>
         </div>)}
       </div>
       {doneToday ? <div className="tag ok nocap" style={{ marginTop: 8 }}>{t('Done — your trainer can see it')}</div>
