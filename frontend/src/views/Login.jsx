@@ -5,13 +5,14 @@ import { hasData } from '../store/useStore.js'
 import { t } from '../lib/i18n.js'
 import { DEMO, REPO } from '../lib/demo.js'
 import { useState, useRef, useEffect } from 'react'
+import { pendingInviteToken } from '../lib/trainer.js'
 import Icon from '../components/Icon.jsx'
 import { Button } from '../components/ui.jsx'
 
 function RegisterSheet({ close }) {
   const { setUser, pushState, pullState } = useStore()
   const [name, setName] = useState('')
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(() => (pendingInviteToken() || '').toUpperCase())
   const [inviteOnly, setInviteOnly] = useState(false)
   const ref = useRef(null)
   useEffect(() => { setTimeout(() => ref.current?.focus(), 250) }, [])
@@ -44,6 +45,12 @@ function RegisterSheet({ close }) {
 
 export default function Login() {
   const { setUser, pullState, setGuest } = useStore()
+  // Opened from a trainer's invite link: say whose, so the person knows why they're signing up.
+  const [inviter, setInviter] = useState(null)
+  useEffect(() => {
+    const token = pendingInviteToken()
+    if (token) api('/api/invite?token=' + token).then(r => setInviter(r.trainer.name)).catch(() => {})
+  }, [])
   const signIn = async () => {
     try { const u = await passkeyLogin(); setUser(u); await pullState(); useUI.getState().toast(t('Welcome back, {0}', u.name)) }
     catch (e) { if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') useUI.getState().toast(e.message || t('Sign-in failed')) }
@@ -73,6 +80,9 @@ export default function Login() {
     <div className="narrow" style={wrap}>
       {head}
       <div className="muted" style={{ marginBottom: 34 }}>{t('Your workouts. Your weights. Your profile.')}</div>
+      {inviter && <div className="card small" style={{ textAlign: 'left', marginBottom: 16, borderColor: 'var(--acc)' }}>
+        {t('{0} invited you to be their client. Create your profile, or sign in if you already have one, to accept.', inviter)}
+      </div>}
       {webauthnOK() ? <>
         <Button variant="primary" icon="person" onClick={signIn}>{t('Sign in with passkey')}</Button>
         <div style={{ height: 10 }} />

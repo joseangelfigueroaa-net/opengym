@@ -13,6 +13,8 @@ import * as coachConfig from './coach/config.js';
 import * as coachJobs from './coach/jobs.js';
 import { coachRoutes } from './coach/routes.js';
 import { startCadence } from './coach/cadence.js';
+import { trainerRoutes } from './trainer/routes.js';
+import * as trainer from './trainer/logic.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -49,7 +51,14 @@ let db = { users: [], creds: [], subs: [], invites: [] };
 try { db = JSON.parse(fs.readFileSync(dbFile, 'utf8')); } catch {}
 db.subs = db.subs || [];
 db.invites = db.invites || [];
+trainer.ensureShape(db);
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
+// What the app learns about the signed-in account. `trainer` is null for everyone but trainers.
+const publicUser = user => ({ id: user.id, name: user.name, admin: isAdmin(user), trainer: trainer.isTrainer(user) ? { plan: trainer.planOf(user) } : null });
+// A trainer's invite link doubles as a signup code on an invite-only instance, so a new client
+// can create a profile from the link alone. It is only checked here, not used up: accepting the
+// link after signup is what spends it.
+const trainerCodeOk = code => { try { trainer.usableInvite(db, code); return true; } catch { return false; } };
 function saveDb() { atomicWrite(dbFile, JSON.stringify(db, null, 2)); }
 function atomicWrite(file, content) {
   const tmp = file + '.tmp';
@@ -279,7 +288,7 @@ const routes = {
   'GET /api/me': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
-    json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) } });
+    json(res, 200, { user: publicUser(user) });
   },
 
   'POST /api/register/options': async (req, res) => {
@@ -287,7 +296,7 @@ const routes = {
     const name = String(body.name || '').trim().slice(0, 40);
     if (!name) return json(res, 400, { error: 'name required' });
     const code = String(body.code || '').trim().toUpperCase();
-    if (INVITE_ONLY && !db.invites.some(i => i.code === code && !i.usedBy && !i.revoked))
+    if (INVITE_ONLY && !db.invites.some(i => i.code === code && !i.usedBy && !i.revoked) && !trainerCodeOk(code))
       return json(res, 403, { error: 'a valid invite code is required' });
     const uid = crypto.randomBytes(12).toString('base64url');
     const options = await generateRegistrationOptions({
@@ -322,7 +331,7 @@ const routes = {
     let invite = null;
     if (INVITE_ONLY) {
       invite = db.invites.find(i => i.code === c.code && !i.usedBy && !i.revoked);
-      if (!invite) return json(res, 403, { error: 'invite code is no longer valid — ask for a new one' });
+      if (!invite && !trainerCodeOk(c.code)) return json(res, 403, { error: 'invite code is no longer valid — ask for a new one' });
     }
     const user = { id: c.uid, name: c.name, created: new Date().toISOString() };
     if (invite) { user.invitedBy = invite.code; invite.usedBy = user.id; invite.usedAt = user.created; }
@@ -334,7 +343,7 @@ const routes = {
       transports: body.credential?.response?.transports || []
     });
     saveDb();
-    json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) } }, { 'Set-Cookie': sessionCookie(user) });
+    json(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(user) });
   },
 
   'POST /api/login/options': async (req, res) => {
@@ -373,7 +382,7 @@ const routes = {
     const user = db.users.find(u => u.id === cred.userId);
     if (!user) return json(res, 500, { error: 'user missing' });
     if (user.disabled) return json(res, 403, { error: 'this account has been disabled' });
-    json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) } }, { 'Set-Cookie': sessionCookie(user) });
+    json(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(user) });
   },
 
   'POST /api/logout': async (req, res) => json(res, 200, { ok: true }, { 'Set-Cookie': clearCookie }),
@@ -484,6 +493,8 @@ const routes = {
       return {
         id: u.id, name: u.name, created: u.created || null,
         disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null,
+        trainer: trainer.isTrainer(u) ? trainer.planOf(u) : null,
+        clients: trainer.clientIdsOf(db, u.id).length,
         workouts: workouts.length,
         lastWorkout: last ? last.d : null,
         lastSync: S._ts || null,
@@ -502,7 +513,8 @@ const routes = {
     if (!u) return json(res, 404, { error: 'no such user' });
     const S = readState(u.id) || {};
     json(res, 200, {
-      user: { id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null },
+      user: { id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null,
+        trainer: trainer.isTrainer(u) ? trainer.planOf(u) : null, clients: trainer.clientIdsOf(db, u.id).length },
       unit: S.unit || 'kg',
       lastSync: S._ts || null,
       routines: (S.routines || []).map(r => ({ id: r.id, name: r.name, emoji: r.emoji, count: (r.ex || []).length })),
@@ -562,7 +574,10 @@ const routes = {
   // Routes live in coach/routes.js and are handed the helpers above rather than importing
   // them: they are closures over db and SECRET, and passing them in keeps that module free of
   // a cycle. Every one of them is inert while the feature is unconfigured.
-  ...coachRoutes({ json, readBody, readSession, requireAdmin })
+  ...coachRoutes({ json, readBody, readSession, requireAdmin }),
+
+  /* ---------- trainers and clients (Trainnery) ---------- */
+  ...trainerRoutes({ json, readBody, readSession, requireAdmin, getDb: () => db, saveDb, readState })
 };
 
 /* ---------- Coach: boot recovery, notifications, scheduled reviews ---------- */

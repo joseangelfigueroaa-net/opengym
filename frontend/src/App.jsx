@@ -27,6 +27,9 @@ import Admin from './views/Admin.jsx'
 import Coach from './views/Coach.jsx'
 import CoachIntake from './views/CoachIntake.jsx'
 import CoachProposal from './views/CoachProposal.jsx'
+import Trainer from './views/Trainer.jsx'
+import TrainerClient from './views/TrainerClient.jsx'
+import Join from './views/Join.jsx'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -84,6 +87,11 @@ function Shell() {
               <Route path="/coach" element={<Coach />} />
               <Route path="/coach/intake" element={<CoachIntake />} />
               <Route path="/coach/proposal" element={<CoachProposal />} />
+              {/* Trainnery: trainers and their clients. The trainer screens gate themselves on
+                  user.trainer and the API refuses everyone else; /join is a trainer's invite link. */}
+              <Route path="/trainer" element={<Trainer />} />
+              <Route path="/trainer/c/:id" element={<TrainerClient />} />
+              <Route path="/join/:token" element={<Join />} />
               <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/home" replace />} />
               <Route path="*" element={<Navigate to="/home" replace />} />
             </Routes>

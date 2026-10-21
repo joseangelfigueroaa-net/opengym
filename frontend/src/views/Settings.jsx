@@ -4,7 +4,7 @@ import { useStore, DEF, hasData } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { ACCENTS, todayISO, localTZ } from '../lib/format.js'
 import { effortOf } from '../lib/history.js'
-import { webauthnOK, passkeyLogin, passkeyRegister, IS_ANDROID } from '../lib/api.js'
+import { webauthnOK, passkeyLogin, passkeyRegister, IS_ANDROID, api } from '../lib/api.js'
 import { pushSupported, enablePush, disablePush, sendTestPush } from '../lib/push.js'
 import { wakeLockSupported } from '../lib/wakelock.js'
 import { t, LANGS, INSTR_LANGS } from '../lib/i18n.js'
@@ -15,6 +15,22 @@ import { coachAvailable, hasConsent } from '../lib/coach.js'
 import { forgetCoach } from '../lib/coach-api.js'
 import Icon from '../components/Icon.jsx'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField } from '../components/ui.jsx'
+
+// The client's side of a trainer link: who can see their progress, and the way out.
+function MyTrainerRow() {
+  const toast = useUI(s => s.toast)
+  const [trainer, setTrainer] = useState(null)
+  useEffect(() => { api('/api/me/trainer').then(r => setTrainer(r.trainer)).catch(() => {}) }, [])
+  if (!trainer) return null
+  const leave = () => confirmSheet({
+    title: t('Leave {0}?', trainer.name),
+    message: t('They stop seeing your workouts, body weight and plan. Your data stays with you.'),
+    confirmText: t('Leave'), danger: true,
+    onConfirm: () => api('/api/me/trainer/leave', { method: 'POST', body: '{}' })
+      .then(() => { setTrainer(null); toast(t('You left {0}', trainer.name)) }).catch(e => toast(e.message))
+  })
+  return <Row icon="person" iconTint="var(--teal)" title={t('Your trainer: {0}', trainer.name)} subtitle={t('Sees your workouts, body weight and plan. Tap to leave.')} onClick={leave} />
+}
 
 export default function Settings() {
   const nav = useNavigate()
@@ -89,6 +105,8 @@ export default function Settings() {
           onClick={() => window.open(REPO, '_blank', 'noopener')} />
       </> : user ? <>
         <Row icon="personCircle" iconTint="var(--grey)" title={user.name} subtitle={t('Signed in with passkey — data syncs to this profile.')} />
+        {user.trainer && <Row icon="clipboard" iconTint="var(--acc)" title={t('Trainer dashboard')} subtitle={t('Your clients and invite links')} accessory="chevron" onClick={() => nav('/trainer')} />}
+        <MyTrainerRow />
         {user.admin && <Row icon="wrench" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin')} />}
         <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={() => confirmSheet({ title: t('Sign out?'), message: t('Your data is synced to your profile first, then cleared from this device.'), confirmText: t('Sign out'), danger: true, onConfirm: () => { signOut(); nav('/home') } })} />
         <Row icon="shield" iconTint="var(--red)" title={t('Sign out everywhere')} subtitle={t('Ends this profile’s sessions on all your devices.')} danger onClick={signOutEverywhere} />

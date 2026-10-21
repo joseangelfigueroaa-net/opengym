@@ -7,7 +7,7 @@ import { fmtDate, fmtNum, fmtVol, fmtDur } from '../lib/format.js'
 import { workoutVolume, setsDone } from '../lib/history.js'
 import { confirmSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
-import { Button } from '../components/ui.jsx'
+import { Button, Segmented } from '../components/ui.jsx'
 import AdminCoach from './AdminCoach.jsx'
 
 // Admin-only operator dashboard (owner passkey + admin flag; guarded again server-side).
@@ -35,10 +35,17 @@ function UserDetail({ id, onChanged, close }) {
       .then(() => { toast(disabled ? 'User disabled' : 'User enabled'); onChanged(); close() })
       .catch(e => toast(e.message))
   }
+  // Trainnery: makes the account a trainer on a plan, or takes the role away (links are kept).
+  const setTrainer = plan => {
+    api('/api/admin/user/trainer', { method: 'POST', body: JSON.stringify({ id: u.id, plan: plan === 'none' ? null : plan }) })
+      .then(r => { setD({ ...d, user: { ...u, trainer: r.trainer ? r.trainer.plan : null } }); toast(r.trainer ? 'Trainer plan: ' + r.trainer.plan : 'Trainer role removed'); onChanged() })
+      .catch(e => toast(e.message))
+  }
   return <>
     <h3 className="capitalize">{u.name}</h3>
     <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '8px 0 12px' }}>
       {u.admin && <span className="tag acc">admin</span>}
+      {u.trainer && <span className="tag acc">trainer · {u.trainer}</span>}
       {u.disabled && <span className="tag" style={{ color: 'var(--red)' }}>disabled</span>}
       {u.invitedBy && <span className="tag">invite {u.invitedBy}</span>}
       <span className="tag">joined {u.created ? fmtDate(u.created.slice(0, 10)) : '—'}</span>
@@ -53,6 +60,10 @@ function UserDetail({ id, onChanged, close }) {
       onClick={() => u.disabled ? setDisabled(false)
         : confirmSheet({ title: 'Disable ' + u.name + '?', message: 'They are signed out everywhere and can no longer sync or log in until re-enabled.', confirmText: 'Disable', danger: true, onConfirm: () => setDisabled(true) })}>
       {u.disabled ? 'Enable account' : 'Disable account'}</button>}
+    <h4 className="sec">Trainer plan</h4>
+    <Segmented value={u.trainer || 'none'} onChange={setTrainer}
+      options={[{ value: 'none', label: 'Not a trainer' }, { value: 'free', label: 'Free · 1' }, { value: 'silver', label: 'Silver · 5' }]} />
+    {u.trainer && <div className="dim small" style={{ marginTop: 6 }}>{u.clients} client{u.clients === 1 ? '' : 's'} linked</div>}
     <h4 className="sec">Workout history</h4>
     {d.workouts.length ? <div className="list" style={{ gap: 0 }}>
       {d.workouts.slice(0, 60).map(w => <div key={w.id} className="row between" style={{ padding: '9px 2px', borderBottom: '1px solid var(--sep)' }}>
