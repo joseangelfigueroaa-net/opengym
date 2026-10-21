@@ -7,7 +7,7 @@ import { MOBILE, nativeLoad, nativeSave, syncReminder } from '../lib/mobile.js'
 
 const KEY = 'gym_state_v1'
 export const DEF = {
-  unit: 'kg', restSec: 90, sound: true, keepAwake: true, lang: 'en',
+  unit: 'kg', restSec: 90, sound: true, keepAwake: true, lang: 'es',
   theme: 'dark', accent: 'lime', body: 'male', targetW: null,
   bodyweight: [], routines: [], week: {}, dayPlan: {},
   exWeights: {}, workouts: [], active: null, customEx: [], gifSize: 'full',
@@ -22,6 +22,9 @@ export const DEF = {
   coach: null
 }
 const clone = o => JSON.parse(JSON.stringify(o))
+// Trainnery is Spanish first. Profiles saved before that carry the old default ('en') without
+// anyone having chosen it, so a language only counts once it was picked in Settings (`langPicked`).
+export const uiLang = S => (S.langPicked && S.lang) || 'es'
 
 function loadState() {
   try {
