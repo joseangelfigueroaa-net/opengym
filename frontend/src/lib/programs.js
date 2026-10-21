@@ -6,6 +6,8 @@
 // Exercise ids are the app's library (lib/exercises-data.js); every exercise used here also
 // carries a one-line note on what it trains and why it earns its place.
 //
+// `concepts` points at the knowledge area (lib/knowledge.js) entries each model rests on.
+//
 // Rep ranges drive the app's double progression: the client works inside repsMin–reps and the
 // load goes up once every set reaches the top (see lib/progression.js).
 //
@@ -95,6 +97,7 @@ const e = (id, sets, repsMin, reps) => ({ id, sets, repsMin, reps })
 export const PROGRAMS = [
   {
     id: 'fundamentos',
+    concepts: ['multilateralidad', 'progresion', 'sobrecarga', 'supercompensacion'],
     name: 'Fundamentos de cuerpo completo',
     summary: 'Dos sesiones (A y B) alternadas, 3 días por semana, con los patrones básicos: sentadilla, bisagra, empuje y tracción.',
     level: 'Principiante', days: 3, weekdays: [1, 3, 5],
@@ -108,6 +111,7 @@ export const PROGRAMS = [
   },
   {
     id: 'torso-pierna',
+    concepts: ['componentes-carga', 'especificidad', 'supercompensacion', 'progresion'],
     name: 'Torso / pierna para hipertrofia',
     summary: 'Cuatro días: dos de torso y dos de pierna. Cada músculo se entrena dos veces por semana con 6 a 12 repeticiones.',
     level: 'Intermedio', days: 4, weekdays: [1, 2, 4, 5],
@@ -123,6 +127,7 @@ export const PROGRAMS = [
   },
   {
     id: 'empuje-jalon-pierna',
+    concepts: ['componentes-carga', 'recuperacion', 'supercompensacion'],
     name: 'Empuje / jalón / pierna',
     summary: 'Tres sesiones especializadas que se repiten dos veces por semana (6 días) o una vez (3 días) según el tiempo del cliente.',
     level: 'Intermedio a avanzado', days: 6, weekdays: [1, 2, 3, 4, 5, 6],
@@ -137,6 +142,7 @@ export const PROGRAMS = [
   },
   {
     id: 'fuerza-basica',
+    concepts: ['especificidad', 'fuerza', 'recuperacion', 'energia'],
     name: 'Fuerza con básicos',
     summary: 'Tres días de cuerpo completo con los grandes levantamientos en rangos bajos (3 a 6 repeticiones), pocos ejercicios y descansos largos.',
     level: 'Intermedio', days: 3, weekdays: [1, 3, 5],
@@ -150,6 +156,7 @@ export const PROGRAMS = [
   },
   {
     id: 'perdida-grasa',
+    concepts: ['metodos', 'componentes-carga', 'energia'],
     name: 'Fuerza en circuito para perder grasa',
     summary: 'Tres días de fuerza en formato de circuito, con poco descanso y repeticiones moderadas. Se complementa con 150 a 300 minutos de actividad aeróbica a la semana.',
     level: 'Todos', days: 3, weekdays: [1, 3, 5],
@@ -163,6 +170,7 @@ export const PROGRAMS = [
   },
   {
     id: 'gluteo-pierna',
+    concepts: ['componentes-carga', 'especificidad', 'individualidad'],
     name: 'Énfasis en glúteo y pierna',
     summary: 'Cuatro días: dos de pierna con énfasis en glúteos (extensión de cadera y trabajo a una pierna) y dos de torso para mantener el equilibrio.',
     level: 'Principiante a intermedio', days: 4, weekdays: [1, 2, 4, 5],
@@ -178,6 +186,7 @@ export const PROGRAMS = [
   },
   {
     id: 'rodilla-cuidada',
+    concepts: ['individualidad', 'sobrecarga', 'progresion'],
     name: 'Rodilla cuidada',
     summary: 'Tres días que fortalecen cadera y rodilla con ejercicios de bajo impacto, en rangos tolerables y sin saltos.',
     level: 'Todos', days: 3, weekdays: [1, 3, 5],
@@ -191,6 +200,7 @@ export const PROGRAMS = [
   },
   {
     id: 'espalda-cuidada',
+    concepts: ['individualidad', 'progresion', 'pedagogicos'],
     name: 'Espalda baja cuidada',
     summary: 'Tres días de fuerza general con columna neutra: estabilidad del tronco, bisagra ligera aprendida con control y tracciones con el pecho apoyado.',
     level: 'Todos', days: 3, weekdays: [1, 3, 5],
@@ -204,6 +214,7 @@ export const PROGRAMS = [
   },
   {
     id: 'casa',
+    concepts: ['sobrecarga', 'progresion', 'especificidad'],
     name: 'En casa sin equipo',
     summary: 'Tres días con peso corporal y una banda elástica. La progresión se logra con más repeticiones y variantes más difíciles.',
     level: 'Principiante a intermedio', days: 3, weekdays: [1, 3, 5],
@@ -217,6 +228,7 @@ export const PROGRAMS = [
   },
   {
     id: 'salud-60',
+    concepts: ['mayores', 'individualidad', 'calentamiento'],
     name: 'Salud y autonomía (60+)',
     summary: 'Dos o tres días de fuerza para todo el cuerpo, con ejercicios estables, carga moderada y trabajo de piernas para la marcha y el equilibrio.',
     level: 'Principiante', days: 2, weekdays: [2, 5],

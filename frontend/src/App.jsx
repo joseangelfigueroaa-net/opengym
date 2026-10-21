@@ -33,6 +33,7 @@ import Join from './views/Join.jsx'
 import TrainerChat from './views/TrainerChat.jsx'
 import TrainerContent from './views/TrainerContent.jsx'
 import TrainerPrograms from './views/TrainerPrograms.jsx'
+import Knowledge from './views/Knowledge.jsx'
 import Log from './views/Log.jsx'
 import ClientChat from './views/ClientChat.jsx'
 import ContentFeed from './views/ContentFeed.jsx'
@@ -153,6 +154,8 @@ function Shell() {
               <Route path="/trainer/chat/:id" element={<TrainerChat />} />
               <Route path="/trainer/content" element={<TrainerContent />} />
               <Route path="/log" element={<Log />} />
+              <Route path="/knowledge" element={<Knowledge />} />
+              <Route path="/knowledge/:id" element={<Knowledge />} />
               <Route path="/chat" element={<ClientChat />} />
               <Route path="/content" element={<ContentFeed />} />
               <Route path="/join/:token" element={<Join />} />

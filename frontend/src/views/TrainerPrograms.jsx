@@ -7,6 +7,7 @@ import { t } from '../lib/i18n.js'
 import { todayISO, fmtDate, DAYS } from '../lib/format.js'
 import { exOr } from '../lib/exercises.js'
 import { PROGRAMS, EX_NOTES, GOALS, LIMITS, FOCUS, fitScore, layOut } from '../lib/programs.js'
+import { conceptById } from '../lib/knowledge.js'
 import { profileSheet } from '../components/ProfileSheet.jsx'
 import Icon from '../components/Icon.jsx'
 import { Button, TextArea } from '../components/ui.jsx'
@@ -121,6 +122,10 @@ export default function TrainerPrograms() {
           <ul className="small dim" style={{ margin: '0 0 10px', paddingLeft: 18, display: 'grid', gap: 4 }}>
             {p.refs.map(r => <li key={r.url}><a href={r.url} target="_blank" rel="noopener noreferrer">{r.text}</a></li>)}
           </ul>
+          <div className="lbl2">{t('Concepts behind it')}</div>
+          <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '6px 0 4px' }}>
+            {p.concepts.map(cid => <button key={cid} type="button" className="chip nocap" onClick={() => nav('/knowledge/' + cid)}>{conceptById[cid].title}</button>)}
+          </div>
           {p.sessions.map(s => <div key={s.name} style={{ marginTop: 10 }}>
             <div style={{ fontWeight: 600 }}>{s.name}</div>
             {s.ex.map((x, i) => <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--sep)' }}>

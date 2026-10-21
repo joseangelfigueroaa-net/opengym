@@ -7,7 +7,7 @@ import { useMyTrainer, useUnread } from '../lib/trainer.js'
 import Icon from './Icon.jsx'
 
 // Two tab bars, one per role (Trainnery). A trainer works with clients: Clients, Chat, Content,
-// Settings. A client trains and logs: Today, Log, Start, Progress, and Chat when they have a
+// Knowledge, Settings. A client trains and logs: Today, Log, Start, Progress, and Chat when they have a
 // trainer (Exercises otherwise). Plan and the exercise library stay one tap away from Today.
 export default function TabBar({ onStart }) {
   const nav = useNavigate()
@@ -33,6 +33,7 @@ export default function TabBar({ onStart }) {
       <Tab on={path === '/trainer' || path.startsWith('/trainer/c/')} icon="person" to="/trainer" label={t('Clients')} />
       <Tab on={path.startsWith('/trainer/chat')} icon="chat" to="/trainer/chat" label={t('Chat')} badge={unread} />
       <Tab on={path.startsWith('/trainer/content')} icon="library" to="/trainer/content" label={t('Content')} />
+      <Tab on={path.startsWith('/knowledge')} icon="lightbulb" to="/knowledge" label={t('Knowledge')} />
       <Tab on={path === '/settings' || path === '/admin'} icon="gear" to="/settings" label={t('Settings')} />
     </nav>
   )
@@ -47,7 +48,7 @@ export default function TabBar({ onStart }) {
   }
   return (
     <nav id="tabbar" aria-label={t('Sections')}>
-      <Tab on={['home', 'settings', 'plan', 'content'].includes(cur)} icon="house" to="/home" label={t('Today')} />
+      <Tab on={['home', 'settings', 'plan', 'content', 'knowledge'].includes(cur)} icon="house" to="/home" label={t('Today')} />
       <Tab on={cur === 'log'} icon="plus" to="/log" label={t('Log')} />
       <button className={'start' + (S.active ? ' rec' : '')} onClick={startWorkout}>
         <span className="cir"><Icon name={S.active ? 'play' : 'dumbbell'} /></span>

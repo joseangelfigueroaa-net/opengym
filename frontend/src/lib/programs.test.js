@@ -46,3 +46,23 @@ describe('training models', () => {
     expect(plan.map(d => d.name.slice(-1))).toEqual(['A', 'B', 'A', 'B', 'A', 'B'])
   })
 })
+
+import { CONCEPTS, SOURCES, conceptById, CATEGORIES } from './knowledge.js'
+
+describe('knowledge area', () => {
+  it('every concept cites existing sources and belongs to a category', () => {
+    for (const c of CONCEPTS) {
+      expect(CATEGORIES, c.id).toHaveProperty(c.cat)
+      expect(c.sources.length, c.id).toBeGreaterThan(0)
+      c.sources.forEach(s => expect(SOURCES, `${c.id} → ${s}`).toHaveProperty(s))
+      expect(c.summary.length).toBeGreaterThan(60)
+    }
+  })
+  it('concept ids are unique and every model links to real concepts', () => {
+    expect(new Set(CONCEPTS.map(c => c.id)).size).toBe(CONCEPTS.length)
+    for (const p of PROGRAMS) {
+      expect(p.concepts.length, p.id).toBeGreaterThan(0)
+      p.concepts.forEach(id => expect(conceptById[id], `${p.id} → ${id}`).toBeTruthy())
+    }
+  })
+})

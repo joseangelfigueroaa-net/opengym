@@ -114,6 +114,7 @@ export default function Home() {
     <div className="row" style={{ gap: 8, marginBottom: 12 }}>
       <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/plan')}><Icon name="calendar" /> {t('Weekly plan')}</button>
       <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/library')}><Icon name="list" /> {t('Exercises')}</button>
+      <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/knowledge')}><Icon name="lightbulb" /> {t('Learn')}</button>
     </div>
 
     {!S.routines.some(r => !r.assigned) && !S.active && (

@@ -957,4 +957,18 @@ export default {
   // Trainnery: week counts
   "{0} week": "{0} semana",
   "{0} weeks": "{0} semanas",
+  // Trainnery: knowledge area
+  "In Trainnery": "En Trainnery",
+  "Models that apply it": "Modelos que lo aplican",
+  "Sources": "Fuentes",
+  "Knowledge": "Conocimiento",
+  "Training theory, in short, with its sources": "Teoría del entrenamiento, en breve y con sus fuentes",
+  "Search a concept, e.g. supercompensación": "Busca un concepto, ej.: supercompensación",
+  "Search a concept": "Buscar un concepto",
+  "Category": "Categoría",
+  "No concept matches “{0}”.": "Ningún concepto coincide con «{0}».",
+  "Reference books": "Libros de referencia",
+  "The concepts are summaries in our own words; read the books for the full development.": "Los conceptos son resúmenes en nuestras palabras; para el desarrollo completo, consulta los libros.",
+  "Concepts behind it": "Conceptos en los que se basa",
+  "Learn": "Aprende",
 }
