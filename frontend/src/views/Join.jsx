@@ -38,7 +38,7 @@ export default function Join() {
       </> : <>
         <h1 style={{ margin: '12px 0 6px' }}>{t('{0} invited you', inv.trainer.name)}</h1>
         <div className="muted" style={{ marginBottom: 24 }}>{t('As their client, they will see your workouts, body weight and plan. They cannot change anything, and you can leave anytime in Settings.')}</div>
-        <Button variant="primary" onClick={accept} disabled={busy}>{t('Accept invite')}</Button>
+        <Button variant="primary" onClick={accept} disabled={busy}>{busy ? t('Accepting…') : t('Accept invite')}</Button>
         <div style={{ height: 10 }} />
         <Button variant="ghost" className="dim" onClick={() => nav('/home', { replace: true })}>{t('Not now')}</Button>
       </>}

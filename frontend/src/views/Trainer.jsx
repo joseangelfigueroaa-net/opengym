@@ -6,6 +6,7 @@ import { api } from '../lib/api.js'
 import { fmtDate, fmtNum } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import { shareInvite } from '../lib/trainer.js'
+import { confirmSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
 import { Button } from '../components/ui.jsx'
 
@@ -31,8 +32,13 @@ export default function Trainer() {
     .then(async ({ invite }) => { load(); const msg = await shareInvite(invite.token); if (msg) toast(msg) })
     .catch(e => toast(e.message))
   const reshare = token => shareInvite(token).then(msg => msg && toast(msg))
-  const revoke = token => api('/api/trainer/invite/revoke', { method: 'POST', body: JSON.stringify({ token }) })
-    .then(() => { toast(t('Invite cancelled')); load() }).catch(e => toast(e.message))
+  const revoke = token => confirmSheet({
+    title: t('Cancel this invite?'),
+    message: t('The link stops working at once and its seat is freed. Anyone you already sent it to will need a new one.'),
+    confirmText: t('Cancel invite'), danger: true,
+    onConfirm: () => api('/api/trainer/invite/revoke', { method: 'POST', body: JSON.stringify({ token }) })
+      .then(() => { toast(t('Invite cancelled')); load() }).catch(e => toast(e.message))
+  })
 
   return <div className="narrow">
     <div className="hdr">
@@ -52,8 +58,9 @@ export default function Trainer() {
         <div><div className="small" style={{ fontWeight: 600 }}>{t('Waiting to be accepted')}</div>
           <div className="dim" style={{ fontSize: '.72rem' }}>{t('Created {0}', fmtDate(i.created.slice(0, 10)))}</div></div>
         <div className="row" style={{ gap: 6 }}>
-          <button className="iconbtn" style={{ width: 32, height: 30, borderRadius: 8, fontSize: 15 }} onClick={() => reshare(i.token)} aria-label={t('Share again')}><Icon name="link" /></button>
-          <button className="iconbtn" style={{ width: 32, height: 30, borderRadius: 8, fontSize: 15, color: 'var(--red)' }} onClick={() => revoke(i.token)} aria-label={t('Cancel invite')}><Icon name="trash" /></button>
+          {/* 44px: these sit side by side on a phone, the one place a mis-tap cancels a link */}
+          <button className="iconbtn" style={{ width: 44, height: 44, fontSize: 17 }} onClick={() => reshare(i.token)} aria-label={t('Share again')}><Icon name="link" /></button>
+          <button className="iconbtn" style={{ width: 44, height: 44, fontSize: 17, color: 'var(--red)' }} onClick={() => revoke(i.token)} aria-label={t('Cancel invite')}><Icon name="trash" /></button>
         </div>
       </div>)}
     </div>
