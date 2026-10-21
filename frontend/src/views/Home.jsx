@@ -116,7 +116,7 @@ export default function Home() {
       <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/library')}><Icon name="list" /> {t('Exercises')}</button>
     </div>
 
-    {!S.routines.length && !S.active && (
+    {!S.routines.some(r => !r.assigned) && !S.active && (
       <div className="card">
         <div className="row" style={{ gap: 10, marginBottom: 6 }}>
           <span className="lrow-i"><Icon name="sparkles" /></span>

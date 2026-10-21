@@ -141,7 +141,8 @@ test('the client file carries progress but nothing Coach- or device-private', ()
   assert.equal(d.workouts, 3);
   assert.equal(d.last30, 2);
   assert.equal(d.lastWorkout, '2026-10-19');
-  assert.deepEqual(d.routines, [{ id: 'r1', name: 'Fuerza', emoji: '💪', count: 2 }]);
+  assert.deepEqual(d.routines.map(({ id, name, emoji, count }) => ({ id, name, emoji, count })), [{ id: 'r1', name: 'Fuerza', emoji: '💪', count: 2 }]);
+  assert.equal(d.routines[0].ex.length, 2);   // exercises ride along so the trainer can start from a routine
   assert.deepEqual(d.history.map(w => w.d), ['2026-10-19', '2026-10-10', '2026-08-01']);
   assert.equal(d.coach, undefined);
   assert.equal(d.active, undefined);

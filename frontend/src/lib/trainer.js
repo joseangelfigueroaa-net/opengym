@@ -96,3 +96,32 @@ export function useUnread(enabled) {
   }, [enabled])
   return n
 }
+
+/* ---------- workouts the trainer assigned ---------- */
+// Each assignment becomes an ordinary routine (id tr-<assignment id>) pinned to its day through
+// dayPlan, so Today, the Start button, the guided workout and progression all treat it like
+// any other session. Double progression over the trainer's rep range is what the app applies
+// when the client starts. Routines for assignments the trainer withdrew (or replaced) go away;
+// past ones are kept two weeks so a just-finished session still reads right in History.
+export const ASSIGNED = 'tr-'
+export function applyAssignments(S, assignments, today) {
+  const keepFrom = new Date(Date.parse(today) - 14 * 86400000).toISOString().slice(0, 10)
+  const live = new Set(assignments.map(a => ASSIGNED + a.id))
+  const from = new Date(Date.parse(today) - 86400000).toISOString().slice(0, 10)
+  // drop: withdrawn ones still ahead (the server serves yesterday on) and stale ones
+  const gone = S.routines.filter(r => r.id.startsWith(ASSIGNED) && r.assigned &&
+    ((r.assigned.date >= from && !live.has(r.id)) || r.assigned.date < keepFrom)).map(r => r.id)
+  S.routines = S.routines.filter(r => !gone.includes(r.id))
+  for (const [d, rid] of Object.entries(S.dayPlan)) if (gone.includes(rid)) delete S.dayPlan[d]
+  for (const a of assignments) {
+    const id = ASSIGNED + a.id
+    const routine = {
+      id, name: a.name, emoji: '💪', prog: 'double',
+      assigned: { date: a.date, note: a.note || '', sentAt: a.sentAt },
+      ex: a.ex.map(x => ({ id: x.id, sets: x.sets, reps: x.reps, repsMin: x.repsMin, weight: 0, mode: 'reps', prog: 'double' }))
+    }
+    const i = S.routines.findIndex(r => r.id === id)
+    if (i >= 0) S.routines[i] = { ...S.routines[i], ...routine }; else S.routines.push(routine)
+    S.dayPlan[a.date] = id
+  }
+}

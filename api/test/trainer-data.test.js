@@ -132,3 +132,54 @@ test('the public post shape carries no server path', () => {
   assert.equal(post.file.name.includes('/'), false);
   assert.deepEqual(Object.keys(K.publicPost(post).file), ['name', 'type', 'size']);
 });
+
+/* ---------------- assigned workouts ---------------- */
+import * as A from '../trainer/assign.js';
+
+const WO = { date: '2026-10-21', name: 'Torso: empuje', note: 'Baja lento', ex: [{ id: '0025', sets: 3, repsMin: 6, reps: 8 }] };
+
+test('an assignment keeps its exercises and rep range', () => {
+  const a = A.makeAssignment(WO, 't1', NOW);
+  assert.deepEqual(a.ex, [{ id: '0025', sets: 3, repsMin: 6, reps: 8 }]);
+  assert.equal(a.by, 't1');
+});
+
+test('assignments refuse bad dates, names, ranges and exercise ids', () => {
+  assert.match(err(() => A.makeAssignment({ ...WO, date: '2026-10-01' }, 't1', NOW)), /today or a later/);
+  assert.match(err(() => A.makeAssignment({ ...WO, name: ' ' }, 't1', NOW)), /name/);
+  assert.match(err(() => A.makeAssignment({ ...WO, ex: [] }, 't1', NOW)), /at least one/);
+  assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '0025', sets: 3, repsMin: 10, reps: 8 }] }, 't1', NOW)), /above the maximum/);
+  assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '../x', sets: 3, reps: 8 }] }, 't1', NOW)), /not valid/);
+  assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '0025', sets: 30, reps: 8 }] }, 't1', NOW)), /sets/);
+});
+
+test('one assignment per day: sending again replaces it', () => {
+  const f = {};
+  A.upsert(f, A.makeAssignment(WO, 't1', NOW));
+  A.upsert(f, A.makeAssignment({ ...WO, name: 'Pierna' }, 't1', NOW));
+  A.upsert(f, A.makeAssignment({ ...WO, date: '2026-10-23' }, 't1', NOW));
+  assert.deepEqual(f.items.map(a => [a.date, a.name]), [['2026-10-21', 'Pierna'], ['2026-10-23', 'Torso: empuje']]);
+});
+
+test('the client sees yesterday onwards; the trainer the last weeks, newest first', () => {
+  const f = { items: [{ date: '2026-09-01' }, { date: '2026-10-19' }, { date: '2026-10-20' }, { date: '2026-10-25' }] };
+  assert.deepEqual(A.upcoming(f, '2026-10-21').map(a => a.date), ['2026-10-20', '2026-10-25']);
+  assert.deepEqual(A.recent(f, '2026-10-21').map(a => a.date), ['2026-10-25', '2026-10-20', '2026-10-19']);
+});
+
+test('assignments reach up to two months ahead, no further', () => {
+  assert.ok(A.makeAssignment({ ...WO, date: '2026-12-20' }, 't1', NOW));
+  assert.match(err(() => A.makeAssignment({ ...WO, date: '2027-01-15' }, 't1', NOW)), /days ahead/);
+});
+
+test('a month plan is checked whole: one bad day sends nothing', () => {
+  const days = ['2026-10-21', '2026-10-23', '2026-10-26'].map(date => ({ ...WO, date }));
+  assert.equal(A.makeBatch(days, 't1', NOW).length, 3);
+  assert.match(err(() => A.makeBatch([...days, { ...WO, date: '2026-10-28', ex: [] }], 't1', NOW)), /2026-10-28: add at least one/);
+  assert.match(err(() => A.makeBatch([days[0], days[0]], 't1', NOW)), /same day/);
+});
+
+test('the client profile keeps only known keys', () => {
+  assert.deepEqual(A.cleanProfile({ goal: 'muscle', limits: ['knee', 'knee', 'evil'], focus: 'zzz', days: '4', notes: ' x ' }),
+    { goal: 'muscle', limits: ['knee'], focus: null, days: 4, notes: 'x' });
+});

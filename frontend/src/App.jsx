@@ -32,10 +32,13 @@ import TrainerClient from './views/TrainerClient.jsx'
 import Join from './views/Join.jsx'
 import TrainerChat from './views/TrainerChat.jsx'
 import TrainerContent from './views/TrainerContent.jsx'
+import TrainerPrograms from './views/TrainerPrograms.jsx'
 import Log from './views/Log.jsx'
 import ClientChat from './views/ClientChat.jsx'
 import ContentFeed from './views/ContentFeed.jsx'
 import { api } from './lib/api.js'
+import { applyAssignments } from './lib/trainer.js'
+import { todayISO } from './lib/format.js'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -67,6 +70,28 @@ function useTrainerWeighIns(enabled) {
   }, [enabled])
 }
 
+// Workouts the trainer assigned become routines on their days (lib/trainer.js). Checked when
+// the app opens and whenever it comes back to the foreground, same boot gating as above; only
+// writes when something actually changed, so an idle check never syncs state.
+function useTrainerAssignments(enabled) {
+  useEffect(() => {
+    if (!enabled) return
+    const sync = () => {
+      if (document.hidden) return
+      api('/api/assignments').then(({ assignments }) => {
+        const cur = useStore.getState().S
+        const next = JSON.parse(JSON.stringify({ routines: cur.routines, dayPlan: cur.dayPlan }))
+        applyAssignments(next, assignments, todayISO())
+        if (JSON.stringify(next.routines) === JSON.stringify(cur.routines) && JSON.stringify(next.dayPlan) === JSON.stringify(cur.dayPlan)) return
+        useStore.getState().update(s => { s.routines = next.routines; s.dayPlan = next.dayPlan })
+      }).catch(() => {})
+    }
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => document.removeEventListener('visibilitychange', sync)
+  }, [enabled])
+}
+
 function Shell() {
   const navigate = useNavigate()
   const loc = useLocation()
@@ -84,6 +109,7 @@ function Shell() {
   // only once boot has pulled the server copy: writing into the empty local state of a fresh
   // device before that would sync it back and replace the client's real data
   useTrainerWeighIns(ready && !!user && !user.trainer)
+  useTrainerAssignments(ready && !!user && !user.trainer)
   const home = user?.trainer ? '/trainer' : '/home'
 
   const authed = user || isGuest
@@ -122,6 +148,7 @@ function Shell() {
                   user.trainer and the API refuses everyone else; /join is a trainer's invite link. */}
               <Route path="/trainer" element={<Trainer />} />
               <Route path="/trainer/c/:id" element={<TrainerClient />} />
+              <Route path="/trainer/c/:id/models" element={<TrainerPrograms />} />
               <Route path="/trainer/chat" element={<TrainerChat />} />
               <Route path="/trainer/chat/:id" element={<TrainerChat />} />
               <Route path="/trainer/content" element={<TrainerContent />} />

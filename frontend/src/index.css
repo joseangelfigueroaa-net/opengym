@@ -954,3 +954,4 @@ h4.sec{
   .chat-layout{display:grid;grid-template-columns:280px 1fr;gap:14px;align-items:start}
   .chat-inbox{display:block}
 }
+.up{color:var(--green)}

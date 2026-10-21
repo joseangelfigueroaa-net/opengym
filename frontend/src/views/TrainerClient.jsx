@@ -10,6 +10,7 @@ import { t } from '../lib/i18n.js'
 import { statusTag, recordText, deleteRecord, MEASURE_ZONES, RECORD_KINDS } from '../lib/trainer.js'
 import { confirmSheet } from '../sheets.jsx'
 import { recordSheet } from '../components/RecordSheet.jsx'
+import TrainerPlanCard from '../components/TrainerPlanCard.jsx'
 import LineChart from '../components/LineChart.jsx'
 import Icon from '../components/Icon.jsx'
 import { Segmented } from '../components/ui.jsx'
@@ -85,6 +86,8 @@ export default function TrainerClient() {
       <button className="btn tinted" style={{ flex: '1 1 200px', margin: 0 }} onClick={() => recordSheet({ clientId: id, clientName: first, kind: 'weight', onSaved: load })}>
         <Icon name="scale" /> {t('Weigh in')}</button>
     </div>
+
+    <TrainerPlanCard client={c} nav={nav} />
 
     <div className="tiles" style={{ marginBottom: 12 }}>
       <div className="tile"><div className="l">{t('Body weight')}</div>

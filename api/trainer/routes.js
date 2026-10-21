@@ -11,6 +11,7 @@ import * as T from './logic.js';
 import * as R from './records.js';
 import * as C from './chat.js';
 import * as K from './content.js';
+import * as A from './assign.js';
 
 export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb, saveDb, readState, dataDir, atomicWrite, sendPush }) {
   const signedIn = (req, res) => {
@@ -27,7 +28,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   // the server's 500 handler, which never echoes it.
   const fail = (res, e) => {
     if (e instanceof T.TrainerError) return json(res, T.HTTP_FOR[e.code] || 400, { error: e.message, code: e.code });
-    if (e instanceof R.RecordError || e instanceof C.ChatError || e instanceof K.ContentError) return json(res, 400, { error: e.message });
+    if (e instanceof R.RecordError || e instanceof C.ChatError || e instanceof K.ContentError || e instanceof A.AssignError) return json(res, 400, { error: e.message });
     throw e;
   };
   const db = () => T.ensureShape(getDb());
@@ -45,6 +46,8 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   const recordsOf = uid => load('records-' + safe(uid) + '.json');
   const chatOf = clientId => load('chat-' + safe(clientId) + '.json');
   const contentOf = trainerId => load('content-' + safe(trainerId) + '.json');
+  const assignOf = clientId => load('assign-' + safe(clientId) + '.json');
+  const today = () => new Date().toISOString().slice(0, 10);
   const contentDir = trainerId => path.join(dataDir, 'content', safe(trainerId));
 
   /** The trainer's own client by id, or a refusal already sent. */
@@ -129,6 +132,83 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const body = await readBody(req);
       try { T.unlink(db(), trainer.id, String(body.id || '')); saveDb(); json(res, 200, { ok: true, seats: seats(trainer) }); }
       catch (e) { fail(res, e); }
+    },
+
+    /* ------------------------------ assigned workouts ------------------------------ */
+
+    'GET /api/trainer/client/assignments': async (req, res) => {
+      const trainer = asTrainer(req, res); if (!trainer) return;
+      const u = ownClient(req, res, trainer, query(req, 'id')); if (!u) return;
+      const file = assignOf(u.id);
+      json(res, 200, { assignments: A.recent(file, today(), 28), profile: file.profile || A.cleanProfile({}) });
+    },
+
+    // Sends (or replaces) the workout for one day; the client hears about it by push.
+    'POST /api/trainer/client/assign': async (req, res) => {
+      const trainer = asTrainer(req, res); if (!trainer) return;
+      const body = await readBody(req);
+      const u = ownClient(req, res, trainer, String(body.id || '')); if (!u) return;
+      try {
+        const file = assignOf(u.id);
+        const a = A.upsert(file, A.makeAssignment(body, trainer.id));
+        store('assign-' + safe(u.id) + '.json', file);
+        const when = a.date === today() ? 'today' : a.date;
+        notify(u.id, trainer.name, `${a.name} · ${when}`, '#/home');
+        json(res, 200, { assignment: a });
+      } catch (e) { fail(res, e); }
+    },
+
+    // A plan laid over several days (a training model over a month): all or nothing, one push.
+    'POST /api/trainer/client/assign/batch': async (req, res) => {
+      const trainer = asTrainer(req, res); if (!trainer) return;
+      const body = await readBody(req);
+      const u = ownClient(req, res, trainer, String(body.id || '')); if (!u) return;
+      try {
+        const list = A.makeBatch(body.items, trainer.id);
+        const file = assignOf(u.id);
+        for (const a of list) A.upsert(file, a);
+        store('assign-' + safe(u.id) + '.json', file);
+        notify(u.id, trainer.name, `${list.length} workouts · ${list[0].date} → ${list[list.length - 1].date}`, '#/home');
+        json(res, 200, { assignments: list });
+      } catch (e) { fail(res, e); }
+    },
+
+    // The trainer's notes on what this client's plan is built around (goal, limitations, focus).
+    'GET /api/trainer/client/profile': async (req, res) => {
+      const trainer = asTrainer(req, res); if (!trainer) return;
+      const u = ownClient(req, res, trainer, query(req, 'id')); if (!u) return;
+      json(res, 200, { profile: assignOf(u.id).profile || A.cleanProfile({}) });
+    },
+
+    'POST /api/trainer/client/profile': async (req, res) => {
+      const trainer = asTrainer(req, res); if (!trainer) return;
+      const body = await readBody(req);
+      const u = ownClient(req, res, trainer, String(body.id || '')); if (!u) return;
+      const file = assignOf(u.id);
+      file.profile = A.cleanProfile(body);
+      store('assign-' + safe(u.id) + '.json', file);
+      json(res, 200, { profile: file.profile });
+    },
+
+    'POST /api/trainer/client/assign/delete': async (req, res) => {
+      const trainer = asTrainer(req, res); if (!trainer) return;
+      const body = await readBody(req);
+      const u = ownClient(req, res, trainer, String(body.id || '')); if (!u) return;
+      try {
+        const file = assignOf(u.id);
+        A.remove(file, String(body.assignment || ''));
+        store('assign-' + safe(u.id) + '.json', file);
+        json(res, 200, { ok: true });
+      } catch (e) { fail(res, e); }
+    },
+
+    // A client's assignments from yesterday on, from whoever trains them now. Ones left by a
+    // former trainer stay in the file but are not served.
+    'GET /api/assignments': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const tr = trainerOf(user);
+      const items = tr ? A.upcoming(assignOf(user.id), today()).filter(a => a.by === tr.id) : [];
+      json(res, 200, { assignments: items, trainer: tr ? { id: tr.id, name: tr.name } : null });
     },
 
     /* ------------------------------ content ------------------------------ */

@@ -222,7 +222,12 @@ export function clientDetail(user, link, S, rec = null, now = Date.now()) {
     loads: loads(S),
     activity: activity(S, entries),
     records: R.latest(entries, 200),
-    routines: (S.routines || []).map(r => ({ id: r.id, name: r.name, emoji: r.emoji, count: (r.ex || []).length })),
+    // the client's own routines, with their exercises so the trainer can start an assigned
+    // workout from one; routines the app made from earlier assignments (tr-…) are left out
+    routines: (S.routines || []).filter(r => !String(r.id).startsWith('tr-')).map(r => ({
+      id: r.id, name: r.name, emoji: r.emoji, count: (r.ex || []).length,
+      ex: (r.ex || []).filter(e => (e.mode || 'reps') === 'reps').map(e => ({ id: e.id, sets: e.sets || 3, reps: e.reps || 10, repsMin: e.repsMin || 0 }))
+    })),
     plan: S.week || {},
     customEx: (S.customEx || []).map(e => ({ id: e.id, name: e.name })),
     // the sessions themselves, newest first; 60 is a couple of months for someone training
