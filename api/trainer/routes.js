@@ -251,7 +251,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     // A client's own records (the trainer's entries for them included).
     'GET /api/records': async (req, res) => {
       const user = signedIn(req, res); if (!user) return;
-      json(res, 200, { records: (recordsOf(user.id).entries || []).slice(-500).reverse() });
+      json(res, 200, { records: R.latest(recordsOf(user.id).entries, 500) });
     },
 
     'POST /api/records': async (req, res) => {

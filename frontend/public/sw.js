@@ -15,14 +15,19 @@ self.addEventListener('push', e => {
     icon: 'icon-512.png',
     badge: 'icon-180.png',
     tag: data.tag || 'opengym',
-    renotify: true
+    renotify: true,
+    data: { url: typeof data.url === 'string' && data.url.startsWith('#/') ? data.url : '' }
   }))
 })
+// Opens (or focuses) the app on the screen the notification is about — a chat message lands
+// in that conversation — falling back to the home screen.
 self.addEventListener('notificationclick', e => {
   e.notification.close()
+  const hash = (e.notification.data && e.notification.data.url) || ''
   e.waitUntil(self.clients.matchAll({ type: 'window' }).then(clients => {
     const c = clients.find(c => 'focus' in c)
-    return c ? c.focus() : self.clients.openWindow('./')
+    if (c) return c.focus().then(w => (hash && w && 'navigate' in w ? w.navigate('./' + hash) : w))
+    return self.clients.openWindow('./' + hash)
   }))
 })
 

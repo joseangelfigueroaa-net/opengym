@@ -72,6 +72,9 @@ export function removeEntry(file, id, authorId) {
 
 const byDay = (a, b) => a.d.localeCompare(b.d) || String(a.at || '').localeCompare(String(b.at || ''));
 
+/** The newest `n` records by the day they describe (not when they were typed in), newest first. */
+export const latest = (entries, n) => [...(entries || [])].sort(byDay).slice(-n).reverse();
+
 /** One weight curve from the client's own log and the records; on the same day the record
  *  (a deliberate weigh-in) wins over the app's log. */
 export function weightSeries(stateBodyweight, entries) {

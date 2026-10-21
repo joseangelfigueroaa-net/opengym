@@ -30,6 +30,12 @@ import CoachProposal from './views/CoachProposal.jsx'
 import Trainer from './views/Trainer.jsx'
 import TrainerClient from './views/TrainerClient.jsx'
 import Join from './views/Join.jsx'
+import TrainerChat from './views/TrainerChat.jsx'
+import TrainerContent from './views/TrainerContent.jsx'
+import Log from './views/Log.jsx'
+import ClientChat from './views/ClientChat.jsx'
+import ContentFeed from './views/ContentFeed.jsx'
+import { api } from './lib/api.js'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
@@ -39,6 +45,26 @@ function applyPrefs(theme, accent) {
   de.dataset.accent = ACCENTS[accent] ? accent : 'lime'
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.content = de.dataset.theme === 'light' ? '#f2f2f7' : '#000000'
+}
+
+// A weigh-in the trainer logged for this client lands in the client's own body-weight log too,
+// so Home, Stats and the pre-workout check-in all see one curve. Once per session, and only
+// after boot's pull (see the call site); a day the client already weighed in keeps the
+// client's number.
+function useTrainerWeighIns(enabled) {
+  useEffect(() => {
+    if (!enabled) return
+    api('/api/records').then(({ records }) => {
+      const theirs = records.filter(r => r.kind === 'weight' && r.role === 'trainer')
+      const S = useStore.getState().S
+      const missing = theirs.filter(r => !S.bodyweight.some(b => b.d === r.d))
+      if (!missing.length) return
+      useStore.getState().update(s => {
+        for (const r of missing) if (!s.bodyweight.some(b => b.d === r.d)) s.bodyweight.push({ d: r.d, w: r.v.kg, t: Date.parse(r.at) })
+        s.bodyweight.sort((a, b) => (a.d < b.d ? -1 : 1))
+      })
+    }).catch(() => {})
+  }, [enabled])
 }
 
 function Shell() {
@@ -55,6 +81,10 @@ function Shell() {
   useEffect(() => { window.scrollTo(0, 0) }, [loc.pathname])
   // bound to the workout, not to the route — checking Stats mid-session keeps the screen on
   useWakeLock(!!S.active && S.keepAwake !== false)
+  // only once boot has pulled the server copy: writing into the empty local state of a fresh
+  // device before that would sync it back and replace the client's real data
+  useTrainerWeighIns(ready && !!user && !user.trainer)
+  const home = user?.trainer ? '/trainer' : '/home'
 
   const authed = user || isGuest
   if (!ready && !authed) return (
@@ -73,7 +103,8 @@ function Shell() {
         <ErrorBoundary>
           {!authed ? <Login /> : (
             <Routes>
-              <Route path="/home" element={<Home />} />
+              {/* a trainer's home is their client panel */}
+              <Route path="/home" element={user?.trainer ? <Navigate to="/trainer" replace /> : <Home />} />
               <Route path="/plan" element={<Plan />} />
               <Route path="/plan/r/:id" element={<RoutineEdit />} />
               <Route path="/workout" element={<Workout />} />
@@ -91,9 +122,15 @@ function Shell() {
                   user.trainer and the API refuses everyone else; /join is a trainer's invite link. */}
               <Route path="/trainer" element={<Trainer />} />
               <Route path="/trainer/c/:id" element={<TrainerClient />} />
+              <Route path="/trainer/chat" element={<TrainerChat />} />
+              <Route path="/trainer/chat/:id" element={<TrainerChat />} />
+              <Route path="/trainer/content" element={<TrainerContent />} />
+              <Route path="/log" element={<Log />} />
+              <Route path="/chat" element={<ClientChat />} />
+              <Route path="/content" element={<ContentFeed />} />
               <Route path="/join/:token" element={<Join />} />
               <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/home" replace />} />
-              <Route path="*" element={<Navigate to="/home" replace />} />
+              <Route path="*" element={<Navigate to={home} replace />} />
             </Routes>
           )}
         </ErrorBoundary>

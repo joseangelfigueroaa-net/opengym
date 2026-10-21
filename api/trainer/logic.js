@@ -178,7 +178,9 @@ export function activity(S, entries, limit = 30) {
     })),
     ...(entries || []).map(e => ({ type: 'record', kind: e.kind, d: e.d, at: e.at, v: e.v, role: e.role, id: e.id }))
   ];
-  return items.sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, limit);
+  // by the day it happened, not when it was typed in: a measurement from September logged
+  // today belongs below last week's workouts
+  return items.sort((a, b) => b.d.localeCompare(a.d) || String(b.at).localeCompare(String(a.at))).slice(0, limit);
 }
 
 /** One row of the trainer's client list. `rec` is the client's records file (or null). */
@@ -219,7 +221,7 @@ export function clientDetail(user, link, S, rec = null, now = Date.now()) {
     adherence: adherence(S, now),
     loads: loads(S),
     activity: activity(S, entries),
-    records: entries.slice(-200).reverse(),
+    records: R.latest(entries, 200),
     routines: (S.routines || []).map(r => ({ id: r.id, name: r.name, emoji: r.emoji, count: (r.ex || []).length })),
     plan: S.week || {},
     customEx: (S.customEx || []).map(e => ({ id: e.id, name: e.name })),

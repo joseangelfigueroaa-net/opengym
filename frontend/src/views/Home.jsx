@@ -11,6 +11,7 @@ import { Button } from '../components/ui.jsx'
 import { glyphOf } from '../lib/glyphs.js'
 import { coachAvailable, hasConsent } from '../lib/coach.js'
 import { useCoachStatus } from '../lib/coach-api.js'
+import TrainerCard from '../components/TrainerCard.jsx'
 import { DEMO } from '../lib/demo.js'
 import { MOBILE } from '../lib/mobile.js'
 
@@ -106,6 +107,14 @@ export default function Home() {
     </div>
 
     {coachOn && <CoachCard nav={nav} />}
+
+    <TrainerCard nav={nav} />
+
+    {/* Plan and the exercise library lost their tabs to Log and Chat; they stay one tap away */}
+    <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+      <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/plan')}><Icon name="calendar" /> {t('Weekly plan')}</button>
+      <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/library')}><Icon name="list" /> {t('Exercises')}</button>
+    </div>
 
     {!S.routines.length && !S.active && (
       <div className="card">
