@@ -10,6 +10,7 @@
  * The client's own state file is never written from here: a trainer only ever reads it.
  */
 import crypto from 'node:crypto';
+import * as R from './records.js';
 
 export const PLAN_LIMITS = { free: 1, silver: 5 };
 export const INVITE_DAYS = 14;
@@ -110,39 +111,120 @@ export function assertCanRead(db, trainer, clientId) {
 }
 
 const daysAgo = (iso, now) => Math.floor((now - Date.parse(iso)) / 86400000);
+const isoDay = ms => new Date(ms).toISOString().slice(0, 10);
+export const INACTIVE_DAYS = 3;
 
-/** One row of the trainer's client list, from the client's state file. */
-export function clientSummary(user, link, S, now = Date.now()) {
+/** How the client is doing, as the list shows it: inactive beats stalled beats fine.
+ *  - inactive: nothing logged (workout, weigh-in, record) for INACTIVE_DAYS or more
+ *  - stalled:  the last three weigh-ins sit within 0.3 kg of each other */
+export function clientStatus({ workouts, weights, entries }, now = Date.now()) {
+  const days = [
+    ...(workouts || []).map(w => w.d), ...(weights || []).map(w => w.d), ...(entries || []).map(e => e.d)
+  ].filter(Boolean).sort();
+  const last = days[days.length - 1] || null;
+  if (!last) return { code: 'new', days: null, last: null };
+  const idle = daysAgo(last, Date.parse(isoDay(now)));
+  if (idle >= INACTIVE_DAYS) return { code: 'inactive', days: idle, last };
+  const w = (weights || []).slice(-3).map(x => x.w);
+  if (w.length === 3 && Math.max(...w) - Math.min(...w) < 0.3) return { code: 'stalled', days: idle, last };
+  return { code: 'ok', days: idle, last };
+}
+
+/** Planned training days per week, from the client's weekly plan. */
+const plannedPerWeek = S => Object.values(S.week || {}).filter(Boolean).length;
+
+/** Share of planned sessions done over the last four weeks, and full weeks in a row on plan. */
+export function adherence(S, now = Date.now()) {
+  const plan = plannedPerWeek(S);
+  const ws = (S.workouts || []).filter(w => w.d);
+  const recent = ws.filter(w => daysAgo(w.d, now) < 28).length;
+  const pct = plan ? Math.min(100, Math.round(recent / (plan * 4) * 100)) : null;
+  let streak = 0;
+  if (plan) {
+    for (let k = 1; k <= 52; k++) {   // completed weeks only: this one is still running
+      const n = ws.filter(w => { const a = daysAgo(w.d, now); return a >= 7 * k && a < 7 * k + 7; }).length;
+      if (n >= plan) streak++; else break;
+    }
+  }
+  const thisWeek = ws.filter(w => daysAgo(w.d, now) < 7).length;
+  return { pct, streak, thisWeek, plan };
+}
+
+/** Per exercise: the heaviest done set of the latest session, the best ever, and the series of
+ *  per-session maxima the chart draws. Exercise ids only; the app turns them into names. */
+export function loads(S) {
+  const out = {};
+  for (const w of (S.workouts || []).filter(x => x.d)) {
+    for (const e of w.entries || []) {
+      const done = (e.sets || []).filter(s => s.done && Number(s.w) > 0);
+      if (!done.length) continue;
+      const top = done.reduce((a, b) => (b.w > a.w || (b.w === a.w && b.r > a.r) ? b : a));
+      const x = out[e.id] || (out[e.id] = { id: e.id, last: null, best: 0, history: [] });
+      x.last = { w: top.w, r: top.r, d: w.d };
+      x.best = Math.max(x.best, top.w);
+      x.history.push({ d: w.d, w: top.w });
+    }
+  }
+  return Object.values(out).sort((a, b) => b.last.d.localeCompare(a.last.d));
+}
+
+/** Recent activity as the trainer's feed shows it: sessions and records, newest first. */
+export function activity(S, entries, limit = 30) {
+  const items = [
+    ...(S.workouts || []).filter(w => w.d).map(w => ({
+      type: 'workout', d: w.d, at: w.end ? new Date(w.end).toISOString() : w.d, name: w.name,
+      sets: (w.entries || []).reduce((n, e) => n + (e.sets || []).filter(s => s.done).length, 0),
+      mins: w.end && w.start ? Math.round((w.end - w.start) / 60000) : null, prs: (w.prs || []).length
+    })),
+    ...(entries || []).map(e => ({ type: 'record', kind: e.kind, d: e.d, at: e.at, v: e.v, role: e.role, id: e.id }))
+  ];
+  return items.sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, limit);
+}
+
+/** One row of the trainer's client list. `rec` is the client's records file (or null). */
+export function clientSummary(user, link, S, rec = null, now = Date.now()) {
   S = S || {};
+  const entries = rec?.entries || [];
   const workouts = S.workouts || [];
-  const bw = S.bodyweight || [];
+  const weights = R.weightSeries(S.bodyweight, entries);
   const last = workouts[workouts.length - 1];
-  const lastBw = bw[bw.length - 1];
+  const lastW = weights[weights.length - 1];
   return {
     id: user.id, name: user.name, since: link.created,
     unit: S.unit || 'kg',
     workouts: workouts.length,
     last30: workouts.filter(w => w.d && daysAgo(w.d, now) < 30).length,
     lastWorkout: last ? last.d : null,
-    weight: lastBw ? lastBw.w : null,
-    weightDate: lastBw ? lastBw.d : null,
+    weight: lastW ? lastW.w : null,
+    weightDate: lastW ? lastW.d : null,
+    status: clientStatus({ workouts, weights, entries }, now),
     lastSync: S._ts || null
   };
 }
 
-/** The client file a trainer opens: progress, history and plan, nothing device- or Coach-private. */
-export function clientDetail(user, link, S, now = Date.now()) {
+/** The client file a trainer opens: progress, history, records and plan — nothing device- or
+ *  Coach-private. */
+export function clientDetail(user, link, S, rec = null, now = Date.now()) {
   S = S || {};
+  const entries = rec?.entries || [];
+  const weights = R.weightSeries(S.bodyweight, entries);
   return {
-    ...clientSummary(user, link, S, now),
+    ...clientSummary(user, link, S, rec, now),
     targetW: S.targetW ?? null,
-    bodyweight: S.bodyweight || [],
+    weights,
+    fat: R.series(entries, 'fat'),
+    measures: R.series(entries, 'measures'),
+    measureTable: R.measureTable(entries),
+    week: R.weekSummary(entries, isoDay(now)),
+    adherence: adherence(S, now),
+    loads: loads(S),
+    activity: activity(S, entries),
+    records: entries.slice(-200).reverse(),
     routines: (S.routines || []).map(r => ({ id: r.id, name: r.name, emoji: r.emoji, count: (r.ex || []).length })),
-    week: S.week || {},
-    exWeights: S.exWeights || {},
+    plan: S.week || {},
     customEx: (S.customEx || []).map(e => ({ id: e.id, name: e.name })),
-    // `workouts` is the summary's count; the sessions themselves, newest first. 60 is a couple
-    // of months for someone training most days — enough to read, small enough to send.
+    // the sessions themselves, newest first; 60 is a couple of months for someone training
+    // most days — enough to read, small enough to send
     history: (S.workouts || []).slice(-60).reverse()
   };
 }

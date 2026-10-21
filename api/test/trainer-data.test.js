@@ -1,0 +1,134 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as R from '../trainer/records.js';
+import * as C from '../trainer/chat.js';
+import * as K from '../trainer/content.js';
+import * as T from '../trainer/logic.js';
+
+const NOW = Date.parse('2026-10-20T12:00:00Z');
+const client = { id: 'c1', role: 'client' }, trainer = { id: 't1', role: 'trainer' };
+const err = fn => { try { fn(); } catch (e) { return e.message; } return null; };
+
+/* ---------------- records ---------------- */
+
+test('a record keeps only the fields its kind allows, rounded', () => {
+  const e = R.makeEntry({ kind: 'measures', d: '2026-10-19', v: { waist: 88.24, hip: '' , evil: 1 } }, client, NOW);
+  assert.deepEqual(e.v, { waist: 88.2 });
+  assert.equal(e.by, 'c1');
+  assert.equal(e.role, 'client');
+});
+
+test('records refuse unknown kinds, bad dates, out-of-range and empty values', () => {
+  assert.match(err(() => R.makeEntry({ kind: 'bmi', d: '2026-10-19', v: { x: 1 } }, client, NOW)), /unknown/);
+  assert.match(err(() => R.makeEntry({ kind: 'weight', d: '19/10/2026', v: { kg: 80 } }, client, NOW)), /date/);
+  assert.match(err(() => R.makeEntry({ kind: 'weight', d: '2026-12-31', v: { kg: 80 } }, client, NOW)), /future/);
+  assert.match(err(() => R.makeEntry({ kind: 'weight', d: '2026-10-19', v: { kg: 900 } }, client, NOW)), /between/);
+  assert.match(err(() => R.makeEntry({ kind: 'steps', d: '2026-10-19', v: {} }, client, NOW)), /at least one/);
+  assert.match(err(() => R.makeEntry({ kind: 'meal', d: '2026-10-19', v: { meal: 'lunch', text: ' ' } }, client, NOW)), /describe/);
+});
+
+test('only whoever logged a record can delete it', () => {
+  const file = {};
+  const mine = R.addEntry(file, R.makeEntry({ kind: 'weight', d: '2026-10-19', v: { kg: 80 } }, trainer, NOW));
+  assert.match(err(() => R.removeEntry(file, mine.id, 'c1')), /only whoever/);
+  R.removeEntry(file, mine.id, 't1');
+  assert.equal(file.entries.length, 0);
+});
+
+test('weight merges the app log with records; a record wins on the same day', () => {
+  const bw = [{ d: '2026-10-01', w: 80 }, { d: '2026-10-10', w: 79 }];
+  const entries = [R.makeEntry({ kind: 'weight', d: '2026-10-10', v: { kg: 78.6 } }, trainer, NOW),
+    R.makeEntry({ kind: 'weight', d: '2026-10-15', v: { kg: 78 } }, client, NOW)];
+  assert.deepEqual(R.weightSeries(bw, entries).map(x => [x.d, x.w, x.src]),
+    [['2026-10-01', 80, 'app'], ['2026-10-10', 78.6, 'trainer'], ['2026-10-15', 78, 'client']]);
+});
+
+test('measures carry forward and the table shows first and latest per zone', () => {
+  const e = [R.makeEntry({ kind: 'measures', d: '2026-09-01', v: { waist: 96, arm: 35 } }, client, NOW),
+    R.makeEntry({ kind: 'measures', d: '2026-10-01', v: { waist: 90 } }, trainer, NOW)];
+  assert.deepEqual(R.series(e, 'measures')[1], { waist: 90, arm: 35, d: '2026-10-01' });
+  assert.deepEqual(R.measureTable(e).waist, { first: 96, last: 90, d: '2026-10-01' });
+  assert.equal(R.measureTable(e).arm.first, 35);
+});
+
+test('the week summary averages steps and sleep and counts meals', () => {
+  const mk = (kind, d, v) => R.makeEntry({ kind, d, v }, client, NOW);
+  const e = [mk('steps', '2026-10-20', { n: 8000 }), mk('steps', '2026-10-18', { n: 6000 }), mk('steps', '2026-10-01', { n: 99999 }),
+    mk('sleep', '2026-10-19', { h: 7.5 }), mk('meal', '2026-10-20', { meal: 'lunch', text: 'arroz' })];
+  assert.deepEqual(R.weekSummary(e, '2026-10-20'), { steps: 7000, sleep: 7.5, meals: 1 });
+});
+
+/* ---------------- status ---------------- */
+
+test('status: inactive after three idle days, stalled on a flat weight, otherwise fine', () => {
+  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-16' }] }, NOW).code, 'inactive');
+  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-16' }] }, NOW).days, 4);
+  const flat = [{ d: '2026-10-05', w: 70 }, { d: '2026-10-12', w: 70.1 }, { d: '2026-10-19', w: 70.2 }];
+  assert.equal(T.clientStatus({ weights: flat }, NOW).code, 'stalled');
+  assert.equal(T.clientStatus({ weights: [...flat.slice(0, 2), { d: '2026-10-19', w: 69 }] }, NOW).code, 'ok');
+  assert.equal(T.clientStatus({}, NOW).code, 'new');
+});
+
+test('loads keep the latest top set, the best ever and one point per session', () => {
+  const S = { workouts: [
+    { d: '2026-10-01', entries: [{ id: 'sq', sets: [{ w: 60, r: 8, done: true }, { w: 65, r: 5, done: true }] }] },
+    { d: '2026-10-08', entries: [{ id: 'sq', sets: [{ w: 62.5, r: 8, done: true }, { w: 90, r: 1, done: false }] }] }
+  ] };
+  const [sq] = T.loads(S);
+  assert.deepEqual(sq.last, { w: 62.5, r: 8, d: '2026-10-08' });
+  assert.equal(sq.best, 65);
+  assert.deepEqual(sq.history.map(h => h.w), [65, 62.5]);
+});
+
+test('adherence counts the last four weeks against the weekly plan', () => {
+  const S = { week: { 1: 'a', 3: 'b', 5: 'c' }, workouts: Array.from({ length: 6 }, (_, i) => ({ d: `2026-10-${String(19 - i * 3).padStart(2, '0')}` })) };
+  const a = T.adherence(S, NOW);
+  assert.equal(a.plan, 3);
+  assert.equal(a.pct, Math.round(6 / 12 * 100));
+});
+
+/* ---------------- chat ---------------- */
+
+test('chat tracks unread per reader, and your own message is never unread for you', () => {
+  const f = {};
+  C.addMessage(f, 't1', 'Hola María', NOW);
+  C.addMessage(f, 't1', '¿Cómo vas?', NOW + 1000);
+  assert.equal(C.unreadFor(f, 'c1'), 2);
+  assert.equal(C.unreadFor(f, 't1'), 0);
+  C.markRead(f, 'c1', NOW + 2000);
+  assert.equal(C.unreadFor(f, 'c1'), 0);
+  C.addMessage(f, 'c1', 'Bien', NOW + 3000);
+  assert.equal(C.unreadFor(f, 't1'), 1);
+});
+
+test('chat refuses empty and oversized messages', () => {
+  assert.match(err(() => C.addMessage({}, 't1', '   ')), /write/);
+  assert.match(err(() => C.addMessage({}, 't1', 'x'.repeat(C.MAX_TEXT + 1))), /limited/);
+});
+
+/* ---------------- content ---------------- */
+
+const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
+
+test('a post needs a title and something in it', () => {
+  assert.match(err(() => K.makePost({ title: '' })), /title/);
+  assert.match(err(() => K.makePost({ title: 'Semana 1' })), /text, a link or a file/);
+  assert.ok(K.makePost({ title: 'Semana 1', body: 'Rutina nueva' }).post.id);
+});
+
+test('uploads must be an allowed type whose bytes match it', () => {
+  assert.ok(K.makePost({ title: 'Foto', file: { name: 'a.png', type: 'image/png', data: png.toString('base64') } }).bytes);
+  assert.match(err(() => K.makePost({ title: 'X', file: { name: 'a.mp4', type: 'video/mp4', data: 'AAAA' } })), /link/);
+  assert.match(err(() => K.makePost({ title: 'X', file: { name: 'a.png', type: 'image/png', data: Buffer.from('MZ fake').toString('base64') } })), /does not match/);
+});
+
+test('links must be http(s)', () => {
+  assert.match(err(() => K.makePost({ title: 'X', link: 'javascript:alert(1)' })), /https/);
+  assert.ok(K.makePost({ title: 'Video', link: 'https://youtu.be/abc' }).post.link);
+});
+
+test('the public post shape carries no server path', () => {
+  const { post } = K.makePost({ title: 'Foto', file: { name: '../../etc/passwd.png', type: 'image/png', data: png.toString('base64') } });
+  assert.equal(post.file.name.includes('/'), false);
+  assert.deepEqual(Object.keys(K.publicPost(post).file), ['name', 'type', 'size']);
+});

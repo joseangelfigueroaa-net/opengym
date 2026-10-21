@@ -136,7 +136,7 @@ test('the client file carries progress but nothing Coach- or device-private', ()
     routines: [{ id: 'r1', name: 'Fuerza', emoji: '💪', ex: [{}, {}] }],
     coach: { consent: { agreedAt: 'x' } }, active: { started: 1 }
   };
-  const d = T.clientDetail({ id: 'c1', name: 'María' }, { created: '2026-09-01' }, S, NOW);
+  const d = T.clientDetail({ id: 'c1', name: 'María' }, { created: '2026-09-01' }, S, null, NOW);
   assert.equal(d.weight, 72.4);
   assert.equal(d.workouts, 3);
   assert.equal(d.last30, 2);
@@ -148,7 +148,7 @@ test('the client file carries progress but nothing Coach- or device-private', ()
 });
 
 test('a client who never synced still has a summary', () => {
-  const s = T.clientSummary({ id: 'c1', name: 'María' }, { created: '2026-09-01' }, null, NOW);
+  const s = T.clientSummary({ id: 'c1', name: 'María' }, { created: '2026-09-01' }, null, null, NOW);
   assert.equal(s.workouts, 0);
   assert.equal(s.weight, null);
 });

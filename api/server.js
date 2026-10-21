@@ -577,7 +577,7 @@ const routes = {
   ...coachRoutes({ json, readBody, readSession, requireAdmin }),
 
   /* ---------- trainers and clients (Trainnery) ---------- */
-  ...trainerRoutes({ json, readBody, readSession, requireAdmin, getDb: () => db, saveDb, readState })
+  ...trainerRoutes({ json, readBody, readSession, requireAdmin, getDb: () => db, saveDb, readState, dataDir: DATA, atomicWrite, sendPush })
 };
 
 /* ---------- Coach: boot recovery, notifications, scheduled reviews ---------- */
