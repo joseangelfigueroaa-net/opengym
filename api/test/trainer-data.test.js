@@ -198,3 +198,25 @@ test('assigned exercises carry their mode: reps with weight, time, cardio, and r
   assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '0276', mode: 'time', sets: 3, sec: 2 }] }, 't1', NOW)), /exercise 1: seconds/);
   assert.match(err(() => A.makeAssignment({ ...WO, ex: [{ id: '0025', sets: 3, reps: 8, weight: 900 }] }, 't1', NOW)), /weight/);
 });
+
+/* ---------------- trainer profile ---------------- */
+
+import * as P from '../trainer/profile.js';
+
+test('a trainer profile keeps only its fields, trimmed, with empty numbers as null', () => {
+  const p = P.cleanProfile({ name: ' Ana Pérez ', age: '34', years: '', story: ' Exatleta ', certifications: ['NSCA-CPT', ' ', 'NSCA-CPT', 'ISSA'], methods: ['Hipertrofia'], about: 'Hola', role: 'admin' }, NOW);
+  assert.deepEqual(p, { name: 'Ana Pérez', age: 34, years: null, story: 'Exatleta', certifications: ['NSCA-CPT', 'ISSA'], methods: ['Hipertrofia'], about: 'Hola', updated: new Date(NOW).toISOString() });
+});
+
+test('a trainer profile refuses out-of-range numbers and oversized text', () => {
+  assert.match(err(() => P.cleanProfile({ age: 12 })), /age must be a whole number from 18 to 99/);
+  assert.match(err(() => P.cleanProfile({ years: 2.5 })), /years of experience/);
+  assert.match(err(() => P.cleanProfile({ about: 'x'.repeat(P.MAX_ABOUT + 1) })), /description is limited/);
+  assert.match(err(() => P.cleanProfile({ certifications: Array.from({ length: P.MAX_ITEMS + 1 }, (_, i) => 'c' + i) })), /up to 15 certifications/);
+});
+
+test('the public profile falls back to the account name', () => {
+  assert.equal(P.publicProfile({ name: 'ana' }).name, 'ana');
+  assert.deepEqual(P.publicProfile({ name: 'ana' }).certifications, []);
+  assert.equal(P.publicProfile({ name: 'ana', trainerProfile: { name: 'Ana P.' } }).name, 'Ana P.');
+});

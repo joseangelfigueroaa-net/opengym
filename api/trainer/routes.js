@@ -1,8 +1,8 @@
 /* HTTP surface for trainers and their clients (Trainnery).
  *
  * A factory over server.js's helpers, like coach/routes.js: the db and session live there. Every
- * rule (seats, one trainer per client, who may read whom) is in logic.js, records.js, chat.js
- * and content.js; this file only maps requests onto them, does the file I/O, and turns refusals
+ * rule (seats, one trainer per client, who may read whom) is in logic.js, records.js, chat.js,
+ * content.js and profile.js; this file only maps requests onto them, does the file I/O, and turns refusals
  * into status codes.
  */
 import fs from 'node:fs';
@@ -12,6 +12,7 @@ import * as R from './records.js';
 import * as C from './chat.js';
 import * as K from './content.js';
 import * as A from './assign.js';
+import * as P from './profile.js';
 
 export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb, saveDb, readState, dataDir, atomicWrite, sendPush }) {
   const signedIn = (req, res) => {
@@ -28,7 +29,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   // the server's 500 handler, which never echoes it.
   const fail = (res, e) => {
     if (e instanceof T.TrainerError) return json(res, T.HTTP_FOR[e.code] || 400, { error: e.message, code: e.code });
-    if (e instanceof R.RecordError || e instanceof C.ChatError || e instanceof K.ContentError || e instanceof A.AssignError) return json(res, 400, { error: e.message });
+    if (e instanceof R.RecordError || e instanceof C.ChatError || e instanceof K.ContentError || e instanceof A.AssignError || e instanceof P.ProfileError) return json(res, 400, { error: e.message });
     throw e;
   };
   const db = () => T.ensureShape(getDb());
@@ -66,6 +67,24 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
 
   return {
     /* ------------------------------ trainer ------------------------------ */
+
+    /* ------------------------------ profile ------------------------------ */
+
+    // The trainer's own profile, as their clients will see it (GET /api/me/trainer).
+    'GET /api/trainer/profile': async (req, res) => {
+      const user = asTrainer(req, res); if (!user) return;
+      json(res, 200, { profile: P.publicProfile(user) });
+    },
+
+    'POST /api/trainer/profile': async (req, res) => {
+      const user = asTrainer(req, res); if (!user) return;
+      const body = await readBody(req);
+      try {
+        user.trainerProfile = P.cleanProfile(body || {});
+        saveDb();
+        json(res, 200, { profile: P.publicProfile(user) });
+      } catch (e) { fail(res, e); }
+    },
 
     'GET /api/trainer/clients': async (req, res) => {
       const trainer = asTrainer(req, res); if (!trainer) return;
@@ -378,7 +397,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const user = signedIn(req, res); if (!user) return;
       const link = T.linkOf(db(), user.id);
       const t = link && db().users.find(u => u.id === link.trainerId);
-      json(res, 200, { trainer: t ? { id: t.id, name: t.name, since: link.created } : null });
+      json(res, 200, { trainer: t ? { id: t.id, name: t.name, since: link.created, profile: P.publicProfile(t) } : null });
     },
 
     'POST /api/me/trainer/leave': async (req, res) => {

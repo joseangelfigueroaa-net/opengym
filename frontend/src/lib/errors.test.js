@@ -12,5 +12,7 @@ describe('server errors in Spanish', () => {
     expect(translateError('2026-10-25: exercise 2: sets must be a whole number from 1 to 10'))
       .toBe('2026-10-25: ejercicio 2: series debe ser un número entero de 1 a 10')
     expect(translateError('kg must be between 20 and 400')).toBe('peso debe estar entre 20 y 400')
+    expect(translateError('age must be a whole number from 18 to 99')).toBe('edad debe ser un número entero de 18 a 99')
+    expect(translateError('up to 15 certifications')).toBe('Hasta 15 certificaciones')
   })
 })

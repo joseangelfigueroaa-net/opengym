@@ -26,10 +26,11 @@ export default function TrainerCard({ nav }) {
 
   return <div className="card">
     <div className="row between" style={{ gap: 10 }}>
-      <div style={{ minWidth: 0 }}>
+      <button type="button" onClick={() => nav('/my-trainer')} style={{ minWidth: 0, background: 'none', color: 'inherit', textAlign: 'left', padding: 0 }}>
         <div className="lbl2">{t('Your trainer')}</div>
         <div style={{ fontWeight: 600, fontSize: 17 }} className="capitalize">{trainer.name}</div>
-      </div>
+        <div className="small accent">{t('See profile')}</div>
+      </button>
       <button className="btn tinted" style={{ margin: 0, width: 'auto', flexShrink: 0 }} onClick={() => nav('/chat')}>
         <Icon name="chat" /> {unread ? t('{0} new', unread) : t('Message')}</button>
     </div>

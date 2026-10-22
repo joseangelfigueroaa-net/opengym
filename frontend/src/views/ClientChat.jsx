@@ -12,7 +12,7 @@ export default function ClientChat() {
     <div className="hdr">
       <button className="iconbtn" onClick={() => nav('/home')} aria-label={t('Back')}><Icon name="chevronLeft" /></button>
       <div style={{ flex: 1, marginLeft: 8 }}><h1 style={{ margin: 0 }} className="capitalize">{trainer ? trainer.name : t('Chat')}</h1>
-        <div className="sub">{t('Your trainer')}</div></div>
+        <div className="sub">{t('Your trainer')}{trainer && <> · <button type="button" className="linkbtn" onClick={() => nav('/my-trainer')}>{t('See profile')}</button></>}</div></div>
     </div>
     {trainer === null
       ? <div className="empty small">{t('You don’t have a trainer yet. When a trainer invites you, you can chat with them here.')}</div>

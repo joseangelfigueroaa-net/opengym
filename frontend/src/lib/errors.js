@@ -5,7 +5,8 @@ import { t } from './i18n.js'
 // Fixed phrases are plain keys; the few built from numbers or field names are matched here.
 const FIELDS = { sets: 'sets', reps: 'reps', 'minimum reps': 'minimum reps', seconds: 'seconds', rounds: 'rounds', minutes: 'minutes',
   speed: 'speed', weight: 'weight', rest: 'rest', kg: 'weight', pct: 'body fat', n: 'steps', h: 'hours slept',
-  waist: 'waist', hip: 'hips', chest: 'chest', arm: 'arm', thigh: 'thigh' }
+  waist: 'waist', hip: 'hips', chest: 'chest', arm: 'arm', thigh: 'thigh',
+  name: 'name', age: 'age', story: 'story', description: 'description', certifications: 'certifications', methods: 'methods' }
 const field = f => t(FIELDS[f] || f)
 
 const PATTERNS = [
@@ -20,6 +21,8 @@ const PATTERNS = [
   [/^up to (\d+) exercises per workout$/, (m, n) => t('up to {0} exercises per workout', n)],
   [/^up to (\d+) workouts at once$/, (m, n) => t('up to {0} workouts at once', n)],
   [/^messages are limited to (\d+) characters$/, (m, n) => t('messages are limited to {0} characters', n)],
+  [/^(.+) is limited to (\d+) characters$/, (m, f, n) => t('{0} is limited to {1} characters', field(f), n)],
+  [/^up to (\d+) (certifications|methods)$/, (m, n, f) => t('up to {0} {1}', n, field(f))],
 ]
 
 export function translateError(msg) {
