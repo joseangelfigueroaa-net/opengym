@@ -8,6 +8,7 @@ import { workoutVolume, setsDone } from '../lib/history.js'
 import { exOr } from '../lib/exercises.js'
 import { t, dateLocale } from '../lib/i18n.js'
 import { statusTag, recordText, deleteRecord, MEASURE_ZONES, RECORD_KINDS } from '../lib/trainer.js'
+import { useFeatures } from '../lib/features.js'
 import { confirmSheet } from '../sheets.jsx'
 import { recordSheet } from '../components/RecordSheet.jsx'
 import TrainerPlanCard from '../components/TrainerPlanCard.jsx'
@@ -24,6 +25,7 @@ const pts = (list, key) => list.map(x => ({ t: new Date(x.d).getTime(), y: x[key
 const signed = (n, unit) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmtNum(Math.abs(n)) + (unit ? ' ' + unit : '')
 
 export default function TrainerClient() {
+  const features = useFeatures()
   const nav = useNavigate()
   const { id } = useParams()
   const user = useStore(s => s.user)
@@ -125,7 +127,11 @@ export default function TrainerClient() {
           <div className="tiles" style={{ textAlign: 'left' }}>
             <div className="tile"><div className="l">{t('Steps per day')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{c.week.steps != null ? Math.round(c.week.steps).toLocaleString(dateLocale()) : '—'}</div></div>
             <div className="tile"><div className="l">{t('Sleep')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{c.week.sleep != null ? fmtNum(c.week.sleep) + ' h' : '—'}</div></div>
-            <div className="tile"><div className="l">{t('Meals logged')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{c.week.meals}</div></div>
+            {features.includes('meals') && <div className="tile"><div className="l">{t('Meals logged')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{c.week.meals}</div></div>}
+            {features.includes('macros') && <div className="tile"><div className="l">{t('Calories per day')}</div>
+              <div className="v" style={{ fontSize: '1.1rem' }}>{c.week.macros?.kcal != null ? fmtNum(c.week.macros.kcal) : '—'}{c.macroGoal?.kcal ? <span className="dim" style={{ fontSize: '.8rem' }}> / {fmtNum(c.macroGoal.kcal)}</span> : ''}</div></div>}
+            {features.includes('macros') && <div className="tile"><div className="l">{t('Protein per day')}</div>
+              <div className="v" style={{ fontSize: '1.1rem' }}>{c.week.macros?.protein != null ? fmtNum(c.week.macros.protein) + ' g' : '—'}{c.macroGoal?.protein ? <span className="dim" style={{ fontSize: '.8rem' }}> / {fmtNum(c.macroGoal.protein)} g</span> : ''}</div></div>}
             <div className="tile"><div className="l">{t('Last workout')}</div><div className="v" style={{ fontSize: '.95rem' }}>{c.lastWorkout ? fmtDate(c.lastWorkout) : '—'}</div></div>
           </div>
           <div className="dim small" style={{ marginTop: 6 }}>{t('Averages over the last 7 days.')}</div>

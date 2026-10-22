@@ -34,6 +34,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     throw e;
   };
   const db = () => T.ensureShape(getDb());
+  const NUTRITION_PLAN = 'meals and macros come with the Silver plan or higher';
   const query = (req, k) => new URL(req.url, 'http://x').searchParams.get(k);
   const seats = (trainer, now = Date.now()) => ({
     plan: T.planOf(trainer), limit: T.limitOf(trainer),
@@ -105,13 +106,14 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const trainer = asTrainer(req, res); if (!trainer) return;
       const id = query(req, 'id');
       const u = ownClient(req, res, trainer, id); if (!u) return;
-      json(res, 200, { client: T.clientDetail(u, T.linkOf(db(), id), readState(id), recordsOf(id)) });
+      json(res, 200, { client: { ...T.clientDetail(u, T.linkOf(db(), id), readState(id), recordsOf(id)), macroGoal: assignOf(id).profile?.macros || null } });
     },
 
     'POST /api/trainer/client/records': async (req, res) => {
       const trainer = asTrainer(req, res); if (!trainer) return;
       const body = await readBody(req);
       const u = ownClient(req, res, trainer, String(body.id || '')); if (!u) return;
+      if (body.kind === 'meal' && !T.hasFeature(trainer, 'meals')) return json(res, 403, { error: NUTRITION_PLAN });
       try {
         const file = recordsOf(u.id);
         const entry = R.addEntry(file, R.makeEntry(body, author(trainer, 'trainer')));
@@ -207,6 +209,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const u = ownClient(req, res, trainer, String(body.id || '')); if (!u) return;
       const file = assignOf(u.id);
       file.profile = A.cleanProfile(body);
+      if (!T.hasFeature(trainer, 'macros')) file.profile.macros = null;
       store('assign-' + safe(u.id) + '.json', file);
       json(res, 200, { profile: file.profile });
     },
@@ -359,6 +362,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'POST /api/records': async (req, res) => {
       const user = signedIn(req, res); if (!user) return;
       const body = await readBody(req);
+      if (body.kind === 'meal' && !T.hasFeature(trainerOf(user), 'meals')) return json(res, 403, { error: NUTRITION_PLAN });
       try {
         const file = recordsOf(user.id);
         const entry = R.addEntry(file, R.makeEntry(body, author(user, 'client')));
@@ -400,7 +404,10 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const user = signedIn(req, res); if (!user) return;
       const link = T.linkOf(db(), user.id);
       const t = link && userById(link.trainerId);
-      json(res, 200, { trainer: t ? { id: t.id, name: t.name, since: link.created, profile: P.publicProfile(t) } : null });
+      json(res, 200, { trainer: t ? {
+        id: t.id, name: t.name, since: link.created, profile: P.publicProfile(t),
+        features: T.featuresOf(t), macroGoal: T.hasFeature(t, 'macros') ? assignOf(user.id).profile?.macros || null : null
+      } : null });
     },
 
     'POST /api/me/trainer/leave': async (req, res) => {

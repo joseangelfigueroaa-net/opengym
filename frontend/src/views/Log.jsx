@@ -3,8 +3,9 @@ import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
-import { fmtDate, fmtNum } from '../lib/format.js'
-import { RECORD_KINDS, MEASURE_ZONES, recordText, deleteRecord } from '../lib/trainer.js'
+import { fmtDate, fmtNum, todayISO } from '../lib/format.js'
+import { RECORD_KINDS, MEASURE_ZONES, MACROS, recordText, deleteRecord, useMyTrainer, recordKindsFor } from '../lib/trainer.js'
+import { useFeatures } from '../lib/features.js'
 import { confirmSheet } from '../sheets.jsx'
 import { recordSheet } from '../components/RecordSheet.jsx'
 import LineChart from '../components/LineChart.jsx'
@@ -19,6 +20,8 @@ export default function Log() {
   const S = useStore(s => s.S)
   const toast = useUI(s => s.toast)
   const [recs, setRecs] = useState(null)
+  const features = useFeatures()
+  const goal = useMyTrainer(!!user)?.macroGoal || null
   const load = () => api('/api/records').then(d => setRecs(d.records)).catch(() => setRecs([]))
   useEffect(() => { if (user) load(); else setRecs([]) }, [!!user])
 
@@ -33,13 +36,17 @@ export default function Log() {
     return v.length ? { k, label, first: v[v.length - 1].v[k], last: v[0].v[k] } : null
   }).filter(Boolean)
   const lastW = S.bodyweight[S.bodyweight.length - 1]
+  // today's meals, added up; shown with the trainer's daily goal when there is one
+  const todayMeals = (recs || []).filter(r => r.kind === 'meal' && r.d === todayISO())
+  const eaten = Object.fromEntries(MACROS.map(([k]) => [k, todayMeals.reduce((n, r) => n + (r.v[k] || 0), 0)]))
+  const showMacros = features.includes('macros') && (goal || todayMeals.some(r => MACROS.some(([k]) => r.v[k] != null)))
 
   return <div className="narrow">
     <div className="hdr"><div style={{ flex: 1 }}><h1 style={{ margin: 0 }}>{t('Log')}</h1>
       <div className="sub">{t('Your trainer sees what you log here')}</div></div></div>
 
     <div className="log-grid">
-      {Object.entries(RECORD_KINDS).map(([k, def]) => (
+      {recordKindsFor(features).map(([k, def]) => (
         <button key={k} className="card log-btn" disabled={!user && k !== 'weight'}
           onClick={() => recordSheet({ kind: k, onSaved: load })}>
           <span className="iconbtn" aria-hidden="true" style={{ color: 'var(--acc)' }}><Icon name={def.icon} /></span>
@@ -49,6 +56,21 @@ export default function Log() {
       ))}
     </div>
     {!user && <div className="empty small">{t('Create a profile to log body fat, measurements, steps, sleep and meals, and share them with a trainer.')}</div>}
+
+    {showMacros && <div className="card">
+      <h2 style={{ margin: '0 0 10px' }}>{t('Today’s macros')}</h2>
+      {MACROS.map(([k, label, unit]) => {
+        const target = goal?.[k], pct = target ? Math.min(100, Math.round(eaten[k] / target * 100)) : null
+        return <div key={k} style={{ marginBottom: 10 }}>
+          <div className="row between small"><span>{t(label)}</span>
+            <span className="muted">{fmtNum(eaten[k])}{target ? ' / ' + fmtNum(target) : ''} {unit}</span></div>
+          {target && <div role="progressbar" aria-label={t(label)} aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}
+            style={{ height: 6, borderRadius: 3, background: 'var(--surface-3)', marginTop: 4, overflow: 'hidden' }}>
+            <div style={{ width: pct + '%', height: '100%', background: 'var(--acc)' }} /></div>}
+        </div>
+      })}
+      {!goal && <div className="dim small">{t('Your trainer has not set a daily goal yet.')}</div>}
+    </div>}
 
     {fat.length > 1 && <div className="card">
       <h2 style={{ margin: '0 0 8px' }}>{t('Body fat')}</h2>

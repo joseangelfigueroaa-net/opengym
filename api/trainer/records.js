@@ -21,6 +21,8 @@ export const KINDS = {
   meal: null   // free text, validated below
 };
 export const MEALS = ['breakfast', 'lunch', 'snack', 'dinner'];
+// Optional on a meal: energy (kcal) and grams of each macronutrient
+export const MACROS = { kcal: [0, 5000], protein: [0, 500], carbs: [0, 1000], fat: [0, 500] };
 export const MAX_ENTRIES = 5000;
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -39,6 +41,12 @@ export function makeEntry({ kind, d, v }, author, now = Date.now()) {
     if (!meal) throw new RecordError('choose which meal it was');
     if (!text) throw new RecordError('describe what was eaten');
     clean = { meal, text };
+    for (const [k, [lo, hi]] of Object.entries(MACROS)) {
+      if (v[k] === undefined || v[k] === null || v[k] === '') continue;
+      const n = Number(v[k]);
+      if (!Number.isFinite(n) || n < lo || n > hi) throw new RecordError(`${k} must be between ${lo} and ${hi}`);
+      clean[k] = Math.round(n);
+    }
   } else {
     for (const [k, [lo, hi]] of Object.entries(KINDS[kind])) {
       if (v[k] === undefined || v[k] === null || v[k] === '') continue;
@@ -111,5 +119,17 @@ export function weekSummary(entries, today, days = 7) {
     const v = recent.filter(e => e.kind === kind && e.v[k] != null).map(e => e.v[k]);
     return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length * 10) / 10 : null;
   };
-  return { steps: avg('steps', 'n'), sleep: avg('sleep', 'h'), meals: recent.filter(e => e.kind === 'meal').length };
+  // macros: totals per day, averaged over the days that have any (a day with no macros logged
+  // says nothing about what was eaten)
+  const perDay = {};
+  for (const e of recent) if (e.kind === 'meal') for (const k of Object.keys(MACROS)) if (e.v[k] != null) {
+    const day = perDay[e.d] || (perDay[e.d] = {});
+    day[k] = (day[k] || 0) + e.v[k];
+  }
+  const totals = Object.values(perDay);
+  const macros = totals.length ? Object.fromEntries(Object.keys(MACROS).map(k => {
+    const v = totals.filter(d => d[k] != null).map(d => d[k]);
+    return [k, v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null];
+  })) : null;
+  return { steps: avg('steps', 'n'), sleep: avg('sleep', 'h'), meals: recent.filter(e => e.kind === 'meal').length, macros, macroDays: totals.length };
 }

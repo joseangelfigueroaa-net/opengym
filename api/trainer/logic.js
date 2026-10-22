@@ -13,6 +13,10 @@ import crypto from 'node:crypto';
 import * as R from './records.js';
 
 export const PLAN_LIMITS = { free: 1, silver: 5, gold: 25, platinum: 50 };
+// What a plan unlocks besides seats. From Silver up: the meal log with macros and a daily macro
+// goal, and health data from Apple Health / Health Connect. A client gets their trainer's.
+const NUTRITION = ['meals', 'macros', 'health'];
+export const PLAN_FEATURES = { free: [], silver: NUTRITION, gold: NUTRITION, platinum: NUTRITION };
 export const INVITE_DAYS = 14;
 
 export class TrainerError extends Error {
@@ -30,6 +34,8 @@ export function ensureShape(db) {
 export const isTrainer = user => !!user?.trainer;
 export const planOf = user => (PLAN_LIMITS[user?.trainer?.plan] ? user.trainer.plan : 'free');
 export const limitOf = user => PLAN_LIMITS[planOf(user)];
+export const featuresOf = user => (isTrainer(user) ? PLAN_FEATURES[planOf(user)] : []);
+export const hasFeature = (user, f) => featuresOf(user).includes(f);
 export const clientIdsOf = (db, trainerId) => db.links.filter(l => l.trainerId === trainerId).map(l => l.clientId);
 export const linkOf = (db, clientId) => db.links.find(l => l.clientId === clientId) || null;
 export const isLinked = (db, trainerId, clientId) => db.links.some(l => l.trainerId === trainerId && l.clientId === clientId);

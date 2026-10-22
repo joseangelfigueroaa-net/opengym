@@ -55,7 +55,7 @@ test('the week summary averages steps and sleep and counts meals', () => {
   const mk = (kind, d, v) => R.makeEntry({ kind, d, v }, client, NOW);
   const e = [mk('steps', '2026-10-20', { n: 8000 }), mk('steps', '2026-10-18', { n: 6000 }), mk('steps', '2026-10-01', { n: 99999 }),
     mk('sleep', '2026-10-19', { h: 7.5 }), mk('meal', '2026-10-20', { meal: 'lunch', text: 'arroz' })];
-  assert.deepEqual(R.weekSummary(e, '2026-10-20'), { steps: 7000, sleep: 7.5, meals: 1 });
+  assert.deepEqual(R.weekSummary(e, '2026-10-20'), { steps: 7000, sleep: 7.5, meals: 1, macros: null, macroDays: 0 });
 });
 
 /* ---------------- status ---------------- */
@@ -181,7 +181,7 @@ test('a month plan is checked whole: one bad day sends nothing', () => {
 
 test('the client profile keeps only known keys', () => {
   assert.deepEqual(A.cleanProfile({ goal: 'muscle', limits: ['knee', 'knee', 'evil'], focus: 'zzz', days: '4', notes: ' x ' }),
-    { goal: 'muscle', limits: ['knee'], focus: null, days: 4, notes: 'x' });
+    { macros: null, goal: 'muscle', limits: ['knee'], focus: null, days: 4, notes: 'x' });
 });
 
 test('assigned exercises carry their mode: reps with weight, time, cardio, and rest', () => {
@@ -236,4 +236,37 @@ test('a demo client has eight weeks of data the client file can show', () => {
   const s = T.clientSummary(user, { created: user.created }, state, { entries }, NOW);
   assert.equal(s.weight, 71.8);
   assert.ok(entries.some(e => e.kind === 'meal') && entries.some(e => e.kind === 'measures'));
+});
+
+/* ---------------- nutrition: plans, macros ---------------- */
+
+test('meals and macros come from Silver up; Free and non-trainers have none', () => {
+  assert.equal(T.hasFeature({ trainer: { plan: 'free' } }, 'meals'), false);
+  for (const plan of ['silver', 'gold', 'platinum']) {
+    assert.equal(T.hasFeature({ trainer: { plan } }, 'meals'), true, plan);
+    assert.equal(T.hasFeature({ trainer: { plan } }, 'health'), true, plan);
+  }
+  assert.deepEqual(T.featuresOf({ name: 'client' }), []);
+  assert.deepEqual(T.featuresOf(null), []);
+});
+
+test('a meal keeps its macros, rounded, and refuses impossible ones', () => {
+  const m = R.makeEntry({ kind: 'meal', d: '2026-10-19', v: { meal: 'lunch', text: 'Pollo y arroz', kcal: '650.4', protein: 42.6, carbs: '', fat: 18, evil: 1 } }, client, NOW);
+  assert.deepEqual(m.v, { meal: 'lunch', text: 'Pollo y arroz', kcal: 650, protein: 43, fat: 18 });
+  assert.match(err(() => R.makeEntry({ kind: 'meal', d: '2026-10-19', v: { meal: 'lunch', text: 'x', protein: 900 } }, client, NOW)), /protein must be between/);
+});
+
+test('the week summary averages macros over the days that have them', () => {
+  const meal = (d, v) => R.makeEntry({ kind: 'meal', d, v: { meal: 'lunch', text: 'x', ...v } }, client, NOW);
+  const e = [meal('2026-10-19', { kcal: 800, protein: 50 }), meal('2026-10-19', { kcal: 1000, protein: 40 }),
+    meal('2026-10-20', { kcal: 2000, protein: 110 }), meal('2026-10-20', {})];
+  const w = R.weekSummary(e, '2026-10-20');
+  assert.deepEqual(w.macros, { kcal: 1900, protein: 100, carbs: null, fat: null });
+  assert.equal(w.macroDays, 2);
+});
+
+test('the daily macro goal keeps sensible numbers and drops the rest', () => {
+  assert.deepEqual(A.cleanMacros({ kcal: '2200', protein: 150, carbs: 'x', fat: 70 }), { kcal: 2200, protein: 150, carbs: null, fat: 70 });
+  assert.equal(A.cleanMacros({ kcal: 100 }), null, 'below 500 kcal is not a goal');
+  assert.equal(A.cleanMacros(null), null);
 });

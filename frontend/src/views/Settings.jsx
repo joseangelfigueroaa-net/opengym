@@ -16,6 +16,7 @@ import { forgetCoach } from '../lib/coach-api.js'
 import Icon from '../components/Icon.jsx'
 import { askSignOut } from '../components/SignOutButton.jsx'
 import { trainerLed } from '../lib/trainer.js'
+import { useFeatures } from '../lib/features.js'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField } from '../components/ui.jsx'
 
 // The client's side of a trainer link: who can see their progress, and the way out.
@@ -38,6 +39,7 @@ export default function Settings() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
   const led = trainerLed(useStore(s => s.user))   // a client's plan comes from their trainer
+  const features = useFeatures()
   const user = useStore(s => s.user)
   const config = useStore(s => s.config)
   const { update, replaceState, setUser, pullState, pushState, signOut, signOutAll, resetDemo } = useStore()
@@ -208,9 +210,9 @@ export default function Settings() {
     {/* ---------- data: fill it, bring things over, back it up, wipe it ---------- */}
     <Section title={t('Data')}>
       {!led && <Row icon="sparkles" iconTint="var(--acc)" title={t('Load starter plan (PPL)')} accessory="chevron" onClick={loadStarterPlan} />}
-      <Row icon="shuffle" iconTint="var(--teal)" title={t('Import from another app')}
+      {(!led || features.includes('health')) && <Row icon="shuffle" iconTint="var(--teal)" title={t('Import from another app')}
         subtitle={t('FitNotes, Strong, Hevy — or body weight from Apple Health')}
-        accessory="chevron" onClick={() => importRef.current.click()} />
+        accessory="chevron" onClick={() => importRef.current.click()} />}
       <Row icon="upload" iconTint="var(--blue)" title={t('Import backup')} accessory="chevron" onClick={() => fileRef.current.click()} />
       <Row icon="download" iconTint="var(--blue)" title={t('Export backup (JSON)')} accessory="chevron" onClick={doExport} />
       {/* Also drops anything the Coach is holding server-side: a wipe that leaves a pending

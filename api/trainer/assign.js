@@ -118,8 +118,17 @@ export const GOALS = ['strength', 'muscle', 'fat_loss', 'endurance', 'health'];
 export const LIMITS = ['knee', 'lower_back', 'shoulder', 'wrist', 'no_gym', 'beginner'];
 export const FOCUS = ['full_body', 'upper_lower', 'push_pull_legs', 'glutes_legs', 'conditioning'];
 
-export function cleanProfile({ goal, limits, focus, days, notes }) {
+const macroGoal = (m, lo, hi) => (Number.isInteger(+m) && +m >= lo && +m <= hi && m !== '' && m != null ? +m : null);
+/** The trainer's daily target for the client: kcal and grams; null when not set. */
+export function cleanMacros(m) {
+  if (!m || typeof m !== 'object') return null;
+  const out = { kcal: macroGoal(m.kcal, 500, 6000), protein: macroGoal(m.protein, 0, 400), carbs: macroGoal(m.carbs, 0, 900), fat: macroGoal(m.fat, 0, 300) };
+  return Object.values(out).some(v => v != null) ? out : null;
+}
+
+export function cleanProfile({ goal, limits, focus, days, notes, macros }) {
   return {
+    macros: cleanMacros(macros),
     goal: GOALS.includes(goal) ? goal : null,
     limits: Array.isArray(limits) ? [...new Set(limits.filter(l => LIMITS.includes(l)))] : [],
     focus: FOCUS.includes(focus) ? focus : null,

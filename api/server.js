@@ -61,7 +61,7 @@ db.invites = db.invites || [];
 trainer.ensureShape(db);
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // What the app learns about the signed-in account. `trainer` is null for everyone but trainers.
-const publicUser = user => ({ id: user.id, name: user.name, admin: isAdmin(user), trainer: trainer.isTrainer(user) ? { plan: trainer.planOf(user) } : null });
+const publicUser = user => ({ id: user.id, name: user.name, admin: isAdmin(user), trainer: trainer.isTrainer(user) ? { plan: trainer.planOf(user), features: trainer.featuresOf(user) } : null });
 // A trainer's invite link doubles as a signup code on an invite-only instance, so a new client
 // can create a profile from the link alone. It is only checked here, not used up: accepting the
 // link after signup is what spends it.

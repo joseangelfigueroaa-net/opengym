@@ -42,11 +42,14 @@ export const RECORD_KINDS = {
   meal: { label: 'Meal', icon: 'clipboard', fields: [] }
 }
 export const MEALS = [['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['snack', 'Snack'], ['dinner', 'Dinner']]
+// Optional on a meal, and the trainer's daily goal (Silver plan and up)
+export const MACROS = [['kcal', 'Calories', 'kcal'], ['protein', 'Protein', 'g'], ['carbs', 'Carbs', 'g'], ['fat', 'Fat', 'g']]
+export const macroText = v => MACROS.filter(([k]) => v[k] != null).map(([k, label, unit]) => fmtNum(v[k]) + ' ' + (k === 'kcal' ? unit : unit + ' ' + t(label).toLowerCase())).join(' · ')
 export const MEASURE_ZONES = RECORD_KINDS.measures.fields
 
 /** One line saying what a record holds: "72,4 kg", "Waist 88 cm · Arm 35 cm", "Lunch: rice…". */
 export function recordText(kind, v) {
-  if (kind === 'meal') return t(MEALS.find(m => m[0] === v.meal)?.[1] || 'Meal') + ': ' + v.text
+  if (kind === 'meal') return t(MEALS.find(m => m[0] === v.meal)?.[1] || 'Meal') + ': ' + v.text + (macroText(v) ? ' (' + macroText(v) + ')' : '')
   if (kind === 'steps') return Math.round(v.n).toLocaleString(dateLocale()) + ' ' + t('steps')
   return RECORD_KINDS[kind].fields.filter(([k]) => v[k] != null)
     .map(([k, label, unit]) => (kind === 'measures' ? t(label) + ' ' : '') + fmtNum(v[k]) + (unit ? ' ' + unit : '')).join(' · ')
@@ -92,6 +95,9 @@ export function useMyTrainer(enabled = true) {
   return enabled ? tr : null
 }
 export const forgetMyTrainer = () => { trainerCache = undefined; trainerAsk = null }
+
+/** The kinds of record this person can log; the meal log comes with Silver and up. */
+export const recordKindsFor = features => Object.entries(RECORD_KINDS).filter(([k]) => k !== 'meal' || features.includes('meals'))
 
 // Unread chat messages for the badge, re-checked every 30 s while the app is open and visible.
 export function useUnread(enabled) {

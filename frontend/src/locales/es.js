@@ -1168,4 +1168,19 @@ export default {
   "Your workouts come from your trainer. When your trainer invites you and assigns your first workout, it will appear here.": "Tus entrenos los asigna tu entrenador. Cuando te invite y te asigne el primero, aparecerá aquí.",
   // Rate limit
   "too many requests — try again in a minute": "Demasiadas solicitudes: inténtalo de nuevo en un minuto",
+  // Nutrition
+  "Calories": "Calorías",
+  "Protein": "Proteína",
+  "Carbs": "Carbohidratos",
+  "Macros (optional)": "Macros (opcional)",
+  "Today’s macros": "Macros de hoy",
+  "Your trainer has not set a daily goal yet.": "Tu entrenador aún no te ha puesto una meta diaria.",
+  "Daily macro goal": "Meta diaria de macros",
+  "Calories per day": "Calorías por día",
+  "Protein per day": "Proteína por día",
+  "meals and macros come with the Silver plan or higher": "El registro de comidas y macros viene con el plan Silver o superior",
+  "calories": "calorías",
+  "protein": "proteína",
+  "carbs": "carbohidratos",
+  "fat": "grasa",
 }

@@ -6,6 +6,7 @@ import { t } from './i18n.js'
 const FIELDS = { sets: 'sets', reps: 'reps', 'minimum reps': 'minimum reps', seconds: 'seconds', rounds: 'rounds', minutes: 'minutes',
   speed: 'speed', weight: 'weight', rest: 'rest', kg: 'weight', pct: 'body fat', n: 'steps', h: 'hours slept',
   waist: 'waist', hip: 'hips', chest: 'chest', arm: 'arm', thigh: 'thigh',
+  kcal: 'calories', protein: 'protein', carbs: 'carbs', fat: 'fat',
   name: 'name', age: 'age', story: 'story', description: 'description', certifications: 'certifications', methods: 'methods' }
 const field = f => t(FIELDS[f] || f)
 
