@@ -6,6 +6,14 @@ export const EXIDX = {}
 EXDB.forEach(e => { EXIDX[e.id] = e })
 export const BODYPARTS = [...new Set(EXDB.map(e => e.bp))].sort()
 
+// Search: people type without accents ("jalon"), so both sides drop them; the name in the
+// current language, the English one (see applyNames in i18n.js), muscle and equipment all match.
+const fold = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+export function exMatches(e, q) {
+  const f = fold(q).trim()
+  return !f || [e.n, e.en, e.tg, e.eq, t(e.tg || ''), t(e.eq || ''), e.desc].some(s => fold(s).includes(f))
+}
+
 // Equipment options present in a given list of exercises, most common first (issue #6).
 // Deriving them from the *already filtered* list keeps the chip row short and means
 // every body-part × equipment combination on screen has results behind it.

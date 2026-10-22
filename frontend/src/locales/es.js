@@ -1116,4 +1116,6 @@ export default {
   "hips": "cadera",
   "arm": "brazo",
   "thigh": "muslo",
+  // Library
+  "Add to plan": "Agregar al plan",
 }

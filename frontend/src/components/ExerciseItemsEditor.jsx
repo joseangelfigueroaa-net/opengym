@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { t } from '../lib/i18n.js'
 import { fmtNum } from '../lib/format.js'
-import { EXDB, exOr, isCardio } from '../lib/exercises.js'
+import { EXDB, exOr, isCardio, exMatches } from '../lib/exercises.js'
 import { defaultIncrement } from '../lib/progression.js'
 import { EX_NOTES } from '../lib/programs.js'
 import Icon from './Icon.jsx'
@@ -69,7 +69,7 @@ export default function ExerciseItemsEditor({ items, onChange, nameOf, loads = {
     const s = q.trim().toLowerCase()
     if (s.length < 2) return []
     const own = customEx.filter(c => c.name.toLowerCase().includes(s)).map(c => ({ id: c.id, n: c.name }))
-    return [...own, ...EXDB.filter(e => e.n.toLowerCase().includes(s))].slice(0, 8)
+    return [...own, ...EXDB.filter(e => exMatches(e, s))].slice(0, 8)
   }, [q])
 
   return <div>

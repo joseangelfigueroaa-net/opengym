@@ -4,6 +4,7 @@
 // Exercise instructions come from separately generated packs in src/instr/ (one per
 // language, from the upstream dataset) — also lazy-loaded on language switch.
 import { useSyncExternalStore } from 'react'
+import { EXDB } from './exercises-data.js'
 
 // UI languages. de/pt have no instruction pack upstream — instructions fall back to English.
 export const LANGS = {
@@ -19,6 +20,7 @@ const DATE_LOCALES = {
 
 const localePacks = import.meta.glob('../locales/*.js')
 const instrPacks = import.meta.glob('../instr/*.js')
+const namePacks = import.meta.glob('../names/*.js')
 
 let lang = 'en'
 let dict = {}
@@ -39,6 +41,19 @@ export function t(s, ...args) {
 // Instructions for an exercise in the current language (English steps as fallback).
 export const instrFor = ex => (instr && instr[ex.id]) || ex.st || []
 
+// Exercise names (Trainnery): the dataset ships them in English. A language with a pack in
+// src/names/ renames the shared exercise objects in place, so every screen that shows `ex.n`
+// follows the language without each one calling a helper. `en` keeps the original name, for
+// switching back and so search still finds an exercise by its English name (exMatches).
+// The list is re-sorted too, so the library reads alphabetically in the language shown.
+function applyNames(pack) {
+  for (const e of EXDB) {
+    if (e.en === undefined) e.en = e.n
+    e.n = (pack && pack[e.id]) || e.en
+  }
+  EXDB.sort((a, b) => a.n.localeCompare(b.n, lang))
+}
+
 export async function setLang(l) {
   if (!LANGS[l]) l = 'en'
   if (l === lang && version > 0) return
@@ -46,7 +61,9 @@ export async function setLang(l) {
   try {
     dict = l === 'en' ? {} : (await localePacks['../locales/' + l + '.js']()).default
     instr = l === 'en' || !INSTR_LANGS.includes(l) ? null : (await instrPacks['../instr/' + l + '.js']()).default
-  } catch (e) { dict = {}; instr = null }
+    const names = namePacks['../names/' + l + '.js']
+    applyNames(names ? (await names()).default : null)
+  } catch (e) { dict = {}; instr = null; applyNames(null) }
   notify()
 }
 

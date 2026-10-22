@@ -159,6 +159,11 @@ button,.chip,.tile,.item,.wday,.cal-d,.swatch,.hm-c,.lrow,.seg button,.stp butto
    Title Case. The compound selectors are needed: .tag/.chip come later in this file
    and would otherwise win on source order. */
 .nocap,.tag.nocap,.chip.nocap{text-transform:none}
+/* Spanish writes names in sentence case ("Sentadilla goblet con mancuerna", not "Sentadilla
+   Goblet Con Mancuerna"): only the first letter goes up, and the exercise names pack already
+   starts with a capital for the inline places ::first-letter cannot reach. */
+:lang(es) .capitalize{text-transform:none}
+:lang(es) .capitalize::first-letter{text-transform:uppercase}
 
 /* ---------------------------------------------------------------- layout -- */
 #app{
@@ -947,6 +952,8 @@ h4.sec{
 .log-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin-bottom:12px}
 .log-btn{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:0;text-align:left;color:inherit;min-height:96px}
 .log-btn:disabled{opacity:.45}
+/* library rows: on small phones the add button drops its label so the name gets the width */
+@media (max-width:380px){.lib-add .lbl{display:none}.lib-add{padding-left:12px;padding-right:12px}}
 /* chat */
 .chat{display:flex;flex-direction:column;gap:10px;min-width:0}
 .chat-log{display:flex;flex-direction:column;gap:6px;min-height:min(46dvh,420px);max-height:min(62dvh,640px);overflow-y:auto;overscroll-behavior:contain;
