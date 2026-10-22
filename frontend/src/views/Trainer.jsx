@@ -7,6 +7,7 @@ import { fmtDate, fmtNum } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import { shareInvite, statusTag } from '../lib/trainer.js'
 import { confirmSheet } from '../sheets.jsx'
+import SignOutButton from '../components/SignOutButton.jsx'
 import Icon from '../components/Icon.jsx'
 import { LogoMark } from '../components/Logo.jsx'
 import { Button } from '../components/ui.jsx'
@@ -53,7 +54,10 @@ export default function Trainer() {
       <LogoMark size={34} />
       <div style={{ flex: 1, marginLeft: 10 }}><h1 style={{ margin: 0 }}>{t('Your clients')}</h1>
         <div className="sub">{d ? t('{0} of {1} seats · {2} plan', d.seats.clients + d.seats.open, d.seats.limit, PLAN[d.seats.plan]) : t('Loading…')}</div></div>
-      <button className="iconbtn" onClick={load} aria-label={t('Refresh')}><Icon name="reset" /></button>
+      <div className="row" style={{ gap: 8 }}>
+        <button className="iconbtn" onClick={load} aria-label={t('Refresh')}><Icon name="reset" /></button>
+        <SignOutButton />
+      </div>
     </div>
 
     {d && clients.length > 0 && <div className="tiles" style={{ marginBottom: 12 }}>

@@ -14,6 +14,7 @@ import { loadStarterPlan, confirmSheet, importFromApp } from '../sheets.jsx'
 import { coachAvailable, hasConsent } from '../lib/coach.js'
 import { forgetCoach } from '../lib/coach-api.js'
 import Icon from '../components/Icon.jsx'
+import { askSignOut } from '../components/SignOutButton.jsx'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField } from '../components/ui.jsx'
 
 // The client's side of a trainer link: who can see their progress, and the way out.
@@ -108,7 +109,7 @@ export default function Settings() {
         {user.trainer && <Row icon="clipboard" iconTint="var(--acc)" title={t('Trainer dashboard')} subtitle={t('Your clients and invite links')} accessory="chevron" onClick={() => nav('/trainer')} />}
         <MyTrainerRow />
         {user.admin && <Row icon="wrench" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin')} />}
-        <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={() => confirmSheet({ title: t('Sign out?'), message: t('Your data is synced to your profile first, then cleared from this device.'), confirmText: t('Sign out'), danger: true, onConfirm: () => { signOut(); nav('/home') } })} />
+        <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={() => askSignOut(signOut, nav)} />
         <Row icon="shield" iconTint="var(--red)" title={t('Sign out everywhere')} subtitle={t('Ends this profile’s sessions on all your devices.')} danger onClick={signOutEverywhere} />
       </> : webauthnOK() ? <>
         <Row icon="sparkles" iconTint="var(--acc)" title={t('Create passkey profile')} subtitle={t('Keeps your data safe and separate per person.')} accessory="chevron" onClick={registerHere} />
