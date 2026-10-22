@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { t, dateLocale } from './i18n.js'
 import { api } from './api.js'
 import { fmtNum } from './format.js'
+import { DEMO } from './demo.js'
+import { MOBILE } from './mobile.js'
 
 const JOIN = /^#\/join\/([0-9a-f]{32})$/i
 
@@ -113,6 +115,12 @@ export function useUnread(enabled) {
 // any other session. Double progression over the trainer's rep range is what the app applies
 // when the client starts. Routines for assignments the trainer withdrew (or replaced) go away;
 // past ones are kept two weeks so a just-finished session still reads right in History.
+// Trainnery: on the server a client trains what their trainer assigns — no own routines, weekly
+// plan or freestyle sessions. The demo and the server-less mobile build keep the self-coached app.
+export const trainerLed = user => !!user && !user.trainer && !DEMO && !MOBILE
+/** The workout the trainer assigned for a day (pinned through dayPlan by applyAssignments), or null. */
+export const assignedFor = (S, iso) => { const id = S.dayPlan[iso]; return (id && S.routines.find(r => r.id === id && r.assigned)) || null }
+
 export const ASSIGNED = 'tr-'
 
 /** One assigned exercise as a routine entry. Reps progress with double progression over the

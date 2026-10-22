@@ -3,7 +3,8 @@ import { useStore } from '../store/useStore.js'
 import { effectiveRoutine } from '../lib/history.js'
 import { todayISO } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
-import { useMyTrainer, useUnread } from '../lib/trainer.js'
+import { useMyTrainer, useUnread, trainerLed, assignedFor } from '../lib/trainer.js'
+import { useUI } from '../store/useUI.js'
 import Icon from './Icon.jsx'
 
 // Two tab bars, one per role (Trainnery). A trainer works with clients: Clients, Chat, Content,
@@ -40,6 +41,12 @@ export default function TabBar({ onStart }) {
 
   const cur = path.split('/')[1] || 'home'
   const startWorkout = () => {
+    // a client starts only the workout their trainer assigned for today
+    if (!S.active && trainerLed(user)) {
+      const r = assignedFor(S, todayISO())
+      if (r) onStart(r.id); else useUI.getState().toast(t('Your trainer has not assigned a workout for today.'))
+      return
+    }
     if (!S.active) {
       const r = effectiveRoutine(S, todayISO())
       if (r && r.ex.length) { onStart(r.id); return }

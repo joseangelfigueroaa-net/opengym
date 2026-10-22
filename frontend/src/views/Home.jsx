@@ -13,6 +13,7 @@ import { glyphOf } from '../lib/glyphs.js'
 import { coachAvailable, hasConsent } from '../lib/coach.js'
 import { useCoachStatus } from '../lib/coach-api.js'
 import TrainerCard from '../components/TrainerCard.jsx'
+import { trainerLed, assignedFor, useMyTrainer } from '../lib/trainer.js'
 import { DEMO } from '../lib/demo.js'
 import { MOBILE } from '../lib/mobile.js'
 
@@ -49,10 +50,14 @@ export default function Home() {
   const config = useStore(s => s.config)
   const [weekOffset, setWeekOffset] = useState(0)
   const coachOn = coachAvailable(config, user, { demo: DEMO, mobile: MOBILE })
+  // a client sees only what their trainer assigned: no weekly plan, no picking a day's routine
+  const led = trainerLed(user)
+  const trainer = useMyTrainer(led)
+  const routineIdOn = iso => led ? assignedFor(S, iso)?.id || null : effectiveRoutineId(S, iso)
 
   const today = new Date()
-  const routine = effectiveRoutine(S, todayISO())
-  const todayOvr = S.dayPlan[todayISO()] !== undefined
+  const routine = led ? assignedFor(S, todayISO()) : effectiveRoutine(S, todayISO())
+  const todayOvr = !led && S.dayPlan[todayISO()] !== undefined
   const bw = lastBW(S)
   const prevBW = S.bodyweight.length > 1 ? S.bodyweight[S.bodyweight.length - 2] : null
   const delta = bw && prevBW ? bw.w - prevBW.w : null
@@ -63,20 +68,22 @@ export default function Home() {
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday); d.setDate(monday.getDate() + i)
     const iso = isoOf(d)
-    const eff = effectiveRoutineId(S, iso), ovr = S.dayPlan[iso] !== undefined, done = doneDays.has(iso)
+    const eff = routineIdOn(iso), ovr = !led && S.dayPlan[iso] !== undefined, done = doneDays.has(iso)
     const dot = done ? ' done' : ovr && eff ? ' ovr' : eff ? ' plan' : ''
-    strip.push(<div key={i} className={'wday' + (iso === todayISO() ? ' today' : '')} onClick={() => dayOverrideSheet(iso)}>
+    strip.push(<div key={i} className={'wday' + (iso === todayISO() ? ' today' : '')} onClick={led ? undefined : () => dayOverrideSheet(iso)}>
       <div className="lbl">{t(DAYS[d.getDay()])}</div><div className="num">{d.getDate()}</div><div className={'dot' + dot} /></div>)
   }
   const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6)
   const wkLabel = weekOffset === 0 ? t('This week') : `${monday.getDate()} ${monday.toLocaleDateString(dateLocale(), { month: 'short' })} – ${sunday.getDate()} ${sunday.toLocaleDateString(dateLocale(), { month: 'short' })}`
 
   const wThisWeek = S.workouts.filter(w => weekKey(w.d) === weekKey(todayISO())).length
-  const plannedPerWeek = Object.keys(S.week).filter(k => S.week[k]).length
+  const plannedPerWeek = led
+    ? S.routines.filter(r => r.assigned && weekKey(r.assigned.date) === weekKey(todayISO())).length
+    : Object.keys(S.week).filter(k => S.week[k]).length
   const bwPoints = S.bodyweight.slice(-30).map(b => ({ t: b.t || new Date(b.d).getTime(), y: b.w, d: b.d }))
 
   // today's session shown right under the week strip
-  const onToday = () => { if (S.active) nav('/workout'); else if (routine) startFlow(routine.id); else dayOverrideSheet(todayISO()) }
+  const onToday = () => { if (S.active) nav('/workout'); else if (routine) startFlow(routine.id); else if (!led) dayOverrideSheet(todayISO()) }
 
   return <div className="narrow">
     <div className="hdr">
@@ -101,12 +108,12 @@ export default function Home() {
           </span>
           <div style={{ minWidth: 0 }}>
             <div className="lbl2">{t('Today')}</div>
-            <div className="ttl">{S.active ? t('{0} — in progress', S.active.name) : routine ? routine.name : t('Rest day')}{todayOvr && routine ? ' · ' + t('rescheduled') : ''}</div>
+            <div className="ttl">{S.active ? t('{0} — in progress', S.active.name) : routine ? routine.name : led ? t('Nothing assigned today') : t('Rest day')}{todayOvr && routine ? ' · ' + t('rescheduled') : ''}</div>
           </div>
         </div>
         {S.active ? <span className="tag" style={{ color: 'var(--orange)', background: 'color-mix(in srgb,var(--orange) 16%,transparent)' }}>{t('Resume')}</span>
           : routine ? <span className="tag acc">{t('Start')}</span>
-          : <Icon name="plus" className="chev" />}
+          : !led && <Icon name="plus" className="chev" />}
       </div>
     </div>
 
@@ -116,12 +123,20 @@ export default function Home() {
 
     {/* Plan and the exercise library lost their tabs to Log and Chat; they stay one tap away */}
     <div className="row" style={{ gap: 8, marginBottom: 12 }}>
-      <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/plan')}><Icon name="calendar" /> {t('Weekly plan')}</button>
+      {!led && <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/plan')}><Icon name="calendar" /> {t('Weekly plan')}</button>}
       <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/library')}><Icon name="list" /> {t('Exercises')}</button>
       <button className="btn" style={{ margin: 0, flex: 1 }} onClick={() => nav('/knowledge')}><Icon name="lightbulb" /> {t('Learn')}</button>
     </div>
 
-    {!S.routines.some(r => !r.assigned) && !S.active && (
+    {led && trainer === null && <div className="card">
+      <div className="row" style={{ gap: 10, marginBottom: 6 }}>
+        <span className="lrow-i"><Icon name="person" /></span>
+        <div className="big" style={{ fontSize: 22 }}>{t('Welcome!')}</div>
+      </div>
+      <div className="muted small">{t('Your workouts come from your trainer. When your trainer invites you and assigns your first workout, it will appear here.')}</div>
+    </div>}
+
+    {!led && !S.routines.some(r => !r.assigned) && !S.active && (
       <div className="card">
         <div className="row" style={{ gap: 10, marginBottom: 6 }}>
           <span className="lrow-i"><Icon name="sparkles" /></span>

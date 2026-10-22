@@ -15,6 +15,7 @@ import { coachAvailable, hasConsent } from '../lib/coach.js'
 import { forgetCoach } from '../lib/coach-api.js'
 import Icon from '../components/Icon.jsx'
 import { askSignOut } from '../components/SignOutButton.jsx'
+import { trainerLed } from '../lib/trainer.js'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField } from '../components/ui.jsx'
 
 // The client's side of a trainer link: who can see their progress, and the way out.
@@ -36,6 +37,7 @@ function MyTrainerRow() {
 export default function Settings() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
+  const led = trainerLed(useStore(s => s.user))   // a client's plan comes from their trainer
   const user = useStore(s => s.user)
   const config = useStore(s => s.config)
   const { update, replaceState, setUser, pullState, pushState, signOut, signOutAll, resetDemo } = useStore()
@@ -161,7 +163,7 @@ export default function Settings() {
       </Row>
     </Section>
 
-    {coachAvailable(config, user, { demo: DEMO, mobile: MOBILE }) && (
+    {!led && coachAvailable(config, user, { demo: DEMO, mobile: MOBILE }) && (
       <Section title={t('Coach')} footer={hasConsent(S)
         ? t('The Coach designs and adjusts your plan; it never changes anything without your say-so.')
         : t('An AI coach that can build your plan and adjust it from what you log. Off until you turn it on.')}>
@@ -205,7 +207,7 @@ export default function Settings() {
 
     {/* ---------- data: fill it, bring things over, back it up, wipe it ---------- */}
     <Section title={t('Data')}>
-      <Row icon="sparkles" iconTint="var(--acc)" title={t('Load starter plan (PPL)')} accessory="chevron" onClick={loadStarterPlan} />
+      {!led && <Row icon="sparkles" iconTint="var(--acc)" title={t('Load starter plan (PPL)')} accessory="chevron" onClick={loadStarterPlan} />}
       <Row icon="shuffle" iconTint="var(--teal)" title={t('Import from another app')}
         subtitle={t('FitNotes, Strong, Hevy — or body weight from Apple Health')}
         accessory="chevron" onClick={() => importRef.current.click()} />

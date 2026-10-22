@@ -16,6 +16,7 @@ import Toast from './components/Toast.jsx'
 import RestTimer from './components/RestTimer.jsx'
 import Login from './views/Login.jsx'
 import Home from './views/Home.jsx'
+import { trainerLed } from './lib/trainer.js'
 import Plan from './views/Plan.jsx'
 import RoutineEdit from './views/RoutineEdit.jsx'
 import Workout from './views/Workout.jsx'
@@ -115,6 +116,7 @@ function Shell() {
   useTrainerWeighIns(ready && !!user && !user.trainer)
   useTrainerAssignments(ready && !!user && !user.trainer)
   const home = user?.trainer ? '/trainer' : '/home'
+  const led = trainerLed(user)
 
   const authed = user || isGuest
   if (!ready && !authed) return (
@@ -135,8 +137,9 @@ function Shell() {
             <Routes>
               {/* a trainer's home is their client panel */}
               <Route path="/home" element={user?.trainer ? <Navigate to="/trainer" replace /> : <Home />} />
-              <Route path="/plan" element={<Plan />} />
-              <Route path="/plan/r/:id" element={<RoutineEdit />} />
+              {/* a client's plan comes from their trainer (trainerLed): no plan building */}
+              <Route path="/plan" element={led ? <Navigate to="/home" replace /> : <Plan />} />
+              <Route path="/plan/r/:id" element={led ? <Navigate to="/home" replace /> : <RoutineEdit />} />
               <Route path="/workout" element={<Workout />} />
               <Route path="/stats" element={<Stats />} />
               <Route path="/history" element={<History />} />

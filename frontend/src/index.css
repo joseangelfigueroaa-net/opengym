@@ -901,6 +901,8 @@ h4.sec{
   font-weight:500;font-size:17px;line-height:1.25;text-transform:capitalize;
   letter-spacing:-.012em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;
 }
+:lang(es) .today-row .ttl{text-transform:none}
+:lang(es) .today-row .ttl::first-letter{text-transform:uppercase}
 
 /* --------------------------------------------------- desktop (≥1000px) --- */
 .cols{display:block}
