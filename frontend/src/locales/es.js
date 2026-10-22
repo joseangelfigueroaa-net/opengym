@@ -1118,4 +1118,6 @@ export default {
   "thigh": "muslo",
   // Library
   "Add to plan": "Agregar al plan",
+  // Login
+  "This browser doesn't support passkeys. Open Trainnery in an up-to-date Safari or Chrome to sign in.": "Este navegador no admite llaves de acceso. Abre Trainnery en Safari o Chrome actualizados para entrar.",
 }

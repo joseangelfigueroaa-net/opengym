@@ -103,7 +103,10 @@ export const useStore = create((set, get) => {
     },
     replaceState(S, push = false) { persist(clone(S), push) },
 
-    isGuest: () => localStorage.getItem('gym_guest') === '1',
+    // Trainnery: on a server everyone has an account, so a guest flag left in this browser by
+    // an older version no longer lets anyone in; only the demo and the server-less mobile
+    // build (both local-only by design) still run as a guest.
+    isGuest: () => (DEMO || MOBILE) && localStorage.getItem('gym_guest') === '1',
     setGuest(v) { if (v) localStorage.setItem('gym_guest', '1'); else localStorage.removeItem('gym_guest'); set({}) },
 
     setUser(u) {
