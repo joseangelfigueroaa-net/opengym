@@ -172,17 +172,22 @@ body.resting #app{padding-bottom:calc(250px + var(--sab))}
 #app.vfade{animation:viewfade var(--med) var(--ease)}
 
 /* large title, the way a nav bar does it */
-.hdr{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 0 18px}
-.hdr h1{font-size:34px;line-height:1.06;font-weight:700;letter-spacing:-.028em}
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:8px 0 18px}
+.hdr>div{min-width:0}
+.hdr h1{font-size:clamp(26px,8.2vw,34px);line-height:1.08;font-weight:700;letter-spacing:-.028em;overflow-wrap:break-word;hyphens:auto}
+.hdr>.iconbtn,.hdr>.row,.hdr>svg{margin-top:2px}
+/* on the smallest phones the title needs the room more than the brand mark does */
+@media (max-width:360px){.hdr>svg[aria-hidden]{display:none}}
 .hdr .sub{color:var(--label-2);font-size:15px;letter-spacing:-.006em;margin-top:4px}
 
 .iconbtn{
-  width:36px;height:36px;border-radius:50%;flex:none;
+  position:relative;width:40px;height:40px;border-radius:50%;flex:none;
   background:var(--surface);color:var(--label);
   display:flex;align-items:center;justify-content:center;font-size:18px;
   transition:background var(--fast),transform var(--fast);
 }
 .iconbtn:active{background:var(--surface-2);transform:scale(.92)}
+.iconbtn::after{content:'';position:absolute;inset:-4px;border-radius:50%}
 .iconbtn.on-ss{background:var(--acc-soft);color:var(--acc)}
 
 h4.sec{
@@ -279,7 +284,7 @@ h4.sec{
 :root[data-theme="light"] #tabbar{background:rgba(249,249,251,.78)}
 #tabbar button{
   flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-  color:var(--label-3);font-size:10px;font-weight:500;letter-spacing:.005em;padding-top:3px;
+  color:var(--label-3);font-size:clamp(10px,2.9vw,11px);font-weight:500;letter-spacing:.005em;padding-top:3px;min-width:0;min-height:48px;
   transition:color var(--fast);
 }
 /* The inactive tint is semi-transparent, so wherever two strokes cross inside an
@@ -288,6 +293,7 @@ h4.sec{
    fade on the <svg> instead of in the stroke colour flattens the icon first and
    fades it as one shape — and it does that for every icon, not just this one. */
 #tabbar button .icn{font-size:25px;--icon-stroke:1.65;color:var(--label)}
+#tabbar button>span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #tabbar button.on{color:var(--acc)}
 #tabbar button.on .icn{--icon-stroke:2;color:inherit;opacity:1}
 #tabbar button.start{margin-top:-24px}
@@ -362,8 +368,12 @@ h4.sec{
   scrollbar-width:none;-webkit-overflow-scrolling:touch;
 }
 .chips::-webkit-scrollbar{display:none}
+/* a scrolling row that runs to the screen edge, so it reads as scrollable */
+.chips.edge{margin-left:calc(-1 * var(--pad));margin-right:calc(-1 * var(--pad));padding-left:var(--pad);padding-right:var(--pad);scroll-padding-inline:var(--pad)}
+@media (min-width:1000px){.chips.edge{flex-wrap:wrap;margin-left:0;margin-right:0;padding-left:0;padding-right:0}}
 .chip{
-  flex:none;padding:6px 13px;border-radius:99px;background:var(--surface);
+  flex:none;padding:8px 14px;min-height:36px;border-radius:99px;background:var(--surface);
+  display:inline-flex;align-items:center;gap:5px;
   font-size:14px;font-weight:400;color:var(--label);text-transform:capitalize;
   letter-spacing:-.006em;transition:background var(--fast),color var(--fast);
 }
@@ -448,7 +458,7 @@ h4.sec{
 .seg button{
   position:relative;z-index:1;padding:6px 8px;font-size:14px;font-weight:500;
   letter-spacing:-.006em;color:var(--label);display:flex;align-items:center;
-  justify-content:center;gap:5px;min-height:30px;transition:opacity var(--fast);
+  justify-content:center;gap:5px;min-height:36px;transition:opacity var(--fast);
 }
 .seg button .icn{font-size:16px}
 .seg button:not(.on){color:var(--label-2);font-weight:400}
@@ -456,7 +466,7 @@ h4.sec{
 /* sitting in a list row: shrink to content instead of filling the row */
 .seg-inline{flex:none;min-width:132px}
 .seg-range{margin-bottom:10px}
-.seg-inline button{padding:5px 10px;font-size:13px;min-height:28px}
+.seg-inline button{padding:5px 10px;font-size:13px;min-height:34px}
 .seg-inline button .icn{font-size:14px}
 
 /* native time input, restyled to sit in a row like a value label */
@@ -934,19 +944,21 @@ h4.sec{
 .dtable td{padding:8px 4px;border-bottom:1px solid var(--sep)}
 .dtable .n{text-align:right}
 /* Log tab: one big button per thing to record */
-.log-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.log-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin-bottom:12px}
 .log-btn{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:0;text-align:left;color:inherit;min-height:96px}
 .log-btn:disabled{opacity:.45}
 /* chat */
 .chat{display:flex;flex-direction:column;gap:10px;min-width:0}
-.chat-log{display:flex;flex-direction:column;gap:6px;max-height:min(62vh,640px);overflow-y:auto;overscroll-behavior:contain;
+.chat-log{display:flex;flex-direction:column;gap:6px;min-height:min(46dvh,420px);max-height:min(62dvh,640px);overflow-y:auto;overscroll-behavior:contain;
   padding:10px;background:var(--surface);border-radius:16px}
 .bubble{max-width:82%;align-self:flex-start;background:var(--surface-2);border-radius:16px 16px 16px 6px;padding:8px 12px}
 .bubble.mine{align-self:flex-end;background:var(--acc);color:var(--on-acc);border-radius:16px 16px 6px 16px}
 .bubble .txt{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.95rem;line-height:1.35}
 .bubble .meta{font-size:10.5px;opacity:.7;margin-top:3px;text-align:right}
+.chat-log>.empty{margin:auto 0}
 .chat-send{display:flex;gap:8px;align-items:flex-end}
-.chat-send textarea{flex:1;min-height:44px;max-height:140px}
+.chat-send textarea.field.area{flex:1;min-height:48px;max-height:140px;resize:none;field-sizing:content;padding-top:12px;padding-bottom:12px}
+.chat-send .btn{min-height:48px}
 .chat-send .btn{width:auto;margin:0;flex-shrink:0}
 .chat-layout{display:block}
 .chat-inbox{display:none}

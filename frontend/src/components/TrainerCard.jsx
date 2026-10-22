@@ -40,9 +40,9 @@ export default function TrainerCard({ nav }) {
       {assigned.assigned.note && <div className="small" style={{ marginTop: 6, padding: '8px 10px', borderRadius: 10, background: 'var(--acc-soft)', whiteSpace: 'pre-wrap' }}>
         <b>{t('Note from your trainer')}:</b> {assigned.assigned.note}</div>}
       <div style={{ marginTop: 6 }}>
-        {assigned.ex.map((x, i) => <div key={i} className="row between small" style={{ padding: '6px 0', borderTop: i ? '1px solid var(--sep)' : 'none', gap: 8 }}>
-          <span className="capitalize" style={{ minWidth: 0 }}>{exOr(x.id).n}</span>
-          <span className="muted" style={{ flexShrink: 0, textAlign: 'right' }}>{prescription(x, S.unit)}</span>
+        {assigned.ex.map((x, i) => <div key={i} className="small" style={{ padding: '7px 0', borderTop: i ? '1px solid var(--sep)' : 'none' }}>
+          <div className="capitalize" style={{ fontWeight: 500, overflowWrap: 'anywhere' }}>{exOr(x.id).n}</div>
+          <div className="muted">{prescription(x, S.unit)}</div>
         </div>)}
       </div>
       {doneToday ? <div className="tag ok nocap" style={{ marginTop: 8 }}>{t('Done — your trainer can see it')}</div>

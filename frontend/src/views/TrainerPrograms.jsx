@@ -117,7 +117,7 @@ export default function TrainerPrograms() {
     </div>
 
     <div className="small muted" style={{ margin: '4px 0 6px' }}>{t('Methodology')}</div>
-    <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 12 }} role="group" aria-label={t('Methodology')}>
+    <div className="chips edge" style={{ marginBottom: 12 }} role="group" aria-label={t('Methodology')}>
       <button type="button" className={'chip nocap' + (!method ? ' on' : '')} aria-pressed={!method} onClick={() => setMethod(null)}>{t('All')}</button>
       {Object.entries(METHODS).filter(([k]) => PROGRAMS.some(p => p.method === k)).map(([k, m]) =>
         <button key={k} type="button" className={'chip nocap' + (method === k ? ' on' : '')} aria-pressed={method === k} onClick={() => setMethod(method === k ? null : k)}>{m.name}</button>)}

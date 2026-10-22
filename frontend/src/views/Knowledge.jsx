@@ -72,7 +72,7 @@ export default function Knowledge() {
     </div>
 
     <TextField type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={t('Search a concept, e.g. supercompensación')} aria-label={t('Search a concept')} />
-    <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '10px 0 12px' }} role="group" aria-label={t('Category')}>
+    <div className="chips edge" style={{ margin: '10px 0 12px' }} role="group" aria-label={t('Category')}>
       <button type="button" className={'chip nocap' + (!cat ? ' on' : '')} aria-pressed={!cat} onClick={() => setCat(null)}>{t('All')}</button>
       {Object.entries(CATEGORIES).map(([k, v]) => <button key={k} type="button" className={'chip nocap' + (cat === k ? ' on' : '')} aria-pressed={cat === k} onClick={() => setCat(cat === k ? null : k)}>{v}</button>)}
     </div>
