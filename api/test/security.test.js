@@ -32,14 +32,28 @@ fs.writeFileSync(path.join(DATA, 'db.json'), JSON.stringify({
     { id: 't2', name: 'Trainer Two', created: NOW, trainer: { plan: 'free', since: NOW } },
     { id: 'c1', name: 'Client One', created: NOW },
     { id: 'c2', name: 'Client Two', created: NOW },
-    { id: 'x', name: 'Intruder', created: NOW }
+    { id: 'x', name: 'Intruder', created: NOW },
+    // audit regressions: t3 took over c4 from a former trainer; c3 synced a malformed state;
+    // y is disabled during the run
+    { id: 't3', name: 'Trainer Three', created: NOW, trainer: { plan: 'gold', since: NOW } },
+    { id: 'c3', name: 'Client Three', created: NOW },
+    { id: 'c4', name: 'Client Four', created: NOW },
+    { id: 'y', name: 'To Disable', created: NOW }
   ],
   creds: [], subs: [], invites: [],
-  links: [{ trainerId: 't1', clientId: 'c1', created: NOW }, { trainerId: 't2', clientId: 'c2', created: NOW }],
+  links: [{ trainerId: 't1', clientId: 'c1', created: NOW }, { trainerId: 't2', clientId: 'c2', created: NOW },
+    { trainerId: 't1', clientId: 'c3', created: NOW }, { trainerId: 't3', clientId: 'c4', created: NOW }],
   trainerInvites: [{ token: 'f'.repeat(32), trainerId: 't2', created: NOW }]
 }));
 fs.writeFileSync(path.join(DATA, 'records-c1.json'), JSON.stringify({ entries: [{ id: 'rec-c1', kind: 'weight', d: NOW.slice(0, 10), v: { kg: 70 }, by: 'c1', role: 'client', at: NOW }] }));
 fs.writeFileSync(path.join(DATA, 'chat-c2.json'), JSON.stringify({ messages: [{ id: 'm1', from: 't2', text: 'private', at: NOW }], read: {} }));
+fs.writeFileSync(path.join(DATA, 'state-c3.json'), JSON.stringify({ workouts: {}, bodyweight: { d: 1 }, routines: 'x' }));
+const OLD = '2020-01-01T00:00:00.000Z';
+fs.writeFileSync(path.join(DATA, 'chat-c4.json'), JSON.stringify({ messages: [{ id: 'o1', from: 'tOld', text: 'old private', at: OLD }, { id: 'o2', from: 'c4', text: 'to old trainer', at: OLD }], read: {} }));
+fs.writeFileSync(path.join(DATA, 'assign-c4.json'), JSON.stringify({
+  items: [{ id: 'a-old', date: NOW.slice(0, 10), name: 'Old plan', note: '', ex: [], by: 'tOld', sentAt: OLD }],
+  profile: { goal: 'old notes', limits: '', focus: '', days: 3, notes: 'knee injury', macros: null, by: 'tOld' }
+}));
 fs.mkdirSync(path.join(DATA, 'content', 't2'), { recursive: true });
 fs.writeFileSync(path.join(DATA, 'content', 't2', 'p1'), Buffer.from('89504e470d0a1a0a', 'hex'));
 fs.writeFileSync(path.join(DATA, 'content-t2.json'), JSON.stringify({ posts: [{ id: 'p1', title: 'secret plan', body: '', link: '', file: { name: 'p.png', type: 'image/png', size: 8 }, at: NOW }] }));
@@ -48,7 +62,7 @@ const cookie = (uid, { exp = Date.now() + 86400000, ver = 0, secret = SECRET } =
   const payload = `${uid}:${exp}:${ver}`;
   return 'gymsid=' + payload + '.' + crypto.createHmac('sha256', secret).update(payload).digest('base64url');
 };
-const as = Object.fromEntries(['admin', 't1', 't2', 'c1', 'c2', 'x'].map(u => [u, cookie(u)]));
+const as = Object.fromEntries(['admin', 't1', 't2', 'c1', 'c2', 'x', 't3', 'c3', 'c4', 'y'].map(u => [u, cookie(u)]));
 
 let ipSeq = 0;
 /** A request; each gets its own visitor address unless one is given, so limits stay out of the way. */
@@ -260,4 +274,76 @@ test('plans: a Free trainer\'s client cannot log meals, a Silver one can', async
   assert.equal((await post('/api/records', meal, { who: 'c2' })).status, 403);
   assert.equal((await post('/api/records', meal, { who: 'c1' })).status, 200);
   assert.equal((await post('/api/records', meal, { who: 'x' })).status, 403, 'no trainer, no meal log');
+});
+
+/* ================= audit regressions (security-audit run-1) ================= */
+
+const KEYS = { p256dh: 'B' + 'a'.repeat(86), auth: 'c'.repeat(22) };
+
+test('push: only real push services can be subscribed, and each account keeps at most ten', async () => {
+  for (const endpoint of ['https://127.0.0.1:8443/probe', 'http://fcm.googleapis.com/x', 'https://fcm.googleapis.com:444/x',
+    'https://169.254.169.254/latest', 'https://evil.example/fcm.googleapis.com', 'https://user@fcm.googleapis.com/x'])
+    assert.equal((await post('/api/push/subscribe', { subscription: { endpoint, keys: KEYS } }, { who: 'x' })).status, 400, endpoint);
+  assert.equal((await post('/api/push/subscribe', { subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/x0', keys: { p256dh: 'a'.repeat(300), auth: KEYS.auth } } }, { who: 'x' })).status, 400, 'oversized key');
+  for (let i = 0; i < 12; i++)
+    assert.equal((await post('/api/push/subscribe', { subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/x' + i, keys: KEYS } }, { who: 'x' })).status, 200);
+  await new Promise(r => setTimeout(r, 300));
+  const db = JSON.parse(fs.readFileSync(path.join(DATA, 'db.json'), 'utf8'));
+  assert.equal(db.subs.filter(s => s.userId === 'x').length, 10);
+  assert.deepEqual(Object.keys(db.subs[0].keys).sort(), ['auth', 'p256dh'], 'only the two keys are stored');
+});
+
+test('state: fields the server reads back must have their real type', async () => {
+  for (const state of [{ workouts: {} }, { routines: 'x' }, { bodyweight: 5 }, { reminder: [] }, { week: 'mon' }])
+    assert.equal((await call('PUT', '/api/data', { who: 'x', body: { state } })).status, 400, JSON.stringify(state));
+  assert.equal((await call('PUT', '/api/data', { who: 'x', body: { state: [] } })).status, 400);
+  assert.equal((await call('PUT', '/api/data', { who: 'x', body: { state: { workouts: [], reminder: { on: false } } } })).status, 200);
+});
+
+test('http: a JSON body that is not an object is a 400, not a 500', async () => {
+  for (const raw of ['null', '5', '[]', '"x"'])
+    assert.equal((await call('POST', '/api/chat', { who: 'c1', raw })).status, 400, raw);
+});
+
+test('trainer: one client\'s malformed state does not take down the client list', async () => {
+  const r = await get('/api/trainer/clients', { who: 't1' });
+  assert.equal(r.status, 200);
+  assert.ok(r.json.clients.some(c => c.id === 'c3'), 'the malformed client is still listed');
+  assert.ok(r.json.clients.some(c => c.id === 'c1'));
+  assert.equal((await get('/api/trainer/client?id=c3', { who: 't1' })).status, 200);
+});
+
+test('trainer: a new trainer does not see what the client shared with a former one', async () => {
+  const chat = await get('/api/chat?with=c4', { who: 't3' });
+  assert.equal(chat.status, 200);
+  assert.ok(!chat.text.includes('old private') && !chat.text.includes('to old trainer'), 'former conversation hidden');
+  const mineChat = await get('/api/chat', { who: 'c4' });
+  assert.ok(!mineChat.text.includes('old private'), 'and on the client side');
+  const a = await get('/api/trainer/client/assignments?id=c4', { who: 't3' });
+  assert.equal(a.status, 200);
+  assert.equal(a.json.assignments.length, 0, 'former trainer\'s assignments hidden');
+  assert.ok(!a.text.includes('knee injury'), 'former trainer\'s notes hidden');
+  assert.ok(!(await get('/api/trainer/client/profile?id=c4', { who: 't3' })).text.includes('knee injury'));
+  assert.equal((await post('/api/trainer/client/assign/delete', { id: 'c4', assignment: 'a-old' }, { who: 't3' })).status, 400, 'cannot delete them either');
+});
+
+test('trainer: leaving a trainer drops their notes about the client', async () => {
+  assert.equal((await post('/api/trainer/client/profile', { id: 'c4', goal: 'new goal', notes: 'new notes' }, { who: 't3' })).status, 200);
+  assert.ok((await get('/api/trainer/client/profile?id=c4', { who: 't3' })).text.includes('new notes'));
+  assert.equal((await post('/api/me/trainer/leave', {}, { who: 'c4' })).status, 200);
+  await new Promise(r => setTimeout(r, 300));
+  const file = JSON.parse(fs.readFileSync(path.join(DATA, 'assign-c4.json'), 'utf8'));
+  assert.equal(file.profile, null);
+});
+
+test('admin: disabling an account removes its push subscriptions', async () => {
+  assert.equal((await post('/api/push/subscribe', { subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/y1', keys: KEYS } }, { who: 'y' })).status, 200);
+  assert.equal((await post('/api/admin/user/disable', { id: 'y', disabled: true }, { who: 'admin' })).status, 200);
+  const list = await get('/api/admin/users', { who: 'admin' });
+  assert.equal(list.json.users.find(u => u.id === 'y').hasPush, false);
+  assert.equal((await get('/api/me', { who: 'y' })).status, 401);
+});
+
+test('server: still up after every regression above', async () => {
+  assert.equal((await get('/api/health')).status, 200);
 });

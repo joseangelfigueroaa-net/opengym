@@ -63,23 +63,36 @@ export function readState(uid) {
 
 /* ---------- caps ---------- */
 
+// Today's spend, per profile and for the instance, kept apart from the per-user files: those are
+// the user's to delete (forget), and deleting them must not hand the user a fresh allowance.
+// Counted at enqueue, so queued and running jobs count too. The dot keeps the name out of
+// reach of any uid (safe() strips dots).
+const USAGE_FILE = path.join(COACH_DIR, 'usage.day.json');
 const todayISO = () => new Date().toISOString().slice(0, 10);
-function bumpDaily(uid) {
-  const rec = readUser(uid);
+let usage = null;
+function usageToday() {
   const d = todayISO();
-  const daily = rec.daily?.date === d ? { date: d, count: rec.daily.count + 1 } : { date: d, count: 1 };
-  patchUser(uid, { daily });
-  return daily.count;
+  if (!usage) { try { usage = JSON.parse(fs.readFileSync(USAGE_FILE, 'utf8')); } catch { usage = null; } }
+  if (!usage || usage.date !== d || typeof usage.users !== 'object') usage = { date: d, total: 0, users: {} };
+  return usage;
+}
+function bumpDaily(uid) {
+  const u = usageToday();
+  u.total++;
+  u.users[uid] = (u.users[uid] || 0) + 1;
+  try {
+    fs.mkdirSync(COACH_DIR, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(USAGE_FILE + '.tmp', JSON.stringify(u), { mode: 0o600 });
+    fs.renameSync(USAGE_FILE + '.tmp', USAGE_FILE);
+  } catch (e) { console.error('coach usage not saved', e.message); }   // the in-memory count still holds
+  return u.users[uid];
 }
 export function capState(uid) {
   const caps = cfgStore.load().caps || {};
-  const rec = readUser(uid);
-  const used = rec.daily?.date === todayISO() ? rec.daily.count : 0;
-  return { used, limit: caps.perProfileDaily || 0 };
+  return { used: usageToday().users[uid] || 0, limit: caps.perProfileDaily || 0 };
 }
 function instanceUsedToday() {
-  const d = todayISO();
-  return (cfgStore.load().log || []).filter(e => (e.at || '').slice(0, 10) === d).length;
+  return usageToday().total;
 }
 
 /* ---------- status ---------- */

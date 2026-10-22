@@ -87,7 +87,7 @@ export const latest = (entries, n) => [...(entries || [])].sort(byDay).slice(-n)
  *  (a deliberate weigh-in) wins over the app's log. */
 export function weightSeries(stateBodyweight, entries) {
   const m = new Map();
-  for (const b of stateBodyweight || []) if (b && b.d && Number(b.w) > 0) m.set(b.d, { d: b.d, w: Number(b.w), src: 'app' });
+  for (const b of Array.isArray(stateBodyweight) ? stateBodyweight : []) if (b && typeof b.d === 'string' && Number(b.w) > 0) m.set(b.d, { d: b.d, w: Number(b.w), src: 'app' });
   for (const e of (entries || []).filter(x => x.kind === 'weight').sort(byDay)) m.set(e.d, { d: e.d, w: e.v.kg, src: e.role });
   return [...m.values()].sort((a, b) => a.d.localeCompare(b.d));
 }

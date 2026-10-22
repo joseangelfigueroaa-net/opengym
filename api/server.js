@@ -63,8 +63,8 @@ const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(us
 // What the app learns about the signed-in account. `trainer` is null for everyone but trainers.
 const publicUser = user => ({ id: user.id, name: user.name, admin: isAdmin(user), trainer: trainer.isTrainer(user) ? { plan: trainer.planOf(user), features: trainer.featuresOf(user) } : null });
 // A trainer's invite link doubles as a signup code on an invite-only instance, so a new client
-// can create a profile from the link alone. It is only checked here, not used up: accepting the
-// link after signup is what spends it.
+// can create a profile from the link alone. Signing up reserves the link for that profile
+// (signupBy); accepting it afterwards is what links the two and spends it.
 const trainerCodeOk = code => { try { trainer.usableInvite(db, code); return true; } catch { return false; } };
 // db.json changes on every sign-in, link and invite. Several changes in one tick become one
 // write, serialized once, off the request path; compact, since nobody edits it by hand.
@@ -74,6 +74,9 @@ function saveDb() {
   dbDirty = true;
   setImmediate(() => { dbDirty = false; files.write('db.json', db); });
 }
+// Fields of the synced state the server itself reads, and the type it reads them as.
+const STATE_ARRAYS = ['workouts', 'routines', 'bodyweight', 'customEx'];
+const STATE_OBJECTS = ['week', 'dayPlan', 'reminder', 'coach', 'exWeights'];
 const stateName = uid => 'state-' + String(uid).replace(/[^a-zA-Z0-9_-]/g, '') + '.json';
 const readState = uid => files.read(stateName(uid), null);
 function writeState(uid, S) {
@@ -100,8 +103,31 @@ catch { vapid = webpush.generateVAPIDKeys(); fs.writeFileSync(vapidFile, JSON.st
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || (SECURE ? ORIGIN : 'mailto:admin@localhost');
 webpush.setVapidDetails(VAPID_SUBJECT, vapid.publicKey, vapid.privateKey);
 
+// The endpoint is a URL the browser hands us and the server then POSTs to, so it has to be one
+// of the real push services — anything else would let a signed-in user aim the API at an
+// internal host. Keys are the two short base64url strings the spec defines, nothing more.
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /^android\.googleapis\.com$/, /(^|\.)push\.services\.mozilla\.com$/,
+  /(^|\.)notify\.windows\.com$/, /^web\.push\.apple\.com$/, /(^|\.)push\.apple\.com$/];
+const MAX_SUBS_PER_USER = 10;
+function validPushEndpoint(endpoint) {
+  if (typeof endpoint !== 'string' || endpoint.length > 1024) return false;
+  let u;
+  try { u = new URL(endpoint); } catch { return false; }
+  return u.protocol === 'https:' && !u.port && !u.username && PUSH_HOSTS.some(re => re.test(u.hostname));
+}
+const KEY_RE = /^[A-Za-z0-9_-]{8,200}={0,2}$/;
+function cleanSubscription(sub) {
+  if (!sub || typeof sub !== 'object' || !validPushEndpoint(sub.endpoint)) return null;
+  const { p256dh, auth } = sub.keys || {};
+  if (!KEY_RE.test(String(p256dh || '')) || !KEY_RE.test(String(auth || ''))) return null;
+  return { endpoint: sub.endpoint, keys: { p256dh, auth } };
+}
+
 async function sendPush(userId, payload) {
-  const subs = db.subs.filter(s => s.userId === userId);
+  const user = userById(userId);
+  if (!user || user.disabled) return;
+  // subscriptions stored before the endpoint check existed are skipped rather than trusted
+  const subs = db.subs.filter(s => s.userId === userId && validPushEndpoint(s.endpoint));
   if (!subs.length) return;
   const body = JSON.stringify(payload);
   let dirty = false;
@@ -111,7 +137,8 @@ async function sendPush(userId, payload) {
     // at the library default (long) so a briefly-offline device still gets it once reconnected,
     // rather than risking it being dropped for the sake of shaving off latency that TTL doesn't
     // actually control anyway.
-    try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, body, { urgency: 'high' }); }
+    // timeout: a push service that stalls must not hold a request or timer open indefinitely
+    try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, body, { urgency: 'high', timeout: 10000 }); }
     catch (e) {
       console.error('push send failed', userId, e.statusCode, e.body || e.message);
       if (e.statusCode === 404 || e.statusCode === 410) {
@@ -143,7 +170,7 @@ function cancelRestTimer(userId) {
 function effectiveRoutineId(S, iso) {
   const ov = S.dayPlan?.[iso];
   if (ov === 'rest') return null;
-  if (ov && S.routines?.some(r => r.id === ov)) return ov;
+  if (ov && Array.isArray(S.routines) && S.routines.some(r => r?.id === ov)) return ov;
   const wd = new Date(iso + 'T12:00:00').getDay();
   return S.week?.[wd] || null;
 }
@@ -179,26 +206,32 @@ setInterval(() => {
     for (const id of subscribed) noteReminder(id, readState(id));
   }
   for (const [uid, r] of reminders) {
-    if (!subscribed.has(uid)) continue;
-    const user = userById(uid);
-    if (!user) continue;
-    const now = userNow(r.tz);
-    if (!now || r.time !== now.hhmm) continue;
-    if (user.lastReminder === now.date) continue;
-    const S = readState(uid);
-    if (!S) continue;
-    if ((S.workouts || []).some(w => w.d === now.date)) continue;
-    const rid = effectiveRoutineId(S, now.date);
-    if (!rid) continue; // rest day — nothing planned
-    const routine = (S.routines || []).find(r => r.id === rid);
-    console.log('reminder firing', user.id, rid);
-    user.lastReminder = now.date;
-    saveDb();
-    sendPush(user.id, {
-      title: routine ? `${routine.emoji || '🏋️'} ${routine.name} today` : 'Workout planned today',
-      body: "It's on your plan — let's go 💪",
-      tag: 'day-reminder'
-    });
+    // One user's state is that user's to write, so nothing in it may stop the sweep — let alone
+    // the process — for everyone else. The day is marked done before anything reads the state,
+    // so a state that throws costs that user one reminder, not one crash every ten seconds.
+    try {
+      if (!subscribed.has(uid)) continue;
+      const user = userById(uid);
+      if (!user || user.disabled) continue;
+      const now = userNow(r.tz);
+      if (!now || r.time !== now.hhmm) continue;
+      if (user.lastReminder === now.date) continue;
+      user.lastReminder = now.date;
+      saveDb();
+      const S = readState(uid);
+      if (!S) continue;
+      const workouts = Array.isArray(S.workouts) ? S.workouts : [];
+      if (workouts.some(w => w?.d === now.date)) continue;
+      const rid = effectiveRoutineId(S, now.date);
+      if (!rid) continue; // rest day — nothing planned
+      const routine = (Array.isArray(S.routines) ? S.routines : []).find(r => r?.id === rid);
+      console.log('reminder firing', user.id, rid);
+      sendPush(user.id, {
+        title: routine ? `${String(routine.emoji || '🏋️')} ${String(routine.name || '')} today` : 'Workout planned today',
+        body: "It's on your plan — let's go 💪",
+        tag: 'day-reminder'
+      }).catch(e => console.error('reminder push failed', uid, e.message));
+    } catch (e) { console.error('reminder sweep skipped', uid, e.message); }
   }
 // Checked every 10s (not 60s) — ticks aren't aligned to the top of the minute, so a 60s
 // interval could sit on your target minute for up to 59s before noticing. 10s caps that at ~9s.
@@ -264,6 +297,7 @@ const clearCookie = `gymsid=; Path=/; Max-Age=0; HttpOnly;${SECURE} SameSite=Lax
 const challenges = new Map(); // cid -> {challenge, name?, uid?, exp}
 function putChallenge(data) {
   const cid = crypto.randomBytes(16).toString('base64url');
+  if (challenges.size >= 20000) challenges.delete(challenges.keys().next().value);   // oldest first
   challenges.set(cid, { ...data, exp: Date.now() + 5 * 60000 });
   return cid;
 }
@@ -292,8 +326,12 @@ function readBody(req) {
       chunks.push(d);
     });
     req.on('end', () => {
-      try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); }
-      catch { const e = new Error('bad json'); e.status = 400; reject(e); }
+      let v;
+      try { v = chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}; }
+      catch { const e = new Error('bad json'); e.status = 400; reject(e); return; }
+      // every handler reads fields off the body: `null`, a number or a list is not a request
+      if (!v || typeof v !== 'object' || Array.isArray(v)) { const e = new Error('body must be a JSON object'); e.status = 400; reject(e); return; }
+      resolve(v);
     });
     req.on('error', reject);
   });
@@ -377,6 +415,9 @@ const routes = {
     }
     const user = { id: c.uid, name: c.name, created: new Date().toISOString() };
     if (invite) { user.invitedBy = invite.code; invite.usedBy = user.id; invite.usedAt = user.created; }
+    // A trainer's link let them in instead: it now belongs to this profile, which still has to
+    // accept it (Join), and it cannot sign anyone else up.
+    else if (INVITE_ONLY) { const t = trainer.usableInvite(db, c.code).inv; t.signupBy = user.id; user.invitedBy = 'trainer:' + t.trainerId; }
     db.users.push(user);
     db.creds.push({
       id: credential.id, userId: user.id,
@@ -451,7 +492,12 @@ const routes = {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
     const body = await readBody(req);
-    if (!body.state || typeof body.state !== 'object') return json(res, 400, { error: 'state required' });
+    if (!body.state || typeof body.state !== 'object' || Array.isArray(body.state)) return json(res, 400, { error: 'state required' });
+    // The blob is the user's own, but the server reads parts of it back (reminders, the trainer's
+    // view, the Coach), so those parts must at least have the shape that code expects.
+    const bad = STATE_ARRAYS.find(k => body.state[k] != null && !Array.isArray(body.state[k]))
+      || STATE_OBJECTS.find(k => body.state[k] != null && (typeof body.state[k] !== 'object' || Array.isArray(body.state[k])));
+    if (bad) return json(res, 400, { error: `state.${bad} has the wrong type` });
     delete body.state.active;              // in-progress workouts stay device-local
     writeState(user.id, body.state);
     json(res, 200, { ok: true, ts: body.state._ts || null });
@@ -463,10 +509,17 @@ const routes = {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
     const body = await readBody(req);
-    const sub = body.subscription;
-    if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) return json(res, 400, { error: 'invalid subscription' });
+    const sub = cleanSubscription(body.subscription);
+    if (!sub) return json(res, 400, { error: 'invalid subscription' });
+    // Same endpoint = same browser: whoever subscribes it last owns it (a shared device that
+    // changed account). Each account keeps its newest MAX_SUBS_PER_USER devices.
     db.subs = db.subs.filter(s => s.endpoint !== sub.endpoint);
     db.subs.push({ userId: user.id, endpoint: sub.endpoint, keys: sub.keys, created: new Date().toISOString() });
+    const mine = db.subs.filter(s => s.userId === user.id);
+    if (mine.length > MAX_SUBS_PER_USER) {
+      const drop = new Set(mine.slice(0, mine.length - MAX_SUBS_PER_USER));
+      db.subs = db.subs.filter(s => !drop.has(s));
+    }
     saveDb();
     noteReminder(user.id, readState(user.id));   // a reminder set before subscribing starts firing now
     json(res, 200, { ok: true });
@@ -527,8 +580,8 @@ const routes = {
   'GET /api/admin/users': async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const users = db.users.map(u => {
-      const S = readState(u.id) || {};
-      const workouts = S.workouts || [];
+      const S = trainer.cleanState(readState(u.id));   // state saved before PUT checked its shape
+      const workouts = S.workouts;
       const last = workouts[workouts.length - 1];
       return {
         id: u.id, name: u.name, created: u.created || null,
@@ -551,15 +604,15 @@ const routes = {
     const id = new URL(req.url, 'http://x').searchParams.get('id');
     const u = userById(id);
     if (!u) return json(res, 404, { error: 'no such user' });
-    const S = readState(u.id) || {};
+    const S = trainer.cleanState(readState(u.id));
     json(res, 200, {
       user: { id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null, demo: !!u.demo,
         trainer: trainer.isTrainer(u) ? trainer.planOf(u) : null, clients: trainer.clientIdsOf(db, u.id).length },
       unit: S.unit || 'kg',
       lastSync: S._ts || null,
-      routines: (S.routines || []).map(r => ({ id: r.id, name: r.name, emoji: r.emoji, count: (r.ex || []).length })),
-      bodyweight: S.bodyweight || [],
-      workouts: (S.workouts || []).slice().reverse()   // newest first for display
+      routines: S.routines.map(r => ({ id: r.id, name: r.name, emoji: r.emoji, count: (Array.isArray(r.ex) ? r.ex : []).length })),
+      bodyweight: S.bodyweight,
+      workouts: S.workouts.slice().reverse()   // newest first for display
     });
   },
 
@@ -570,7 +623,14 @@ const routes = {
     if (!u) return json(res, 404, { error: 'no such user' });
     if (isAdmin(u)) return json(res, 400, { error: 'cannot disable an admin' });
     u.disabled = !!body.disabled;
-    if (u.disabled) presence.delete(u.id);   // drop them off "training now" at once
+    if (u.disabled) {
+      // locked out everywhere means the server stops acting for them too: no "training now",
+      // no pushes to their devices, no rest timer still counting
+      presence.delete(u.id);
+      cancelRestTimer(u.id);
+      db.subs = db.subs.filter(s => s.userId !== u.id);
+      reminders.delete(u.id);
+    }
     saveDb();
     json(res, 200, { ok: true, id: u.id, disabled: u.disabled });
   },
@@ -635,7 +695,9 @@ coachJobs.setProposalHook((uid, pending) => {
     tag: 'coach-proposal', url: '#/coach'
   });
 });
-startCadence({ users: () => db.users, userNow });
+// A disabled account gets no scheduled reviews: they would spend the owner's provider on data
+// its owner can no longer see.
+startCadence({ users: () => db.users.filter(u => !u.disabled), userNow });
 
 // Per visitor (lib/security.js): sign-in, sign-up and invite links are where guessing would
 // happen, so they get a tight budget; everything else a generous one that a gym full of clients

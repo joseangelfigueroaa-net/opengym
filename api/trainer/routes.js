@@ -51,6 +51,21 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   const chatOf = clientId => load('chat-' + safe(clientId) + '.json');
   const contentOf = trainerId => load('content-' + safe(trainerId) + '.json');
   const assignOf = clientId => load('assign-' + safe(clientId) + '.json');
+  // Chat and assignments are filed per client and outlive an unlink, so whatever a trainer reads
+  // is cut down to the current pairing: messages since this link was made, assignments they sent.
+  const chatSince = (clientId, link) => {
+    const file = chatOf(clientId);
+    const from = link?.created || '';
+    return { ...file, messages: (file.messages || []).filter(m => (m.at || '') >= from) };
+  };
+  // The trainer's notes on a client carry who wrote them; notes from before that field existed
+  // are dropped when the pair unlinks (dropPairData), so an unsigned one is the current trainer's.
+  const profileFor = (file, trainerId) => file.profile && (!file.profile.by || file.profile.by === trainerId) ? file.profile : null;
+  const dropPairData = clientId => {
+    const file = assignOf(clientId);
+    if (file.profile) { file.profile = null; store('assign-' + safe(clientId) + '.json', file); }
+  };
+  const mine = (file, trainerId) => ({ ...file, items: (file.items || []).filter(a => a.by === trainerId) });
   const today = () => new Date().toISOString().slice(0, 10);
   const contentDir = trainerId => path.join(dataDir, 'content', safe(trainerId));
 
@@ -61,9 +76,11 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     if (!u) { json(res, 404, { error: 'no such client' }); return null; }
     return u;
   };
+  // A disabled trainer, or one an admin demoted, trains nobody: no chat, no plan features.
   const trainerOf = user => {
     const link = T.linkOf(db(), user.id);
-    return link ? userById(link.trainerId) || null : null;
+    const t = link && userById(link.trainerId);
+    return t && !t.disabled && T.isTrainer(t) ? t : null;
   };
   const author = (user, role) => ({ id: user.id, role });
   const notify = (uid, title, body, url) => sendPush(uid, { title, body: body.slice(0, 140), tag: 'chat', url }).catch?.(() => {});
@@ -95,8 +112,13 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const clients = db().links.filter(l => l.trainerId === trainer.id).map(l => {
         const u = userById(l.clientId);
         if (!u) return null;
-        const chat = chatOf(u.id);
-        return { ...T.clientSummary(u, l, readState(u.id), recordsOf(u.id), now), unread: C.unreadFor(chat, trainer.id) };
+        // one client's data must never cost the trainer the whole list
+        try {
+          return { ...T.clientSummary(u, l, readState(u.id), recordsOf(u.id), now), unread: C.unreadFor(chatSince(u.id, l), trainer.id) };
+        } catch (e) {
+          console.error('client summary failed', u.id, e.message);
+          return { id: u.id, name: u.name, since: l.created, workouts: 0, status: { code: 'new', days: null, last: null }, unread: 0 };
+        }
       }).filter(Boolean);
       const invites = T.openInvites(db(), trainer.id, now).map(i => ({ token: i.token, created: i.created }));
       json(res, 200, { clients, invites, seats: seats(trainer, now), inviteDays: T.INVITE_DAYS });
@@ -106,7 +128,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const trainer = asTrainer(req, res); if (!trainer) return;
       const id = query(req, 'id');
       const u = ownClient(req, res, trainer, id); if (!u) return;
-      json(res, 200, { client: { ...T.clientDetail(u, T.linkOf(db(), id), readState(id), recordsOf(id)), macroGoal: assignOf(id).profile?.macros || null } });
+      json(res, 200, { client: { ...T.clientDetail(u, T.linkOf(db(), id), readState(id), recordsOf(id)), macroGoal: T.hasFeature(trainer, 'macros') ? profileFor(assignOf(id), trainer.id)?.macros || null : null } });
     },
 
     'POST /api/trainer/client/records': async (req, res) => {
@@ -153,7 +175,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'POST /api/trainer/client/remove': async (req, res) => {
       const trainer = asTrainer(req, res); if (!trainer) return;
       const body = await readBody(req);
-      try { T.unlink(db(), trainer.id, String(body.id || '')); saveDb(); json(res, 200, { ok: true, seats: seats(trainer) }); }
+      try { T.unlink(db(), trainer.id, String(body.id || '')); dropPairData(String(body.id || '')); saveDb(); json(res, 200, { ok: true, seats: seats(trainer) }); }
       catch (e) { fail(res, e); }
     },
 
@@ -163,7 +185,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const trainer = asTrainer(req, res); if (!trainer) return;
       const u = ownClient(req, res, trainer, query(req, 'id')); if (!u) return;
       const file = assignOf(u.id);
-      json(res, 200, { assignments: A.recent(file, today(), 28), profile: file.profile || A.cleanProfile({}) });
+      json(res, 200, { assignments: A.recent(mine(file, trainer.id), today(), 28), profile: profileFor(file, trainer.id) || A.cleanProfile({}) });
     },
 
     // Sends (or replaces) the workout for one day; the client hears about it by push.
@@ -200,7 +222,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'GET /api/trainer/client/profile': async (req, res) => {
       const trainer = asTrainer(req, res); if (!trainer) return;
       const u = ownClient(req, res, trainer, query(req, 'id')); if (!u) return;
-      json(res, 200, { profile: assignOf(u.id).profile || A.cleanProfile({}) });
+      json(res, 200, { profile: profileFor(assignOf(u.id), trainer.id) || A.cleanProfile({}) });
     },
 
     'POST /api/trainer/client/profile': async (req, res) => {
@@ -208,7 +230,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const body = await readBody(req);
       const u = ownClient(req, res, trainer, String(body.id || '')); if (!u) return;
       const file = assignOf(u.id);
-      file.profile = A.cleanProfile(body);
+      file.profile = { ...A.cleanProfile(body), by: trainer.id };
       if (!T.hasFeature(trainer, 'macros')) file.profile.macros = null;
       store('assign-' + safe(u.id) + '.json', file);
       json(res, 200, { profile: file.profile });
@@ -220,7 +242,10 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const u = ownClient(req, res, trainer, String(body.id || '')); if (!u) return;
       try {
         const file = assignOf(u.id);
-        A.remove(file, String(body.assignment || ''));
+        const id = String(body.assignment || '');
+        // a former trainer's items stay on file but are not this trainer's to delete
+        if (!(file.items || []).some(a => a.id === id && a.by === trainer.id)) throw new A.AssignError('no such assignment');
+        A.remove(file, id);
         store('assign-' + safe(u.id) + '.json', file);
         json(res, 200, { ok: true });
       } catch (e) { fail(res, e); }
@@ -318,9 +343,10 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
         clientId = user.id;
       }
       const file = chatOf(clientId);
-      const unread = C.unreadFor(file, user.id);
+      const view = chatSince(clientId, T.linkOf(db(), clientId));
+      const unread = C.unreadFor(view, user.id);
       if (unread) { C.markRead(file, user.id); store('chat-' + safe(clientId) + '.json', file); }
-      json(res, 200, { messages: C.recent(file), me: user.id, other: { id: other.id, name: other.name }, readByOther: (file.read || {})[other.id] || null });
+      json(res, 200, { messages: C.recent(view), me: user.id, other: { id: other.id, name: other.name }, readByOther: (file.read || {})[other.id] || null });
     },
 
     'POST /api/chat': async (req, res) => {
@@ -348,7 +374,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'GET /api/chat/unread': async (req, res) => {
       const user = signedIn(req, res); if (!user) return;
       const ids = T.isTrainer(user) ? T.clientIdsOf(db(), user.id) : (trainerOf(user) ? [user.id] : []);
-      json(res, 200, { count: ids.reduce((n, id) => n + C.unreadFor(chatOf(id), user.id), 0) });
+      json(res, 200, { count: ids.reduce((n, id) => n + C.unreadFor(chatSince(id, T.linkOf(db(), id)), user.id), 0) });
     },
 
     /* ------------------------------ client ------------------------------ */
@@ -386,7 +412,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     // is all it gives away — the token is the secret, not the name behind it.
     'GET /api/invite': async (req, res) => {
       const token = query(req, 'token');
-      try { const { trainer } = T.usableInvite(db(), token); json(res, 200, { trainer: { name: trainer.name } }); }
+      try { const { trainer } = T.usableInvite(db(), token, Date.now(), readSession(req)); json(res, 200, { trainer: { name: trainer.name } }); }
       catch (e) { fail(res, e); }
     },
 
@@ -406,7 +432,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const t = link && userById(link.trainerId);
       json(res, 200, { trainer: t ? {
         id: t.id, name: t.name, since: link.created, profile: P.publicProfile(t),
-        features: T.featuresOf(t), macroGoal: T.hasFeature(t, 'macros') ? assignOf(user.id).profile?.macros || null : null
+        features: T.featuresOf(t), macroGoal: T.hasFeature(t, 'macros') ? profileFor(assignOf(user.id), t.id)?.macros || null : null
       } : null });
     },
 
@@ -415,6 +441,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const link = T.linkOf(db(), user.id);
       if (!link) return json(res, 404, { error: 'you have no trainer' });
       T.unlink(db(), link.trainerId, user.id);
+      dropPairData(user.id);
       saveDb();
       json(res, 200, { ok: true });
     },

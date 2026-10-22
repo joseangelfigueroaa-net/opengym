@@ -3,9 +3,12 @@
  * Trainnery runs behind Cloudflare and Coolify's Traefik, then the web container's nginx, so the
  * socket address is a proxy's. Cloudflare's CF-Connecting-IP is the visitor; X-Forwarded-For's
  * first hop is the fallback. Both can be forged by someone who reaches the server without going
- * through Cloudflare — which only buys them their own rate-limit bucket, and the per-route limits
- * below are sized so that one bucket cannot hurt anyone else.
+ * through Cloudflare: they could then pick a fresh bucket per request, or spend someone else's.
+ * That is closed at the edge, not here — the origin must only accept Cloudflare (host firewall
+ * on Cloudflare's ranges, or Authenticated Origin Pulls). What this file does guarantee is that
+ * rotating keys cannot grow memory without bound (MAX_KEYS).
  */
+const MAX_KEYS = 50000;
 
 export function clientIp(req) {
   const cf = req.headers['cf-connecting-ip'];
@@ -25,7 +28,13 @@ export function createLimiter({ limit, windowMs }) {
   return {
     take(key, now = Date.now()) {
       let h = hits.get(key);
-      if (!h || now - h.start >= windowMs) { h = { start: now, n: 0 }; hits.set(key, h); }
+      if (!h || now - h.start >= windowMs) {
+        h = { start: now, n: 0 };
+        hits.delete(key);
+        // a full table drops its oldest window (Maps iterate in insertion order)
+        if (hits.size >= MAX_KEYS) hits.delete(hits.keys().next().value);
+        hits.set(key, h);
+      }
       h.n++;
       return h.n <= limit ? 0 : Math.max(1, Math.ceil((h.start + windowMs - now) / 1000));
     }

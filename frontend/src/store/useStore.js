@@ -80,6 +80,7 @@ export const useStore = create((set, get) => {
   // Everything a sign-out leaves behind on this device, whichever way it was triggered.
   const clearLocalSession = () => {
     get().setUser(null)
+    localStorage.removeItem('gym_owner')
     localStorage.removeItem('gym_guest')
     localStorage.removeItem('gym_dirty')
     localStorage.removeItem(KEY)
@@ -109,9 +110,24 @@ export const useStore = create((set, get) => {
     isGuest: () => (DEMO || MOBILE) && localStorage.getItem('gym_guest') === '1',
     setGuest(v) { if (v) localStorage.setItem('gym_guest', '1'); else localStorage.removeItem('gym_guest'); set({}) },
 
+    // The data on this device belongs to whoever signed in last (gym_owner, kept when a session
+    // just expires or is revoked). Someone else signing in starts from a clean device instead of
+    // having that person's workouts pulled or pushed into their profile.
     setUser(u) {
-      if (u) { localStorage.setItem('gym_user', JSON.stringify(u)); localStorage.removeItem('gym_guest') }
-      else localStorage.removeItem('gym_user')
+      const prev = (() => { try { return JSON.parse(localStorage.getItem('gym_user'))?.id || null } catch { return null } })()
+      const owner = localStorage.getItem('gym_owner') || prev
+      if (u) {
+        if (owner && owner !== u.id) {
+          localStorage.removeItem('gym_dirty')
+          localStorage.removeItem(KEY)
+          persist(clone(DEF), false)
+        }
+        localStorage.setItem('gym_owner', u.id)
+        localStorage.setItem('gym_user', JSON.stringify(u)); localStorage.removeItem('gym_guest')
+      } else {
+        if (owner) localStorage.setItem('gym_owner', owner)
+        localStorage.removeItem('gym_user')
+      }
       set({ user: u })
     },
 

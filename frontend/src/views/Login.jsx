@@ -50,7 +50,7 @@ export default function Login() {
   const [inviter, setInviter] = useState(null)
   useEffect(() => {
     const token = pendingInviteToken()
-    if (token) api('/api/invite?token=' + token).then(r => setInviter(r.trainer.name)).catch(() => {})
+    if (token) api('/api/invite?token=' + encodeURIComponent(token)).then(r => setInviter(r.trainer.name)).catch(() => {})
   }, [])
   const signIn = async () => {
     try { const u = await passkeyLogin(); setUser(u); await pullState(); useUI.getState().toast(t('Welcome back, {0}', u.name)) }

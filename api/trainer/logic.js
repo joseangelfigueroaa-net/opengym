@@ -72,11 +72,13 @@ export function createInvite(db, trainer, now = Date.now()) {
   return invite;
 }
 
-/** An invite someone may still use — the one check shared by signup and acceptance. */
-export function usableInvite(db, token, now = Date.now()) {
+/** An invite someone may still use — the one check shared by signup and acceptance.
+ *  A link that already created a profile (`signupBy`) belongs to that profile: it can still
+ *  accept it, but nobody can sign up with it again. `who` is the signed-in user, if any. */
+export function usableInvite(db, token, now = Date.now(), who = null) {
   const inv = db.trainerInvites.find(i => i.token === String(token || '').toLowerCase());
   if (!inv) throw new TrainerError('invalid', 'this invite link does not exist');
-  if (inv.usedBy) throw new TrainerError('used', 'this invite link was already used');
+  if (inv.usedBy || (inv.signupBy && inv.signupBy !== who?.id)) throw new TrainerError('used', 'this invite link was already used');
   if (isExpired(inv, now)) throw new TrainerError('expired', 'this invite link has expired — ask your trainer for a new one');
   const trainer = db.users.find(u => u.id === inv.trainerId);
   if (!trainer || trainer.disabled || !isTrainer(trainer)) throw new TrainerError('invalid', 'this invite link is no longer valid');
@@ -84,7 +86,7 @@ export function usableInvite(db, token, now = Date.now()) {
 }
 
 export function acceptInvite(db, client, token, now = Date.now()) {
-  const { inv, trainer } = usableInvite(db, token, now);
+  const { inv, trainer } = usableInvite(db, token, now, client);
   if (trainer.id === client.id) throw new TrainerError('self', 'you cannot be your own client');
   const current = linkOf(db, client.id);
   if (current) throw new TrainerError('has_trainer', current.trainerId === trainer.id
@@ -191,11 +193,21 @@ export function activity(S, entries, limit = 30) {
   return items.sort((a, b) => b.d.localeCompare(a.d) || String(b.at).localeCompare(String(a.at))).slice(0, limit);
 }
 
+/** The client writes their own state, so the trainer's views take only what has the shape they
+ *  read: lists of objects with string dates, plain objects for the plan. */
+const list = v => Array.isArray(v) ? v.filter(x => x && typeof x === 'object' && (x.d == null || typeof x.d === 'string')) : [];
+const plain = v => v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+export function cleanState(S) {
+  S = plain(S);
+  return { ...S, workouts: list(S.workouts), bodyweight: list(S.bodyweight), routines: list(S.routines),
+    customEx: list(S.customEx), week: plain(S.week), dayPlan: plain(S.dayPlan) };
+}
+
 /** One row of the trainer's client list. `rec` is the client's records file (or null). */
 export function clientSummary(user, link, S, rec = null, now = Date.now()) {
-  S = S || {};
+  S = cleanState(S);
   const entries = rec?.entries || [];
-  const workouts = S.workouts || [];
+  const workouts = S.workouts;
   const weights = R.weightSeries(S.bodyweight, entries);
   const last = workouts[workouts.length - 1];
   const lastW = weights[weights.length - 1];
@@ -215,7 +227,7 @@ export function clientSummary(user, link, S, rec = null, now = Date.now()) {
 /** The client file a trainer opens: progress, history, records and plan — nothing device- or
  *  Coach-private. */
 export function clientDetail(user, link, S, rec = null, now = Date.now()) {
-  S = S || {};
+  S = cleanState(S);
   const entries = rec?.entries || [];
   const weights = R.weightSeries(S.bodyweight, entries);
   return {

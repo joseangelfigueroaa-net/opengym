@@ -173,3 +173,25 @@ test('the plan fingerprint moves when the plan does, and only then', async () =>
   assert.notEqual(jobs.hashPlan(plan), jobs.hashPlan(moved));
 });
 
+
+test('forgetting the Coach does not hand back the daily allowance', async () => {
+  const uid = 'u-forget';
+  writeState(DIR, uid, sampleState());
+  cfg.save({ caps: { perProfileDaily: 1, instanceDaily: 0 } });
+  try { jobs.enqueue(uid, { kind: 'review' }); await settle(uid); } catch { /* fixture may not spawn here; the count is what matters */ }
+  jobs.clearUser(uid);
+  assert.equal(jobs.capState(uid).used, 1, 'the count outlives the per-user file');
+  assert.throws(() => jobs.enqueue(uid, { kind: 'review' }), e => e.code === 'cap');
+  cfg.save({ caps: { perProfileDaily: 10, instanceDaily: 0 } });
+});
+
+test('the instance cap counts jobs as they are queued, past the 100-entry log', () => {
+  cfg.save({ caps: { perProfileDaily: 0, instanceDaily: 1 } });
+  const a = 'u-inst-a', b = 'u-inst-b';
+  writeState(DIR, a, sampleState()); writeState(DIR, b, sampleState());
+  let first = null;
+  try { jobs.enqueue(a, { kind: 'review' }); } catch (e) { first = e.code; }
+  // the earlier tests in this file already used today's allowance of one, or `a` just took it
+  assert.throws(() => jobs.enqueue(b, { kind: 'review' }), e => e.code === 'cap', 'b is refused while a is still queued: ' + first);
+  cfg.save({ caps: { perProfileDaily: 10, instanceDaily: 0 } });
+});

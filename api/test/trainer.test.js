@@ -165,3 +165,25 @@ test('a client who never synced still has a summary', () => {
   assert.equal(s.workouts, 0);
   assert.equal(s.weight, null);
 });
+
+/* ---------------- audit regressions ---------------- */
+
+test('a link that signed someone up is theirs alone: nobody else can sign up or accept with it', () => {
+  const db = fresh();
+  const inv = T.createInvite(db, user(db, 'pro'), NOW);
+  T.usableInvite(db, inv.token, NOW).inv.signupBy = 'c1';             // what register/verify does
+  assert.equal(code(() => T.usableInvite(db, inv.token, NOW)), 'used', 'a second signup is refused');
+  assert.equal(code(() => T.acceptInvite(db, user(db, 'c2'), inv.token, NOW)), 'used', 'someone else cannot take it');
+  assert.ok(T.usableInvite(db, inv.token, NOW, user(db, 'c1')), 'the new profile still sees it');
+  T.acceptInvite(db, user(db, 'c1'), inv.token, NOW);
+  assert.ok(T.isLinked(db, 'pro', 'c1'));
+});
+
+test('a client summary survives any shape of client-written state', () => {
+  const link = { trainerId: 'pro', clientId: 'c1', created: new Date(NOW).toISOString() };
+  for (const S of [null, [], 'x', { workouts: {} }, { workouts: 'abc', bodyweight: {} }, { bodyweight: [{ d: 1, w: 80 }, null] }, { routines: 5, week: [] }]) {
+    const s = T.clientSummary({ id: 'c1', name: 'María' }, link, S, null, NOW);
+    assert.equal(s.workouts, 0, JSON.stringify(S));
+    T.clientDetail({ id: 'c1', name: 'María' }, link, S, null, NOW);
+  }
+});
