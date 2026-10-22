@@ -15,7 +15,7 @@ import * as A from './assign.js';
 import * as P from './profile.js';
 import { demoClient } from './demo.js';
 
-export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb, saveDb, readState, dataDir, atomicWrite, sendPush }) {
+export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb, saveDb, readState, writeState, userById, files, dataDir, sendPush }) {
   const signedIn = (req, res) => {
     const user = readSession(req);
     if (!user) json(res, 401, { error: 'not signed in' });
@@ -43,8 +43,9 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
 
   /* ---------- per-user JSON files next to db.json ---------- */
   const safe = id => String(id).replace(/[^a-zA-Z0-9_-]/g, '');
-  const load = name => { try { return JSON.parse(fs.readFileSync(path.join(dataDir, name), 'utf8')); } catch { return {}; } };
-  const store = (name, obj) => atomicWrite(path.join(dataDir, name), JSON.stringify(obj));
+  // through the server's cache and background writer (lib/store.js): validate, then mutate, then store
+  const load = name => files.read(name, {});
+  const store = (name, obj) => files.write(name, obj);
   const recordsOf = uid => load('records-' + safe(uid) + '.json');
   const chatOf = clientId => load('chat-' + safe(clientId) + '.json');
   const contentOf = trainerId => load('content-' + safe(trainerId) + '.json');
@@ -55,13 +56,13 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   /** The trainer's own client by id, or a refusal already sent. */
   const ownClient = (req, res, trainer, id) => {
     try { T.assertCanRead(db(), trainer, id); } catch (e) { fail(res, e); return null; }
-    const u = db().users.find(x => x.id === id);
+    const u = userById(id);
     if (!u) { json(res, 404, { error: 'no such client' }); return null; }
     return u;
   };
   const trainerOf = user => {
     const link = T.linkOf(db(), user.id);
-    return link ? db().users.find(u => u.id === link.trainerId) || null : null;
+    return link ? userById(link.trainerId) || null : null;
   };
   const author = (user, role) => ({ id: user.id, role });
   const notify = (uid, title, body, url) => sendPush(uid, { title, body: body.slice(0, 140), tag: 'chat', url }).catch?.(() => {});
@@ -91,7 +92,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const trainer = asTrainer(req, res); if (!trainer) return;
       const now = Date.now();
       const clients = db().links.filter(l => l.trainerId === trainer.id).map(l => {
-        const u = db().users.find(x => x.id === l.clientId);
+        const u = userById(l.clientId);
         if (!u) return null;
         const chat = chatOf(u.id);
         return { ...T.clientSummary(u, l, readState(u.id), recordsOf(u.id), now), unread: C.unreadFor(chat, trainer.id) };
@@ -247,8 +248,8 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
         if (file.posts.length >= K.MAX_POSTS) throw new K.ContentError('content limit reached — delete old posts first');
         const { post, bytes } = K.makePost(body);
         if (bytes) {
-          fs.mkdirSync(contentDir(trainer.id), { recursive: true });
-          fs.writeFileSync(path.join(contentDir(trainer.id), post.id), bytes);
+          await fs.promises.mkdir(contentDir(trainer.id), { recursive: true });
+          await fs.promises.writeFile(path.join(contentDir(trainer.id), post.id), bytes);
         }
         file.posts.push(post);
         store('content-' + safe(trainer.id) + '.json', file);
@@ -266,7 +267,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       if (!post) return json(res, 404, { error: 'no such post' });
       file.posts = file.posts.filter(p => p !== post);
       store('content-' + safe(trainer.id) + '.json', file);
-      if (post.file) fs.rmSync(path.join(contentDir(trainer.id), post.id), { force: true });
+      if (post.file) await fs.promises.rm(path.join(contentDir(trainer.id), post.id), { force: true });
       json(res, 200, { ok: true });
     },
 
@@ -286,15 +287,16 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       if (!allowed) return json(res, 403, { error: 'forbidden' });
       const post = (contentOf(trainerId).posts || []).find(p => p.id === postId);
       if (!post || !post.file) return json(res, 404, { error: 'not found' });
-      let bytes;
-      try { bytes = fs.readFileSync(path.join(contentDir(trainerId), safe(post.id))); }
-      catch { return json(res, 404, { error: 'not found' }); }
+      // streamed, not read whole: files run to a few MB and several clients may open one at once
+      const file = path.join(contentDir(trainerId), safe(post.id));
+      let size;
+      try { size = (await fs.promises.stat(file)).size; } catch { return json(res, 404, { error: 'not found' }); }
       res.writeHead(200, {
-        'Content-Type': post.file.type, 'Content-Length': bytes.length, 'Cache-Control': 'private, max-age=3600',
-        'Content-Disposition': `inline; filename="${post.file.name.replace(/"/g, '')}"`,
-        'X-Content-Type-Options': 'nosniff'
+        'Content-Type': post.file.type, 'Content-Length': size, 'Cache-Control': 'private, max-age=3600',
+        'Content-Disposition': `inline; filename="${post.file.name.replace(/[^\w .()-]/g, '_')}"`,
+        'X-Content-Type-Options': 'nosniff'   // only images and PDF are accepted (content.js TYPES)
       });
-      res.end(bytes);
+      fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
     },
 
     /* ------------------------------ chat ------------------------------ */
@@ -397,7 +399,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'GET /api/me/trainer': async (req, res) => {
       const user = signedIn(req, res); if (!user) return;
       const link = T.linkOf(db(), user.id);
-      const t = link && db().users.find(u => u.id === link.trainerId);
+      const t = link && userById(link.trainerId);
       json(res, 200, { trainer: t ? { id: t.id, name: t.name, since: link.created, profile: P.publicProfile(t) } : null });
     },
 
@@ -417,14 +419,14 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'POST /api/admin/demo-client': async (req, res) => {
       if (!requireAdmin(req, res)) return;
       const body = await readBody(req);
-      const trainer = db().users.find(x => x.id === body.trainerId);
+      const trainer = userById(body.trainerId);
       if (!trainer) return json(res, 404, { error: 'no such user' });
       if (!T.isTrainer(trainer)) return json(res, 400, { error: 'this account is not a trainer' });
       if (T.seatsUsed(db(), trainer.id) >= T.limitOf(trainer)) return json(res, 409, { error: 'this trainer has no free seats right now' });
       const { user, state, entries } = demoClient(String(body.name || '').trim().slice(0, 40) || undefined);
       db().users.push(user);
       db().links.push({ trainerId: trainer.id, clientId: user.id, created: user.created });
-      atomicWrite(path.join(dataDir, 'state-' + safe(user.id) + '.json'), JSON.stringify(state));
+      writeState(user.id, state);
       store('records-' + safe(user.id) + '.json', { entries });
       saveDb();
       json(res, 200, { client: { id: user.id, name: user.name } });
@@ -435,7 +437,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'POST /api/admin/user/trainer': async (req, res) => {
       if (!requireAdmin(req, res)) return;
       const body = await readBody(req);
-      const u = db().users.find(x => x.id === body.id);
+      const u = userById(body.id);
       if (!u) return json(res, 404, { error: 'no such user' });
       try { T.setTrainer(u, body.plan || null); saveDb(); json(res, 200, { ok: true, id: u.id, trainer: u.trainer || null }); }
       catch (e) { fail(res, e); }

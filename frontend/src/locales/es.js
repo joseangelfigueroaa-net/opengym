@@ -1166,4 +1166,6 @@ export default {
   "Your trainer has not assigned a workout for today.": "Tu entrenador no te ha asignado un entreno para hoy.",
   "Back to Today": "Volver a Hoy",
   "Your workouts come from your trainer. When your trainer invites you and assigns your first workout, it will appear here.": "Tus entrenos los asigna tu entrenador. Cuando te invite y te asigne el primero, aparecerá aquí.",
+  // Rate limit
+  "too many requests — try again in a minute": "Demasiadas solicitudes: inténtalo de nuevo en un minuto",
 }

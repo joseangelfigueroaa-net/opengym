@@ -15,6 +15,8 @@ import { coachRoutes } from './coach/routes.js';
 import { startCadence } from './coach/cadence.js';
 import { trainerRoutes } from './trainer/routes.js';
 import * as trainer from './trainer/logic.js';
+import { createStore } from './lib/store.js';
+import { clientIp, createLimiter, crossSiteWrite } from './lib/security.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -30,11 +32,16 @@ const INVITE_ONLY = /^(1|true|yes|on)$/i.test(process.env.INVITE_ONLY || '');
 // internet don't want the same number. Only affects cookies minted from now on — the expiry is
 // baked into each cookie when it's issued, so lowering this never cuts an existing session short.
 const SESSION_DAYS = Math.max(1, +(process.env.SESSION_DAYS || 90) || 90);
-const MAX_BODY = 5 * 1024 * 1024;
+const MAX_BODY = 5 * 1024 * 1024;        // a whole training history, or an uploaded file
+const SMALL_BODY = 256 * 1024;            // everything else: no form or message comes near this
+const LARGE_BODIES = new Set(['PUT /api/data', 'POST /api/trainer/content']);
 // Secure cookies require HTTPS; over plain http://localhost the flag would drop the cookie
 const SECURE = /^https:/i.test(ORIGIN) ? ' Secure;' : '';
 
 fs.mkdirSync(DATA, { recursive: true });
+// Per-user JSON files and db.json go through this: cached in memory, written in the background
+// (lib/store.js). Nothing else may write those files while the server runs.
+const files = createStore({ dir: DATA });
 // 0700 is what stops the unprivileged user that Coach jobs run as from reading any of this —
 // state files, db.json, the session secret, the provider credential. The Agent SDK process gets
 // its job payload in a temp directory and nothing else. Best-effort: a bind-mounted host directory
@@ -59,15 +66,30 @@ const publicUser = user => ({ id: user.id, name: user.name, admin: isAdmin(user)
 // can create a profile from the link alone. It is only checked here, not used up: accepting the
 // link after signup is what spends it.
 const trainerCodeOk = code => { try { trainer.usableInvite(db, code); return true; } catch { return false; } };
-function saveDb() { atomicWrite(dbFile, JSON.stringify(db, null, 2)); }
-function atomicWrite(file, content) {
-  const tmp = file + '.tmp';
-  fs.writeFileSync(tmp, content);
-  fs.renameSync(tmp, file);
+// db.json changes on every sign-in, link and invite. Several changes in one tick become one
+// write, serialized once, off the request path; compact, since nobody edits it by hand.
+let dbDirty = false;
+function saveDb() {
+  if (dbDirty) return;
+  dbDirty = true;
+  setImmediate(() => { dbDirty = false; files.write('db.json', db); });
 }
-const stateFile = uid => path.join(DATA, 'state-' + uid.replace(/[^a-zA-Z0-9_-]/g, '') + '.json');
-function readState(uid) {
-  try { return JSON.parse(fs.readFileSync(stateFile(uid), 'utf8')); } catch { return null; }
+const stateName = uid => 'state-' + String(uid).replace(/[^a-zA-Z0-9_-]/g, '') + '.json';
+const readState = uid => files.read(stateName(uid), null);
+function writeState(uid, S) {
+  files.write(stateName(uid), S);
+  noteReminder(uid, S);
+}
+
+// Users by id. Every request resolves its session through this, so it is a Map rather than a
+// scan of db.users; rebuilt when the list changes (users are only ever appended).
+let usersById = new Map(), usersSeen = -1;
+function userById(id) {
+  if (usersSeen !== db.users.length) {
+    usersById = new Map(db.users.map(u => [u.id, u]));
+    usersSeen = db.users.length;
+  }
+  return usersById.get(id) || null;
 }
 
 /* ---------- push notifications (Web Push / VAPID) ---------- */
@@ -140,14 +162,31 @@ function userNow(tz) {
     return { date, hhmm: `${g('hour')}:${g('minute')}`, weekday: new Date(date + 'T12:00:00Z').getUTCDay() };
   } catch { return null; } // unknown/invalid tz string — skip this user rather than guess
 }
+// The sweep runs every 10 s, so it must not touch the disk: each user's reminder settings are
+// kept here, refreshed whenever their state is saved, and the full state is only read for the
+// one minute a reminder is due.
+const reminders = new Map();               // uid -> { time, tz } for users with reminders on
+function noteReminder(uid, S) {
+  const r = S && S.reminder;
+  if (r && r.on && r.time) reminders.set(uid, { time: r.time, tz: r.tz || 'UTC' });
+  else reminders.delete(uid);
+}
+let remindersLoaded = false;
 setInterval(() => {
-  for (const user of db.users) {
-    if (!db.subs.some(s => s.userId === user.id)) continue;
-    const S = readState(user.id);
-    if (!S?.reminder?.on) continue;
-    const now = userNow(S.reminder.tz || 'UTC');
-    if (!now || S.reminder.time !== now.hhmm) continue;
+  const subscribed = new Set(db.subs.map(s => s.userId));
+  if (!remindersLoaded) {                  // first sweep after boot: learn everyone's settings once
+    remindersLoaded = true;
+    for (const id of subscribed) noteReminder(id, readState(id));
+  }
+  for (const [uid, r] of reminders) {
+    if (!subscribed.has(uid)) continue;
+    const user = userById(uid);
+    if (!user) continue;
+    const now = userNow(r.tz);
+    if (!now || r.time !== now.hhmm) continue;
     if (user.lastReminder === now.date) continue;
+    const S = readState(uid);
+    if (!S) continue;
     if ((S.workouts || []).some(w => w.d === now.date)) continue;
     const rid = effectiveRoutineId(S, now.date);
     if (!rid) continue; // rest day — nothing planned
@@ -200,7 +239,7 @@ function readSession(req) {
   if (!payload) return null;
   const [uid, exp, ver] = payload.split(':');
   if (!uid || +exp < Date.now()) return null;
-  const user = db.users.find(u => u.id === uid) || null;
+  const user = userById(uid);
   if (!user) return null;
   if (user.disabled) return null;           // disabled accounts are locked out everywhere
   // Missing third field = pre-versioning cookie = version 0. Anything non-numeric is a malformed
@@ -239,20 +278,22 @@ setInterval(() => { for (const [k, v] of challenges) if (v.exp < Date.now()) cha
 /* ---------- helpers ---------- */
 function json(res, code, obj, extraHeaders) {
   const body = JSON.stringify(obj);
-  res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...(extraHeaders || {}) });
+  res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...(extraHeaders || {}) });
   res.end(body);
 }
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let size = 0; const chunks = [];
+    const max = req.bodyLimit || SMALL_BODY;          // set per route by the dispatcher below
     req.on('data', d => {
       size += d.length;
-      if (size > MAX_BODY) { reject(new Error('body too large')); req.destroy(); return; }
+      // answer 413 rather than cutting the connection; the rest of the upload is never read
+      if (size > max) { const e = new Error('body too large'); e.status = 413; req.pause(); reject(e); return; }
       chunks.push(d);
     });
     req.on('end', () => {
       try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); }
-      catch { reject(new Error('bad json')); }
+      catch { const e = new Error('bad json'); e.status = 400; reject(e); }
     });
     req.on('error', reject);
   });
@@ -379,7 +420,7 @@ const routes = {
     if (!verification.verified) return json(res, 400, { error: 'not verified' });
     cred.counter = verification.authenticationInfo.newCounter;
     saveDb();
-    const user = db.users.find(u => u.id === cred.userId);
+    const user = userById(cred.userId);
     if (!user) return json(res, 500, { error: 'user missing' });
     if (user.disabled) return json(res, 403, { error: 'this account has been disabled' });
     json(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(user) });
@@ -402,10 +443,7 @@ const routes = {
   'GET /api/data': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
-    try {
-      const state = JSON.parse(fs.readFileSync(stateFile(user.id), 'utf8'));
-      json(res, 200, { state });
-    } catch { json(res, 200, { state: null }); }
+    json(res, 200, { state: readState(user.id) });
   },
 
   'PUT /api/data': async (req, res) => {
@@ -414,7 +452,7 @@ const routes = {
     const body = await readBody(req);
     if (!body.state || typeof body.state !== 'object') return json(res, 400, { error: 'state required' });
     delete body.state.active;              // in-progress workouts stay device-local
-    atomicWrite(stateFile(user.id), JSON.stringify(body.state));
+    writeState(user.id, body.state);
     json(res, 200, { ok: true, ts: body.state._ts || null });
   },
 
@@ -429,6 +467,7 @@ const routes = {
     db.subs = db.subs.filter(s => s.endpoint !== sub.endpoint);
     db.subs.push({ userId: user.id, endpoint: sub.endpoint, keys: sub.keys, created: new Date().toISOString() });
     saveDb();
+    noteReminder(user.id, readState(user.id));   // a reminder set before subscribing starts firing now
     json(res, 200, { ok: true });
   },
 
@@ -509,7 +548,7 @@ const routes = {
   'GET /api/admin/user': async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const id = new URL(req.url, 'http://x').searchParams.get('id');
-    const u = db.users.find(x => x.id === id);
+    const u = userById(id);
     if (!u) return json(res, 404, { error: 'no such user' });
     const S = readState(u.id) || {};
     json(res, 200, {
@@ -526,7 +565,7 @@ const routes = {
   'POST /api/admin/user/disable': async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const body = await readBody(req);
-    const u = db.users.find(x => x.id === body.id);
+    const u = userById(body.id);
     if (!u) return json(res, 404, { error: 'no such user' });
     if (isAdmin(u)) return json(res, 400, { error: 'cannot disable an admin' });
     u.disabled = !!body.disabled;
@@ -539,7 +578,7 @@ const routes = {
     if (!requireAdmin(req, res)) return;
     // resolve usedBy uid → name for display
     const invites = db.invites.map(i => ({
-      ...i, usedByName: i.usedBy ? (db.users.find(u => u.id === i.usedBy) || {}).name || null : null
+      ...i, usedByName: i.usedBy ? (userById(i.usedBy) || {}).name || null : null
     }));
     json(res, 200, { invites, invite_only: INVITE_ONLY });
   },
@@ -577,7 +616,7 @@ const routes = {
   ...coachRoutes({ json, readBody, readSession, requireAdmin }),
 
   /* ---------- trainers and clients (Trainnery) ---------- */
-  ...trainerRoutes({ json, readBody, readSession, requireAdmin, getDb: () => db, saveDb, readState, dataDir: DATA, atomicWrite, sendPush })
+  ...trainerRoutes({ json, readBody, readSession, requireAdmin, getDb: () => db, saveDb, readState, writeState, userById, files, dataDir: DATA, sendPush })
 };
 
 /* ---------- Coach: boot recovery, notifications, scheduled reviews ---------- */
@@ -597,14 +636,39 @@ coachJobs.setProposalHook((uid, pending) => {
 });
 startCadence({ users: () => db.users, userNow });
 
-http.createServer(async (req, res) => {
+// Per visitor (lib/security.js): sign-in, sign-up and invite links are where guessing would
+// happen, so they get a tight budget; everything else a generous one that a gym full of clients
+// on one Wi-Fi never reaches.
+const AUTH_ROUTES = /^(POST \/api\/(register|login)\/|GET \/api\/invite$|POST \/api\/invite\/accept$)/;
+const limits = {
+  auth: createLimiter({ limit: 20, windowMs: 60000 }),
+  write: createLimiter({ limit: 300, windowMs: 60000 }),
+  read: createLimiter({ limit: 900, windowMs: 60000 })
+};
+
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   const key = req.method + ' ' + url.pathname;
   const handler = routes[key];
   if (!handler) return json(res, 404, { error: 'not found' });
+  if (crossSiteWrite(req, ORIGIN)) return json(res, 403, { error: 'forbidden' });
+  const ip = clientIp(req);
+  const wait = (AUTH_ROUTES.test(key) && limits.auth.take(ip)) || (req.method === 'GET' ? limits.read : limits.write).take(ip);
+  if (wait) return json(res, 429, { error: 'too many requests — try again in a minute' }, { 'Retry-After': String(wait) });
+  req.bodyLimit = LARGE_BODIES.has(key) ? MAX_BODY : SMALL_BODY;
   try { await handler(req, res); }
   catch (e) {
+    // a refused request body (too large, not JSON) is the caller's mistake, not a crash
+    if (e.status && !res.headersSent) return json(res, e.status, { error: e.message }, { Connection: 'close' });
     console.error(key, e);
     if (!res.headersSent) json(res, 500, { error: 'server error' });
   }
 }).listen(PORT, () => console.log(`gym-api on :${PORT} (rpID=${RP_ID}, origin=${ORIGIN})`));
+
+// A deploy stops the container with SIGTERM: finish the writes still in flight, then exit.
+for (const sig of ['SIGTERM', 'SIGINT']) process.once(sig, async () => {
+  server.close();
+  if (dbDirty) { dbDirty = false; files.write('db.json', db); }
+  await files.flush();
+  process.exit(0);
+});

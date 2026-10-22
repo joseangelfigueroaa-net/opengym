@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /$
+Disallow: /api/
+Disallow: /img/
+Disallow: /gif/
+
+Sitemap: https://trainnery.com/sitemap.xml
