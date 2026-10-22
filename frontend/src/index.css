@@ -384,6 +384,8 @@ h4.sec{
 }
 .chip:active{background:var(--surface-2)}
 .chip.on{background:var(--acc);color:var(--on-acc);font-weight:500}
+/* a chip inside a card would share the card's colour and read as plain text */
+.card .chip:not(.on){background:var(--surface-3)}
 
 /* =========================== CONTROLS ==================================== */
 

@@ -8,6 +8,7 @@ import { t } from '../lib/i18n.js'
 import { bwSheet, goalSheet, calendarSheet, workoutDetailSheet, WorkoutRow, bwDeltaColor } from '../sheets.jsx'
 import LineChart from '../components/LineChart.jsx'
 import Heatmap from '../components/Heatmap.jsx'
+import { BodyComposition, TopLifts } from '../components/ProgressCharts.jsx'
 import Icon from '../components/Icon.jsx'
 import BodyMap, { BodyMapLegend } from '../components/BodyMap.jsx'
 import { loadOfWorkouts, rankOf, MUSCLE_NAME } from '../lib/muscles.js'
@@ -133,6 +134,7 @@ function EffortCard({ S }) {
 export default function Stats() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
+  const user = useStore(s => s.user)
   const [range, setRange] = useState(90)
   const [exId, setExId] = useState(null)
   const [exMetric, setExMetric] = useState('top')
@@ -147,7 +149,10 @@ export default function Stats() {
   const bwDelta30 = bw30.length > 1 ? bw30[bw30.length - 1].w - bw30[0].w : null
   const monthW = S.workouts.filter(w => w.d.slice(0, 7) === todayISO().slice(0, 7)).length
 
-  const exHist = [...new Set(S.workouts.flatMap(w => w.entries.map(e => e.id)))].filter(id => EXIDX[id]).sort((a, b) => EXIDX[a].n < EXIDX[b].n ? -1 : 1)
+  // most repeated first, so the picker opens on what they actually train
+  const freq = {}
+  S.workouts.forEach(w => w.entries.forEach(e => { freq[e.id] = (freq[e.id] || 0) + 1 }))
+  const exHist = Object.keys(freq).filter(id => EXIDX[id]).sort((a, b) => (freq[b] - freq[a]) || (EXIDX[a].n < EXIDX[b].n ? -1 : 1))
   const curEx = exId && exHist.includes(exId) ? exId : exHist[0] || null
   // How this exercise was logged most recently decides what the curve means: top weight,
   // longest hold or top speed. Sets logged in another mode lack the field and score 0, so a
@@ -227,12 +232,15 @@ export default function Stats() {
         <div className="chart"><LineChart points={bwPts} h={160} unit={S.unit} goal={S.targetW} /></div>
       </div>
 
-      <div className="card">
+      {user && <BodyComposition />}
+      <TopLifts S={S} onOpen={id => { setExId(id); setExMetric('top'); document.getElementById('ex-progress')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }} />
+
+      <div className="card" id="ex-progress">
         <h2>{t('Exercise progress')}</h2>
         {exHist.length ? <>
           <div className="sect-b" style={{ marginBottom: 10 }}>
             <SelectRow title={t('Exercise')} sheetTitle={t('Exercise progress')} value={curEx} onChange={setExId}
-              options={exHist.map(id => ({ value: id, label: EXIDX[id].n }))} />
+              options={exHist.map(id => ({ value: id, label: EXIDX[id].n, subtitle: t('{0} workouts', freq[id]) }))} />
           </div>
           {exOpts.length > 1 && <Segmented className="seg-range" value={onEff ? 'effort' : onE1 ? 'e1rm' : 'top'} onChange={setExMetric} options={exOpts} />}
           <div className="chart">

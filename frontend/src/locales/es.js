@@ -1192,4 +1192,8 @@ export default {
   "Soon your steps, sleep, weight and body fat will arrive on their own from Apple Health, Google Health Connect and smart scales. Meanwhile, log them here.": "Pronto tus pasos, sueño, peso y grasa corporal llegarán solos desde Apple Salud, Google Health Connect y balanzas inteligentes. Mientras tanto, anótalos aquí.",
   "Smart scales": "Balanzas inteligentes",
   "Apple Health, Google Health Connect and smart scales": "Apple Salud, Google Health Connect y balanzas inteligentes",
+  // Progress charts
+  "Body composition": "Composición corporal",
+  "Most trained exercises": "Ejercicios más entrenados",
+  "Heaviest set per workout": "Serie más pesada por entreno",
 }
