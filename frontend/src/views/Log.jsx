@@ -9,6 +9,7 @@ import { useFeatures } from '../lib/features.js'
 import { confirmSheet } from '../sheets.jsx'
 import { recordSheet } from '../components/RecordSheet.jsx'
 import LineChart from '../components/LineChart.jsx'
+import HealthSyncSoon from '../components/HealthSyncSoon.jsx'
 import Icon from '../components/Icon.jsx'
 
 // The client's "Log" tab: one tap per thing to note down — weight, body fat, measurements,
@@ -55,6 +56,7 @@ export default function Log() {
         </button>
       ))}
     </div>
+    {features.includes('health') && <HealthSyncSoon />}
     {!user && <div className="empty small">{t('Create a profile to log body fat, measurements, steps, sleep and meals, and share them with a trainer.')}</div>}
 
     {showMacros && <div className="card">

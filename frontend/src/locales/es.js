@@ -1183,4 +1183,9 @@ export default {
   "protein": "proteína",
   "carbs": "carbohidratos",
   "fat": "grasa",
+  // Health sync soon
+  "Health sync": "Sincronización de salud",
+  "Coming soon": "Próximamente",
+  "Soon your steps, sleep and weight will arrive on their own from Apple Health or Google Health Connect. Meanwhile, log them here.": "Pronto tus pasos, sueño y peso llegarán solos desde Apple Salud o Google Health Connect. Mientras tanto, anótalos aquí.",
+  "Apple Health and Google Health Connect": "Apple Salud y Google Health Connect",
 }
