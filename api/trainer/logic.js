@@ -3,7 +3,7 @@
  * Pure functions over the db object server.js keeps in memory — no I/O here, so every rule can
  * be tested against a plain object. Shapes added to db.json:
  *
- *   users[].trainer      { plan: 'free' | 'silver', since }   set by an admin; absent = not a trainer
+ *   users[].trainer      { plan: 'free' | 'silver' | 'gold' | 'platinum', since }   set by an admin; absent = not a trainer
  *   links[]              { trainerId, clientId, created }     one trainer per client
  *   trainerInvites[]     { token, trainerId, created, usedBy?, usedAt? }
  *
@@ -12,7 +12,7 @@
 import crypto from 'node:crypto';
 import * as R from './records.js';
 
-export const PLAN_LIMITS = { free: 1, silver: 5 };
+export const PLAN_LIMITS = { free: 1, silver: 5, gold: 25, platinum: 50 };
 export const INVITE_DAYS = 14;
 
 export class TrainerError extends Error {

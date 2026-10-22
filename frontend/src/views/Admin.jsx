@@ -7,7 +7,7 @@ import { fmtDate, fmtNum, fmtVol, fmtDur } from '../lib/format.js'
 import { workoutVolume, setsDone } from '../lib/history.js'
 import { confirmSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
-import { Button, Segmented } from '../components/ui.jsx'
+import { Button } from '../components/ui.jsx'
 import AdminCoach from './AdminCoach.jsx'
 
 // Admin-only operator dashboard (owner passkey + admin flag; guarded again server-side).
@@ -38,7 +38,7 @@ function UserDetail({ id, onChanged, close }) {
   // Trainnery: makes the account a trainer on a plan, or takes the role away (links are kept).
   const setTrainer = plan => {
     api('/api/admin/user/trainer', { method: 'POST', body: JSON.stringify({ id: u.id, plan: plan === 'none' ? null : plan }) })
-      .then(r => { setD({ ...d, user: { ...u, trainer: r.trainer ? r.trainer.plan : null } }); toast(r.trainer ? 'Plan de entrenador: ' + r.trainer.plan : 'Rol de entrenador retirado'); onChanged() })
+      .then(r => { setD({ ...d, user: { ...u, trainer: r.trainer ? r.trainer.plan : null } }); toast(r.trainer ? 'Plan de entrenador: ' + r.trainer.plan.charAt(0).toUpperCase() + r.trainer.plan.slice(1) : 'Rol de entrenador retirado'); onChanged() })
       .catch(e => toast(e.message))
   }
   // Trainnery: a sample client (no passkey) linked to this trainer, to show a filled-in client file.
@@ -68,8 +68,12 @@ function UserDetail({ id, onChanged, close }) {
         : confirmSheet({ title: '¿Desactivar a ' + u.name + '?', message: 'Se cierra su sesión en todos los dispositivos y no podrá sincronizar ni entrar hasta que se reactive.', confirmText: 'Desactivar', danger: true, onConfirm: () => setDisabled(true) })}>
       {u.disabled ? 'Activar cuenta' : 'Desactivar cuenta'}</button>}
     <h4 className="sec">Plan de entrenador</h4>
-    <Segmented value={u.trainer || 'none'} onChange={setTrainer}
-      options={[{ value: 'none', label: 'No es entrenador' }, { value: 'free', label: 'Free · 1' }, { value: 'silver', label: 'Silver · 5' }]} />
+    {/* five choices: a wrapping row of chips, a segmented control does not fit them on a phone */}
+    <div className="row" style={{ gap: 6, flexWrap: 'wrap' }} role="radiogroup" aria-label="Plan de entrenador">
+      {[['none', 'No es entrenador'], ['free', 'Free · 1'], ['silver', 'Silver · 5'], ['gold', 'Gold · 25'], ['platinum', 'Platinum · 50']].map(([v, label]) =>
+        <button key={v} type="button" role="radio" aria-checked={(u.trainer || 'none') === v} className={'chip nocap' + ((u.trainer || 'none') === v ? ' on' : '')}
+          onClick={() => (u.trainer || 'none') !== v && setTrainer(v)}>{label}</button>)}
+    </div>
     {u.trainer && <div className="dim small" style={{ marginTop: 6 }}>{u.clients} cliente{u.clients === 1 ? '' : 's'} vinculado{u.clients === 1 ? '' : 's'}</div>}
     {u.trainer && <Button icon="person" style={{ marginTop: 10 }} onClick={demoClient}>Crear cliente demo</Button>}
     {u.trainer && <div className="dim small" style={{ marginTop: 6 }}>Un cliente de ejemplo con dos meses de datos, vinculado a {u.name}. Ocupa un cupo de su plan y no puede iniciar sesión.</div>}

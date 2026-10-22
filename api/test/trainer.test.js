@@ -41,6 +41,18 @@ test('silver allows five seats, not six', () => {
   assert.equal(code(() => T.createInvite(db, user(db, 'pro'), NOW)), 'limit');
 });
 
+test('gold holds 25 clients and platinum 50', () => {
+  assert.equal(T.PLAN_LIMITS.gold, 25);
+  assert.equal(T.PLAN_LIMITS.platinum, 50);
+  const db = fresh();
+  T.setTrainer(user(db, 'pro'), 'gold');
+  for (let i = 0; i < 25; i++) T.createInvite(db, user(db, 'pro'), NOW);
+  assert.equal(code(() => T.createInvite(db, user(db, 'pro'), NOW)), 'limit');
+  T.setTrainer(user(db, 'pro'), 'platinum');
+  assert.equal(T.limitOf(user(db, 'pro')), 50);
+  assert.doesNotThrow(() => T.createInvite(db, user(db, 'pro'), NOW));
+});
+
 test('an expired invite frees its seat and can no longer be used', () => {
   const db = fresh();
   const inv = T.createInvite(db, user(db, 'coach'), NOW);

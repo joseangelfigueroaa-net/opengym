@@ -16,7 +16,7 @@ import { Button } from '../components/ui.jsx'
 // the clients who joined. Guarded server-side too — every call here 403s for an account
 // without the trainer role.
 
-const PLAN = { free: 'Free', silver: 'Silver' }
+const PLAN = { free: 'Free', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' }
 // Who needs a look first: inactive, then stalled, then new, then on track; ties by name.
 const RANK = { inactive: 0, stalled: 1, new: 2, ok: 3 }
 
