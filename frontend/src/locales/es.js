@@ -1188,4 +1188,8 @@ export default {
   "Coming soon": "Próximamente",
   "Soon your steps, sleep and weight will arrive on their own from Apple Health or Google Health Connect. Meanwhile, log them here.": "Pronto tus pasos, sueño y peso llegarán solos desde Apple Salud o Google Health Connect. Mientras tanto, anótalos aquí.",
   "Apple Health and Google Health Connect": "Apple Salud y Google Health Connect",
+  // Smart scales soon
+  "Soon your steps, sleep, weight and body fat will arrive on their own from Apple Health, Google Health Connect and smart scales. Meanwhile, log them here.": "Pronto tus pasos, sueño, peso y grasa corporal llegarán solos desde Apple Salud, Google Health Connect y balanzas inteligentes. Mientras tanto, anótalos aquí.",
+  "Smart scales": "Balanzas inteligentes",
+  "Apple Health, Google Health Connect and smart scales": "Apple Salud, Google Health Connect y balanzas inteligentes",
 }

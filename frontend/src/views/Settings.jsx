@@ -210,7 +210,7 @@ export default function Settings() {
     {/* ---------- data: fill it, bring things over, back it up, wipe it ---------- */}
     <Section title={t('Data')}>
       {features.includes('health') && <Row icon="heart" iconTint="var(--red)" title={t('Health sync')}
-        subtitle={t('Apple Health and Google Health Connect')} value={t('Coming soon')} />}
+        subtitle={t('Apple Health, Google Health Connect and smart scales')} value={t('Coming soon')} />}
       {!led && <Row icon="sparkles" iconTint="var(--acc)" title={t('Load starter plan (PPL)')} accessory="chevron" onClick={loadStarterPlan} />}
       {(!led || features.includes('health')) && <Row icon="shuffle" iconTint="var(--teal)" title={t('Import from another app')}
         subtitle={t('FitNotes, Strong, Hevy — or body weight from Apple Health')}
