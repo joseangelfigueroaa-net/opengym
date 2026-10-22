@@ -6,7 +6,7 @@ import { api } from '../lib/api.js'
 import { fmtDate, fmtNum, fmtVol, fmtDur, DAYS } from '../lib/format.js'
 import { workoutVolume, setsDone } from '../lib/history.js'
 import { exOr } from '../lib/exercises.js'
-import { t } from '../lib/i18n.js'
+import { t, dateLocale } from '../lib/i18n.js'
 import { statusTag, recordText, deleteRecord, MEASURE_ZONES, RECORD_KINDS } from '../lib/trainer.js'
 import { confirmSheet } from '../sheets.jsx'
 import { recordSheet } from '../components/RecordSheet.jsx'
@@ -123,7 +123,7 @@ export default function TrainerClient() {
         <div className="card">
           <h2 style={{ margin: '0 0 8px' }}>{t('Their week')}</h2>
           <div className="tiles" style={{ textAlign: 'left' }}>
-            <div className="tile"><div className="l">{t('Steps per day')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{c.week.steps != null ? Math.round(c.week.steps).toLocaleString() : '—'}</div></div>
+            <div className="tile"><div className="l">{t('Steps per day')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{c.week.steps != null ? Math.round(c.week.steps).toLocaleString(dateLocale()) : '—'}</div></div>
             <div className="tile"><div className="l">{t('Sleep')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{c.week.sleep != null ? fmtNum(c.week.sleep) + ' h' : '—'}</div></div>
             <div className="tile"><div className="l">{t('Meals logged')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{c.week.meals}</div></div>
             <div className="tile"><div className="l">{t('Last workout')}</div><div className="v" style={{ fontSize: '.95rem' }}>{c.lastWorkout ? fmtDate(c.lastWorkout) : '—'}</div></div>

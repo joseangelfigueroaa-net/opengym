@@ -492,7 +492,7 @@ const routes = {
       const last = workouts[workouts.length - 1];
       return {
         id: u.id, name: u.name, created: u.created || null,
-        disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null,
+        disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null, demo: !!u.demo,
         trainer: trainer.isTrainer(u) ? trainer.planOf(u) : null,
         clients: trainer.clientIdsOf(db, u.id).length,
         workouts: workouts.length,
@@ -513,7 +513,7 @@ const routes = {
     if (!u) return json(res, 404, { error: 'no such user' });
     const S = readState(u.id) || {};
     json(res, 200, {
-      user: { id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null,
+      user: { id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null, demo: !!u.demo,
         trainer: trainer.isTrainer(u) ? trainer.planOf(u) : null, clients: trainer.clientIdsOf(db, u.id).length },
       unit: S.unit || 'kg',
       lastSync: S._ts || null,

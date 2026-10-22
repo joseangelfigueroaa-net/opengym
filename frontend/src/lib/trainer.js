@@ -1,7 +1,7 @@
 // Trainer ↔ client links (Trainnery). The rules live server-side in api/trainer/; this is the
 // link format, the record vocabulary the screens share, and two small polling hooks.
 import { useEffect, useState } from 'react'
-import { t } from './i18n.js'
+import { t, dateLocale } from './i18n.js'
 import { api } from './api.js'
 import { fmtNum } from './format.js'
 
@@ -45,7 +45,7 @@ export const MEASURE_ZONES = RECORD_KINDS.measures.fields
 /** One line saying what a record holds: "72,4 kg", "Waist 88 cm · Arm 35 cm", "Lunch: rice…". */
 export function recordText(kind, v) {
   if (kind === 'meal') return t(MEALS.find(m => m[0] === v.meal)?.[1] || 'Meal') + ': ' + v.text
-  if (kind === 'steps') return Math.round(v.n).toLocaleString() + ' ' + t('steps')
+  if (kind === 'steps') return Math.round(v.n).toLocaleString(dateLocale()) + ' ' + t('steps')
   return RECORD_KINDS[kind].fields.filter(([k]) => v[k] != null)
     .map(([k, label, unit]) => (kind === 'measures' ? t(label) + ' ' : '') + fmtNum(v[k]) + (unit ? ' ' + unit : '')).join(' · ')
 }

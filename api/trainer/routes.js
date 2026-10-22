@@ -13,6 +13,7 @@ import * as C from './chat.js';
 import * as K from './content.js';
 import * as A from './assign.js';
 import * as P from './profile.js';
+import { demoClient } from './demo.js';
 
 export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb, saveDb, readState, dataDir, atomicWrite, sendPush }) {
   const signedIn = (req, res) => {
@@ -410,6 +411,24 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     },
 
     /* ------------------------------ admin ------------------------------ */
+
+    // Creates a demo client (no passkey, sample data) linked to a trainer, so the trainer can
+    // see a filled-in client file. Takes one of the trainer's seats like any client.
+    'POST /api/admin/demo-client': async (req, res) => {
+      if (!requireAdmin(req, res)) return;
+      const body = await readBody(req);
+      const trainer = db().users.find(x => x.id === body.trainerId);
+      if (!trainer) return json(res, 404, { error: 'no such user' });
+      if (!T.isTrainer(trainer)) return json(res, 400, { error: 'this account is not a trainer' });
+      if (T.seatsUsed(db(), trainer.id) >= T.limitOf(trainer)) return json(res, 409, { error: 'this trainer has no free seats right now' });
+      const { user, state, entries } = demoClient(String(body.name || '').trim().slice(0, 40) || undefined);
+      db().users.push(user);
+      db().links.push({ trainerId: trainer.id, clientId: user.id, created: user.created });
+      atomicWrite(path.join(dataDir, 'state-' + safe(user.id) + '.json'), JSON.stringify(state));
+      store('records-' + safe(user.id) + '.json', { entries });
+      saveDb();
+      json(res, 200, { client: { id: user.id, name: user.name } });
+    },
 
     // Makes an account a trainer on a plan, changes the plan, or (plan: null) takes the role away.
     // Taking it away keeps the links: the clients reappear if the role comes back.

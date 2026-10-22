@@ -220,3 +220,20 @@ test('the public profile falls back to the account name', () => {
   assert.deepEqual(P.publicProfile({ name: 'ana' }).certifications, []);
   assert.equal(P.publicProfile({ name: 'ana', trainerProfile: { name: 'Ana P.' } }).name, 'Ana P.');
 });
+
+/* ---------------- demo client ---------------- */
+
+import { demoClient } from '../trainer/demo.js';
+
+test('a demo client has eight weeks of data the client file can show', () => {
+  const { user, state, entries } = demoClient(undefined, NOW);
+  assert.match(user.id, /^demo-[0-9a-f]{10}$/);
+  assert.equal(user.demo, true);
+  assert.ok(state.workouts.length >= 20 && state.workouts.every(w => Date.parse(w.d) <= NOW));
+  assert.equal(T.adherence(state, NOW).plan, 3);
+  const goblet = T.loads(state).find(x => x.id === '1760');
+  assert.ok(goblet.best > goblet.history[0].w, 'loads progress');
+  const s = T.clientSummary(user, { created: user.created }, state, { entries }, NOW);
+  assert.equal(s.weight, 71.8);
+  assert.ok(entries.some(e => e.kind === 'meal') && entries.some(e => e.kind === 'measures'));
+});

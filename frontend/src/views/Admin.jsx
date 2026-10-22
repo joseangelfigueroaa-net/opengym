@@ -41,10 +41,17 @@ function UserDetail({ id, onChanged, close }) {
       .then(r => { setD({ ...d, user: { ...u, trainer: r.trainer ? r.trainer.plan : null } }); toast(r.trainer ? 'Plan de entrenador: ' + r.trainer.plan : 'Rol de entrenador retirado'); onChanged() })
       .catch(e => toast(e.message))
   }
+  // Trainnery: a sample client (no passkey) linked to this trainer, to show a filled-in client file.
+  const demoClient = () => {
+    api('/api/admin/demo-client', { method: 'POST', body: JSON.stringify({ trainerId: u.id }) })
+      .then(r => { setD({ ...d, user: { ...u, clients: u.clients + 1 } }); toast('Cliente demo creado: ' + r.client.name); onChanged() })
+      .catch(e => toast(e.message))
+  }
   return <>
     <h3 className="capitalize">{u.name}</h3>
     <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '8px 0 12px' }}>
       {u.admin && <span className="tag acc">admin</span>}
+      {u.demo && <span className="tag">demo</span>}
       {u.trainer && <span className="tag acc">entrenador · {u.trainer}</span>}
       {u.disabled && <span className="tag" style={{ color: 'var(--red)' }}>desactivado</span>}
       {u.invitedBy && <span className="tag">invitación {u.invitedBy}</span>}
@@ -64,6 +71,8 @@ function UserDetail({ id, onChanged, close }) {
     <Segmented value={u.trainer || 'none'} onChange={setTrainer}
       options={[{ value: 'none', label: 'No es entrenador' }, { value: 'free', label: 'Free · 1' }, { value: 'silver', label: 'Silver · 5' }]} />
     {u.trainer && <div className="dim small" style={{ marginTop: 6 }}>{u.clients} cliente{u.clients === 1 ? '' : 's'} vinculado{u.clients === 1 ? '' : 's'}</div>}
+    {u.trainer && <Button icon="person" style={{ marginTop: 10 }} onClick={demoClient}>Crear cliente demo</Button>}
+    {u.trainer && <div className="dim small" style={{ marginTop: 6 }}>Un cliente de ejemplo con dos meses de datos, vinculado a {u.name}. Ocupa un cupo de su plan y no puede iniciar sesión.</div>}
     <h4 className="sec">Historial de entrenos</h4>
     {d.workouts.length ? <div className="list" style={{ gap: 0 }}>
       {d.workouts.slice(0, 60).map(w => <div key={w.id} className="row between" style={{ padding: '9px 2px', borderBottom: '1px solid var(--sep)' }}>
@@ -151,7 +160,7 @@ export default function Admin() {
     <h4 className="sec">Usuarios</h4>
     <div className="list">
       {(users || []).map(u => <div key={u.id} className="item" onClick={() => openUser(u.id)} style={u.disabled ? { opacity: .55 } : null}>
-        <div className="grow"><div className="tt">{u.live && <Icon name="dot" style={{ fontSize: 9, color: 'var(--green)', display: 'inline-block', marginRight: 5 }} />}{u.name} {u.admin && <span className="tag acc" style={{ marginLeft: 4 }}>admin</span>}{u.disabled && <span className="tag" style={{ marginLeft: 4, color: 'var(--red)' }}>inactivo</span>}</div>
+        <div className="grow"><div className="tt">{u.live && <Icon name="dot" style={{ fontSize: 9, color: 'var(--green)', display: 'inline-block', marginRight: 5 }} />}{u.name} {u.admin && <span className="tag acc" style={{ marginLeft: 4 }}>admin</span>}{u.demo && <span className="tag" style={{ marginLeft: 4 }}>demo</span>}{u.disabled && <span className="tag" style={{ marginLeft: 4, color: 'var(--red)' }}>inactivo</span>}</div>
           <div className="ss">{u.live ? 'entrenando ahora · ' + u.live.name : u.workouts + ' entrenos' + (u.lastWorkout ? ' · último ' + fmtDate(u.lastWorkout) : '') + ' · sincronizado ' + rel(u.lastSync)}</div></div>
         {u.hasPush && <Icon name="bell" title="Notificaciones activadas" style={{ fontSize: 15, color: 'var(--label-3)' }} />}<Icon name="chevronRight" className="chev" />
       </div>)}
