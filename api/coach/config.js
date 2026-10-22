@@ -86,7 +86,7 @@ export function load() {
   cache = { ...DEFAULTS, ...storedWithoutCustomCommand, caps: { ...DEFAULTS.caps, ...(stored.caps || {}) } };
   // A retired provider must not leave the admin page in a state where no chip is selected, or
   // continue using its old credential. The next normal save also removes its legacy fields.
-  if (!PROVIDERS[cache.provider]) {
+  if (!Object.hasOwn(PROVIDERS, cache.provider || '')) {
     cache.provider = DEFAULTS.provider;
     cache.auth = null;
   }
@@ -138,13 +138,13 @@ export function hasCodexAuth() {
 
 /* ---------- derived state ---------- */
 
-export const providerMeta = cfg => PROVIDERS[(cfg || load()).provider] || PROVIDERS.claude;
+export const providerMeta = cfg => { const p = (cfg || load()).provider; return Object.hasOwn(PROVIDERS, p || '') ? PROVIDERS[p] : PROVIDERS.claude; };
 
 /** Is the feature switched on at all (before asking whether it can actually reach a model)? */
 export function isEnabled() {
   if (COACH_DISABLED) return false;
   const cfg = load();
-  return !!cfg.enabled && !!PROVIDERS[cfg.provider];
+  return !!cfg.enabled && Object.hasOwn(PROVIDERS, cfg.provider || '');
 }
 /** Credentials present? The fixture carries its own auth (or needs none). */
 export function isConnected() {

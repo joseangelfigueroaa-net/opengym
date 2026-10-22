@@ -32,7 +32,7 @@ export function makePost({ title, body, link, file }, now = Date.now()) {
   let bytes = null, meta = null;
   if (file && file.data) {
     const type = String(file.type || '');
-    if (!TYPES[type]) throw new ContentError('only images (JPG, PNG, WebP, GIF) and PDF can be uploaded; share video as a link');
+    if (!Object.hasOwn(TYPES, type)) throw new ContentError('only images (JPG, PNG, WebP, GIF) and PDF can be uploaded; share video as a link');
     bytes = Buffer.from(String(file.data), 'base64');
     if (!bytes.length) throw new ContentError('the file is empty');
     if (bytes.length > MAX_FILE) throw new ContentError('files are limited to 3.5 MB; share larger ones as a link');

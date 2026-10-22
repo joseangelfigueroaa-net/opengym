@@ -126,7 +126,7 @@ export function coachRoutes({ json, readBody, readSession, requireAdmin }) {
       const patch = {};
       if (body.enabled !== undefined) patch.enabled = !!body.enabled;
       if (body.provider !== undefined) {
-        if (!cfgStore.PROVIDERS[body.provider]) return json(res, 400, { error: 'unknown provider' });
+        if (typeof body.provider !== 'string' || !Object.hasOwn(cfgStore.PROVIDERS, body.provider)) return json(res, 400, { error: 'unknown provider' });
         // Credentials belong to the provider that issued them.
         if (body.provider !== cfgStore.load().provider) patch.auth = null;
         patch.provider = body.provider;

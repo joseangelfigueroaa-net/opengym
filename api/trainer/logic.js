@@ -32,7 +32,9 @@ export function ensureShape(db) {
 }
 
 export const isTrainer = user => !!user?.trainer;
-export const planOf = user => (PLAN_LIMITS[user?.trainer?.plan] ? user.trainer.plan : 'free');
+// Own keys only: a name every object inherits ("constructor", "toString") is not a plan.
+const isPlan = p => typeof p === 'string' && Object.hasOwn(PLAN_LIMITS, p);
+export const planOf = user => (isPlan(user?.trainer?.plan) ? user.trainer.plan : 'free');
 export const limitOf = user => PLAN_LIMITS[planOf(user)];
 export const featuresOf = user => (isTrainer(user) ? PLAN_FEATURES[planOf(user)] : []);
 export const hasFeature = (user, f) => featuresOf(user).includes(f);
@@ -53,7 +55,7 @@ const isExpired = (inv, now) => now - Date.parse(inv.created) > INVITE_DAYS * 86
 
 export function setTrainer(user, plan) {
   if (!plan) { delete user.trainer; return user; }
-  if (!PLAN_LIMITS[plan]) throw new TrainerError('invalid', 'unknown plan');
+  if (!isPlan(plan)) throw new TrainerError('bad_plan', 'unknown plan');   // a bad request (400), not a missing invite
   user.trainer = { plan, since: user.trainer?.since || new Date().toISOString() };
   return user;
 }
