@@ -7,6 +7,8 @@
  *
  * per100 = [kcal, protein g, carbs g, fat g]
  */
+import { cachedFood, lookupFood } from './usda.js';
+
 const FOODS = [
   { names: ['arroz'], per100: [130, 2.7, 28, 0.3], serve: 150, units: { taza: 158, cucharada: 45 } },
   { names: ['arepa', 'arepas'], per100: [225, 4.5, 48, 1.5], serve: 80 },
@@ -97,19 +99,51 @@ function findFood(seg) {
   return null;
 }
 
+// An amount at the start of a piece of text: "2 ", "200 g ", "una taza de "
+const LEAD = new RegExp('^\\s*' + NUMBER + '\\s*' + UNIT + '?\\s*(?:de\\s+)?');
+
+/** The food name in a piece of text the local table does not know, with its leading amount. */
+function unknownFood(seg) {
+  const lead = LEAD.exec(seg);
+  const name = (lead ? seg.slice(lead[0].length) : seg).trim();
+  return name ? { name, lead } : null;
+}
+
+// The meal's text is split into pieces; the foods USDA knows are looked up before a save (see
+// prefetchMeal) and read from the cache here, so the estimate itself never waits on the network.
+/** Food names in this meal the local table does not know. */
+export function unknownFoods(text) {
+  return norm(text).split(SPLIT).map(s => s.trim()).filter(Boolean).slice(0, 30)
+    .filter(seg => !findFood(seg)).map(seg => unknownFood(seg)?.name).filter(Boolean);
+}
+
+/** Looks up the unknown foods of a meal at USDA, once each. Safe to call when USDA is off. */
+export async function prefetchMeal(text) {
+  for (const name of unknownFoods(text)) await lookupFood(name);
+}
+
 /** Estimates one meal from its description. Returns null when no food in it is recognised. */
 export function estimateMeal(text) {
   const items = [], unmatched = [];
   let kcal = 0, protein = 0, carbs = 0, fat = 0;
   for (const seg of norm(text).split(SPLIT).map(s => s.trim()).filter(Boolean).slice(0, 30)) {
+    let food, n = 1, unit = null;
     const hit = findFood(seg);
-    if (!hit) { unmatched.push(seg); continue; }
-    const m = BEFORE.exec(hit.before) || AFTER.exec(hit.after);
-    const n = m ? num(m[1]) : 1;
-    const g = grams(hit.food, n, m ? m[2] : null);
-    const [k, p, c, f] = hit.food.per100;
+    if (hit) {
+      food = hit.food;
+      const m = BEFORE.exec(hit.before) || AFTER.exec(hit.after);
+      if (m) { n = num(m[1]); unit = m[2]; }
+    } else {
+      // not in the local table: a food USDA knows, if it has been looked up; a generic 100 g portion
+      const u = unknownFood(seg), per100 = u && cachedFood(u.name);
+      if (!per100) { unmatched.push(seg); continue; }
+      food = { names: [u.name], per100, serve: 100, units: {} };
+      if (u.lead) { n = num(u.lead[1]); unit = u.lead[2]; }
+    }
+    const g = grams(food, n, unit);
+    const [k, p, c, f] = food.per100;
     kcal += g / 100 * k; protein += g / 100 * p; carbs += g / 100 * c; fat += g / 100 * f;
-    items.push({ food: hit.food.names[0], grams: Math.round(g) });
+    items.push({ food: food.names[0], grams: Math.round(g) });
   }
   if (!items.length) return null;
   return {

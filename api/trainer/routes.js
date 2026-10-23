@@ -15,7 +15,7 @@ import * as A from './assign.js';
 import * as P from './profile.js';
 import * as SOC from './social.js';
 import * as PH from './photos.js';
-import { estimateMeal } from './nutrition.js';
+import { estimateMeal, prefetchMeal } from './nutrition.js';
 import { demoClient } from './demo.js';
 
 export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb, saveDb, readState, writeState, userById, files, dataDir, sendPush }) {
@@ -144,6 +144,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const body = await readBody(req);
       const u = ownClient(req, res, trainer, String(body.id || '')); if (!u) return;
       if (body.kind === 'meal' && !T.hasFeature(trainer, 'meals')) return json(res, 403, { error: NUTRITION_PLAN });
+      if (body.kind === 'meal') await prefetchMeal(body.v?.text);
       try {
         const file = recordsOf(u.id);
         const entry = R.addEntry(file, R.makeEntry(body, author(trainer, 'trainer')));
@@ -400,6 +401,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const user = signedIn(req, res); if (!user) return;
       const body = await readBody(req);
       if (body.kind === 'meal' && !T.hasFeature(trainerOf(user), 'meals')) return json(res, 403, { error: NUTRITION_PLAN });
+      if (body.kind === 'meal') await prefetchMeal(body.v?.text);
       try {
         const file = recordsOf(user.id);
         const entry = R.addEntry(file, R.makeEntry(body, author(user, 'client')));
@@ -425,7 +427,9 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'POST /api/nutrition/estimate': async (req, res) => {
       const user = signedIn(req, res); if (!user) return;
       const body = await readBody(req);
-      json(res, 200, { estimate: estimateMeal(String(body.text || '').slice(0, 300)) });
+      const text = String(body.text || '').slice(0, 300);
+      await prefetchMeal(text);
+      json(res, 200, { estimate: estimateMeal(text) });
     },
 
     // Reactions and comments on one owner's items (default: the signed-in user's own). Anyone
