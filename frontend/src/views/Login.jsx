@@ -77,9 +77,12 @@ export default function Login() {
     try { const u = await passkeyLogin(); setUser(u); await pullState(); useUI.getState().toast(t('Welcome back, {0}', u.name)) }
     catch (e) { if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') useUI.getState().toast(e.message || t('Sign-in failed')) }
   }
+  // The logo goes back to the landing page (the public front at "/").
   const head = <>
-    <div style={{ display: 'flex', justifyContent: 'center' }}><LogoMark size={64} /></div>
-    <h1 className="brand-word" translate="no" style={{ fontSize: 36, margin: '14px 0 4px' }}>{BRAND}</h1>
+    <a href="#/" aria-label={`${BRAND}: volver a la página principal`} style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', color: 'inherit', textDecoration: 'none' }}>
+      <LogoMark size={64} />
+      <h1 className="brand-word" translate="no" style={{ fontSize: 36, margin: '14px 0 4px' }}>{BRAND}</h1>
+    </a>
   </>
   const wrap = { display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '78vh', textAlign: 'center' }
 
