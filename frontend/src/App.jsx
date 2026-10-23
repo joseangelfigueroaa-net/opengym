@@ -15,6 +15,7 @@ import Modals from './components/Modals.jsx'
 import Toast from './components/Toast.jsx'
 import RestTimer from './components/RestTimer.jsx'
 import Login from './views/Login.jsx'
+import Landing from './views/Landing.jsx'
 import Home from './views/Home.jsx'
 import { trainerLed } from './lib/trainer.js'
 import Plan from './views/Plan.jsx'
@@ -133,7 +134,7 @@ function Shell() {
           re-mounts the boundary, so the tab bar is always a way out */}
       <div id="app" className="vfade" key={loc.pathname}>
         <ErrorBoundary>
-          {!authed ? <Login /> : (
+          {!authed ? (loc.pathname === '/' ? <Landing /> : <Login />) : (
             <Routes>
               {/* a trainer's home is their client panel */}
               <Route path="/home" element={user?.trainer ? <Navigate to="/trainer" replace /> : <Home />} />
