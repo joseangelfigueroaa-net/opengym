@@ -436,3 +436,13 @@ test('photos: a full-size 3.5 MB photo uploads (the body limit fits its base64)'
   const r = await post('/api/photos', { d: TODAY, note: 'grande', file: { type: 'image/png', data: big.toString('base64') } }, { who: 'c1' });
   assert.equal(r.status, 200, r.text.slice(0, 120));
 });
+
+
+test('google sign-in: off on an instance without its secrets, and nothing leaks', async () => {
+  assert.equal((await get('/api/config')).json.google, false);
+  assert.equal((await get('/api/auth/google/start')).status, 404);
+  const r = await fetch(BASE + '/api/auth/google/callback?state=x&code=y', { redirect: 'manual' });
+  assert.equal(r.status, 302, 'the callback only redirects');
+  assert.match(r.headers.get('location'), /google=off/);
+  assert.equal(r.headers.get('set-cookie'), null, 'no session is set');
+});

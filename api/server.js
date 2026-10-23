@@ -17,6 +17,7 @@ import { trainerRoutes } from './trainer/routes.js';
 import * as trainer from './trainer/logic.js';
 import { createStore } from './lib/store.js';
 import { clientIp, createLimiter, crossSiteWrite } from './lib/security.js';
+import * as GG from './lib/google.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -62,7 +63,7 @@ db.invites = db.invites || [];
 trainer.ensureShape(db);
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // What the app learns about the signed-in account. `trainer` is null for everyone but trainers.
-const publicUser = user => ({ id: user.id, name: user.name, admin: isAdmin(user), trainer: trainer.isTrainer(user) ? { plan: trainer.planOf(user), features: trainer.featuresOf(user) } : null });
+const publicUser = user => ({ id: user.id, name: user.name, admin: isAdmin(user), google: !!user.google, trainer: trainer.isTrainer(user) ? { plan: trainer.planOf(user), features: trainer.featuresOf(user) } : null });
 // A trainer's invite link doubles as a signup code on an invite-only instance, so a new client
 // can create a profile from the link alone. Signing up reserves the link for that profile
 // (signupBy); accepting it afterwards is what links the two and spends it.
@@ -316,6 +317,11 @@ function json(res, code, obj, extraHeaders) {
   res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...(extraHeaders || {}) });
   res.end(body);
 }
+// A 302 to a page of the app (or to Google), optionally setting the session cookie on the way.
+function redirect(res, location, cookie) {
+  res.writeHead(302, { Location: location, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...(cookie ? { 'Set-Cookie': cookie } : {}) });
+  res.end();
+}
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let size = 0; const chunks = [];
@@ -363,7 +369,7 @@ const routes = {
   // the app it was before the feature existed.
   'GET /api/config': async (req, res) => {
     const coach = coachConfig.publicConfig();
-    json(res, 200, { invite_only: INVITE_ONLY, ...(coach ? { coach } : {}) });
+    json(res, 200, { invite_only: INVITE_ONLY, google: !!GG.googleConfig(), ...(coach ? { coach } : {}) });
   },
 
   'GET /api/me': async (req, res) => {
@@ -467,6 +473,61 @@ const routes = {
     if (!user) return json(res, 500, { error: 'user missing' });
     if (user.disabled) return json(res, 403, { error: 'this account has been disabled' });
     json(res, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(user) });
+  },
+
+  // Sign in with Google. Start: from the sign-in screen (a new or returning person, with an invite
+  // code if the instance needs one), or from Settings with ?link=1 by someone already signed in.
+  // The state, PKCE verifier and nonce wait on the server for five minutes.
+  'GET /api/auth/google/start': async (req, res) => {
+    const g = GG.googleConfig();
+    if (!g) return json(res, 404, { error: 'not available' });
+    const url = new URL(req.url, 'http://x');
+    const linking = url.searchParams.get('link') === '1';
+    const me = linking ? readSession(req) : null;
+    if (linking && !me) return redirect(res, '/#/settings?google=signin');
+    const { verifier, challenge } = GG.pkce();
+    const nonce = crypto.randomBytes(16).toString('base64url');
+    const state = putChallenge({ google: true, link: me ? me.id : null, nonce, verifier, code: String(url.searchParams.get('code') || '').trim().toUpperCase() });
+    redirect(res, GG.authUrl({ clientId: g.id, redirectUri: ORIGIN + '/api/auth/google/callback', state, challenge, nonce }));
+  },
+
+  'GET /api/auth/google/callback': async (req, res) => {
+    const g = GG.googleConfig();
+    const url = new URL(req.url, 'http://x');
+    const fail = why => redirect(res, '/#/login?google=' + why);
+    if (!g) return fail('off');
+    const c = takeChallenge(url.searchParams.get('state'));
+    if (!c || !c.google) return fail('expired');
+    if (url.searchParams.get('error') || !url.searchParams.get('code')) return fail('cancelled');
+    let claims;
+    try {
+      const tok = await GG.exchangeCode({ clientId: g.id, secret: g.secret, redirectUri: ORIGIN + '/api/auth/google/callback', code: url.searchParams.get('code'), verifier: c.verifier });
+      claims = GG.checkClaims(tok, { clientId: g.id, nonce: c.nonce });
+    } catch (e) { console.error('google sign-in refused:', e.message); return fail('failed'); }
+    const linked = db.users.find(u => u.google === claims.sub);
+    if (c.link) {
+      const me = userById(c.link);
+      if (!me) return fail('failed');
+      if (linked && linked.id !== me.id) return redirect(res, '/#/settings?google=taken');
+      me.google = claims.sub; saveDb();
+      return redirect(res, '/#/settings?google=linked');
+    }
+    if (linked) {
+      if (linked.disabled) return fail('disabled');
+      return redirect(res, '/#/home', sessionCookie(linked));
+    }
+    // a new profile: the same rules as a passkey sign-up on this instance
+    let invite = null;
+    if (INVITE_ONLY) {
+      invite = db.invites.find(i => i.code === c.code && !i.usedBy && !i.revoked);
+      if (!invite && !trainerCodeOk(c.code)) return fail('invite');
+    }
+    const user = { id: crypto.randomBytes(12).toString('base64url'), name: String(claims.given_name || claims.name || 'Trainnery').trim().slice(0, 40) || 'Trainnery', created: new Date().toISOString(), google: claims.sub };
+    if (invite) { user.invitedBy = invite.code; invite.usedBy = user.id; invite.usedAt = user.created; }
+    else if (INVITE_ONLY) { const t = trainer.usableInvite(db, c.code).inv; t.signupBy = user.id; user.invitedBy = 'trainer:' + t.trainerId; }
+    db.users.push(user);
+    saveDb();
+    redirect(res, '/#/home', sessionCookie(user));
   },
 
   'POST /api/logout': async (req, res) => json(res, 200, { ok: true }, { 'Set-Cookie': clearCookie }),
@@ -703,7 +764,7 @@ startCadence({ users: () => db.users.filter(u => !u.disabled), userNow });
 // Per visitor (lib/security.js): sign-in, sign-up and invite links are where guessing would
 // happen, so they get a tight budget; everything else a generous one that a gym full of clients
 // on one Wi-Fi never reaches.
-const AUTH_ROUTES = /^(POST \/api\/(register|login)\/|GET \/api\/invite$|POST \/api\/invite\/accept$)/;
+const AUTH_ROUTES = /^(POST \/api\/(register|login)\/|GET \/api\/invite$|POST \/api\/invite\/accept$|GET \/api\/auth\/google\/)/;
 const limits = {
   auth: createLimiter({ limit: 20, windowMs: 60000 }),
   write: createLimiter({ limit: 300, windowMs: 60000 }),

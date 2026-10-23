@@ -44,14 +44,35 @@ function RegisterSheet({ close }) {
   </>
 }
 
+// What the server says when a Google sign-in comes back without a session (see api/server.js).
+const GOOGLE_MSG = {
+  cancelled: 'Google sign-in was cancelled.',
+  expired: 'The Google sign-in expired. Try again.',
+  failed: 'Google sign-in failed. Try again.',
+  invite: 'An invite code is required to create a profile here.',
+  disabled: 'This profile is disabled. Ask the administrator.',
+  off: 'Google sign-in is not set up on this instance.'
+}
+
 export default function Login() {
   const { setUser, pullState, setGuest } = useStore()
   // Opened from a trainer's invite link: say whose, so the person knows why they're signing up.
   const [inviter, setInviter] = useState(null)
+  const [google, setGoogle] = useState(false)
+  const [inviteOnly, setInviteOnly] = useState(false)
+  const [code, setCode] = useState(() => (pendingInviteToken() || '').toUpperCase())
   useEffect(() => {
     const token = pendingInviteToken()
     if (token) api('/api/invite?token=' + encodeURIComponent(token)).then(r => setInviter(r.trainer.name)).catch(() => {})
+    api('/api/config').then(c => { setGoogle(!!c.google); setInviteOnly(!!c.invite_only) }).catch(() => {})
+    // coming back from Google: the server puts the outcome in the address after #/login?google=
+    const why = (window.location.hash.split('google=')[1] || '').split('&')[0]
+    if (why && GOOGLE_MSG[why]) useUI.getState().toast(t(GOOGLE_MSG[why]))
   }, [])
+  const googleSignIn = () => {
+    const q = inviteOnly && code.trim() ? '?code=' + encodeURIComponent(code.trim()) : ''
+    window.location.href = '/api/auth/google/start' + q
+  }
   const signIn = async () => {
     try { const u = await passkeyLogin(); setUser(u); await pullState(); useUI.getState().toast(t('Welcome back, {0}', u.name)) }
     catch (e) { if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') useUI.getState().toast(e.message || t('Sign-in failed')) }
@@ -84,6 +105,12 @@ export default function Login() {
       {inviter && <div className="card small" style={{ textAlign: 'left', marginBottom: 16, borderColor: 'var(--acc)' }}>
         {t('{0} invited you to be their client. Create your profile, or sign in if you already have one, to accept.', inviter)}
       </div>}
+      {google && <>
+        {inviteOnly && <input className="input" placeholder={t('Invite code')} maxLength={40} value={code} aria-label={t('Invite code')}
+          onChange={e => setCode(e.target.value.toUpperCase())} style={{ letterSpacing: '.14em', fontWeight: 600, textAlign: 'center', marginBottom: 10 }} />}
+        <Button icon="person" onClick={googleSignIn}>{t('Continue with Google')}</Button>
+        <div className="dim small" style={{ margin: '6px 0 14px' }}>{t('Google and Gmail accounts work too.')}</div>
+      </>}
       {webauthnOK() ? <>
         <Button variant="primary" icon="person" onClick={signIn}>{t('Sign in with passkey')}</Button>
         <div style={{ height: 10 }} />

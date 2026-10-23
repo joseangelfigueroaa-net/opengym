@@ -41,6 +41,12 @@ export default function Settings() {
   const led = trainerLed(useStore(s => s.user))   // a client's plan comes from their trainer
   const features = useFeatures()
   const user = useStore(s => s.user)
+  // back from linking a Google account (see api/server.js: /api/auth/google/callback)
+  useEffect(() => {
+    const why = (window.location.hash.split('google=')[1] || '').split('&')[0]
+    const msg = { linked: 'Google account linked', taken: 'That Google account is already linked to another profile', signin: 'Sign in first, then link Google' }[why]
+    if (msg) useUI.getState().toast(t(msg))
+  }, [])
   const config = useStore(s => s.config)
   const { update, replaceState, setUser, pullState, pushState, signOut, signOutAll, resetDemo } = useStore()
   const toast = useUI(s => s.toast)
@@ -110,6 +116,10 @@ export default function Settings() {
           onClick={() => window.open(REPO, '_blank', 'noopener')} />
       </> : user ? <>
         <Row icon="personCircle" iconTint="var(--grey)" title={user.name} subtitle={t('Signed in with passkey — data syncs to this profile.')} />
+        {useStore.getState().config?.google && (user.google
+          ? <Row icon="person" iconTint="var(--grey)" title={t('Google account linked')} subtitle={t('You can also sign in with Google.')} />
+          : <Row icon="person" iconTint="var(--acc)" title={t('Link a Google account')} subtitle={t('Sign in with Google or Gmail too, to this same profile.')} accessory="chevron"
+            onClick={() => { window.location.href = '/api/auth/google/start?link=1' }} />)}
         {user.trainer && <Row icon="clipboard" iconTint="var(--acc)" title={t('Trainer dashboard')} subtitle={t('Your clients and invite links')} accessory="chevron" onClick={() => nav('/trainer')} />}
         <MyTrainerRow />
         {user.admin && <Row icon="wrench" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin')} />}
