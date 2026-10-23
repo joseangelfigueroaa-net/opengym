@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
+import { MotionConfig } from 'motion/react'
 import { LogoMark, BRAND } from '../components/Logo.jsx'
 import Icon from '../components/Icon.jsx'
+import PromoCharts from '../components/PromoCharts.jsx'
 
 // Public front page for people who are not signed in yet: what Trainnery does for a trainer and
 // for their clients, the plans, and how to start. Everything here is written for Spanish readers.
@@ -37,7 +39,7 @@ const START = [
 export default function Landing() {
   const nav = useNavigate()
   const start = () => nav('/login')
-  return <div className="lp">
+  return <MotionConfig reducedMotion="user"><div className="lp">
     <style>{CSS}</style>
 
     <header className="lp-top">
@@ -68,6 +70,12 @@ export default function Landing() {
       <div className="lp-grid">
         {CLIENT.map(([icon, title, body]) => <Card key={title} icon={icon} title={title} body={body} />)}
       </div>
+    </section>
+
+    <section className="lp-sec" aria-labelledby="lp-results">
+      <h2 id="lp-results">Así se ve el progreso</h2>
+      <p className="lp-sub">Ejemplo ilustrativo de un cliente en 12 semanas. No es el resultado de un cliente real: cada persona avanza a su propio ritmo.</p>
+      <PromoCharts />
     </section>
 
     <section className="lp-sec" aria-labelledby="lp-plans">
@@ -107,7 +115,7 @@ export default function Landing() {
       <span>© {new Date().getFullYear()} {BRAND}</span>
       <span>Hecho para entrenadores de Venezuela y Latinoamérica</span>
     </footer>
-  </div>
+  </div></MotionConfig>
 }
 
 function Card({ icon, title, body }) {
@@ -144,6 +152,12 @@ const CSS = `
 .lp-card h3{font-size:1.05rem;margin:10px 0 6px}
 .lp-card p{margin:0;color:var(--label-2,#c7c7cc);font-size:.95rem}
 .lp-ico{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.lp-charts{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
+.lp-chart{margin:0;background:var(--surface);border-radius:18px;padding:16px;min-width:0}
+.lp-chart figcaption{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:4px 12px;margin-bottom:6px}
+.lp-chart-title{font-weight:700}
+.lp-chart-note{color:var(--green);font-weight:700;font-size:.95rem}
+.lp-chart svg{display:block;width:100%;height:auto}
 .lp-plan{border:1px solid color-mix(in srgb,var(--green) 30%,transparent)}
 .lp-plan h3{margin:0;font-family:"Syne",system-ui,sans-serif;font-size:1.25rem}
 .lp-seats{color:var(--green);font-weight:700;margin:4px 0 10px}
