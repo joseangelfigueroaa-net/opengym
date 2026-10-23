@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, MotionConfig } from 'motion/react'
-import { Barbell, Scales, ChatCircle, Target, ClipboardText, Camera, Link, ForkKnife, Fingerprint, ShieldCheck, ChartLineUp, UserCircle, Sparkle, ArrowRight, Heartbeat, Users, Envelope } from '@phosphor-icons/react'
+import { Barbell, Scales, ChatCircle, Target, ClipboardText, Camera, ForkKnife, Fingerprint, ShieldCheck, ChartLineUp, UserCircle, Sparkle, ArrowRight, Heartbeat, Users, Envelope } from '@phosphor-icons/react'
 import { LogoMark, BRAND } from '../components/Logo.jsx'
 import PromoCharts from '../components/PromoCharts.jsx'
 
@@ -161,7 +161,6 @@ export default function Landing() {
         <li><ShieldCheck size={18} weight="regular" aria-hidden="true" /> Sincronización con Apple Salud y Google Salud (Health Connect)</li>
         <li><Fingerprint size={18} weight="regular" aria-hidden="true" /> Lectura automática desde balanzas inteligentes</li>
         <li><Envelope size={18} weight="regular" aria-hidden="true" /> Avisos por correo además de la notificación del teléfono</li>
-        <li><Link size={18} weight="regular" aria-hidden="true" /> Invitaciones por enlace para todos los planes</li>
       </ul>
     </section>
 
