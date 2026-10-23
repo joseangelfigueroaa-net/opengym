@@ -29,11 +29,6 @@ const PLANS = [
   ['Gold', '25 clientes', 'Todo lo de Silver para tu cartera de clientes.'],
   ['Platinum', '50 clientes', 'Para entrenadores con gimnasio o mucha clientela.'],
 ]
-const START = [
-  ['person', 'Passkey', 'Entras con la huella o el rostro de tu teléfono. Sin contraseñas que recordar.'],
-  ['sparkles', 'Google o Gmail', 'Si prefieres, entra con tu cuenta de Google.'],
-  ['link', 'Invitación', 'Tu entrenador te envía un enlace. Lo abres, aceptas y listo.'],
-]
 
 export default function Landing() {
   const nav = useNavigate()
@@ -89,12 +84,6 @@ export default function Landing() {
       </div>
     </section>
 
-    <section className="lp-sec" aria-labelledby="lp-start">
-      <h2 id="lp-start">Cómo empezar</h2>
-      <div className="lp-grid">
-        {START.map(([icon, title, body]) => <Card key={title} icon={icon} title={title} body={body} />)}
-      </div>
-    </section>
 
     <section className="lp-sec lp-soon" aria-labelledby="lp-soon">
       <h2 id="lp-soon">Próximamente</h2>
