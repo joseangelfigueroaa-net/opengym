@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { MotionConfig } from 'motion/react'
 import { LogoMark, BRAND } from '../components/Logo.jsx'
 import Icon from '../components/Icon.jsx'
+import PromoCharts from '../components/PromoCharts.jsx'
 
 // Public front page for people who are not signed in yet: what Trainnery does for a trainer and
 // for their clients, the plans, and how to start. Everything here is written for Spanish readers.
@@ -63,6 +64,12 @@ export default function Landing() {
       <div className="lp-grid">
         {CLIENT.map(([icon, title, body]) => <Card key={title} icon={icon} title={title} body={body} />)}
       </div>
+    </section>
+
+    <section className="lp-sec" aria-labelledby="lp-results">
+      <h2 id="lp-results">Así se ve el progreso</h2>
+      <p className="lp-sub">Ejemplo ilustrativo de un cliente en 12 semanas. No es el resultado de un cliente real: cada persona avanza a su propio ritmo.</p>
+      <PromoCharts />
     </section>
 
     <section className="lp-sec" aria-labelledby="lp-plans">
