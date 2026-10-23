@@ -9,10 +9,14 @@ import { exOr } from '../lib/exercises.js'
 import { t, dateLocale } from '../lib/i18n.js'
 import { statusTag, recordText, deleteRecord, MEASURE_ZONES, RECORD_KINDS } from '../lib/trainer.js'
 import { useFeatures } from '../lib/features.js'
+import { useSocial } from '../lib/social.js'
 import { confirmSheet } from '../sheets.jsx'
 import { recordSheet } from '../components/RecordSheet.jsx'
 import TrainerPlanCard from '../components/TrainerPlanCard.jsx'
 import LineChart from '../components/LineChart.jsx'
+import Reactions from '../components/Reactions.jsx'
+import MealComments from '../components/MealComments.jsx'
+import ProgressPhotos from '../components/ProgressPhotos.jsx'
 import Icon from '../components/Icon.jsx'
 import { Segmented } from '../components/ui.jsx'
 
@@ -34,6 +38,7 @@ export default function TrainerClient() {
   const [metric, setMetric] = useState('weight')
   const [zone, setZone] = useState('waist')
   const [ex, setEx] = useState(null)
+  const social = useSocial(id)   // the trainer's reactions on this client's workouts and records, and comments on meals
 
   const load = () => api('/api/trainer/client?id=' + encodeURIComponent(id)).then(d => setC(d.client))
     .catch(e => { toast(e.message); nav('/trainer', { replace: true }) })
@@ -182,6 +187,8 @@ export default function TrainerClient() {
               <div style={{ minWidth: 0 }}>
                 <div className="small" style={{ overflowWrap: 'anywhere' }}><b>{t(RECORD_KINDS[r.kind].label)}</b> · {recordText(r.kind, r.v)}</div>
                 <div className="dim" style={{ fontSize: '.72rem' }}>{fmtDate(r.d, true)} · {r.role === 'trainer' ? t('by you') : t('by {0}', first)}</div>
+                <Reactions social={social} k={'r:' + r.id} myId={user.id} />
+                {r.kind === 'meal' && <MealComments social={social} recordId={r.id} myId={user.id} canComment />}
               </div>
               {r.role === 'trainer' && <button className="iconbtn" style={{ width: 44, height: 44, fontSize: 16, color: 'var(--red)' }} onClick={() => delRec(r)} aria-label={t('Delete record')}><Icon name="trash" /></button>}
             </div>)) : <div className="empty small">{t('No records yet. Log one with the button above.')}</div>}
@@ -202,10 +209,14 @@ export default function TrainerClient() {
     {c.history.length ? <div className="list" style={{ gap: 0 }}>
       {c.history.slice(0, 20).map(w => <div key={w.id} className="row between" style={{ padding: '9px 2px', borderBottom: '1px solid var(--sep)' }}>
         <div><div className="small" style={{ fontWeight: 600 }}>{w.name}</div>
-          <div className="dim" style={{ fontSize: '.72rem' }}>{fmtDate(w.d, true)} · {fmtDur((w.end || w.start) - w.start)} · {t('{0} sets', setsDone(w))}{w.prs?.length ? ' · ' + w.prs.length + ' PR' : ''}</div></div>
+          <div className="dim" style={{ fontSize: '.72rem' }}>{fmtDate(w.d, true)} · {fmtDur((w.end || w.start) - w.start)} · {t('{0} sets', setsDone(w))}{w.prs?.length ? ' · ' + w.prs.length + ' PR' : ''}</div>
+          <Reactions social={social} k={'w:' + w.id} myId={user.id} /></div>
         <span className="small muted">{fmtVol(w.vol ?? workoutVolume(w), c.unit)}</span>
       </div>)}
     </div> : <div className="empty small">{t('No workouts logged.')}</div>}
+
+    <h4 className="sec">{t('Progress photos')}</h4>
+    <div className="card"><ProgressPhotos owner={id} /></div>
 
     <button className="btn danger" style={{ margin: '20px 0 8px' }} onClick={remove}>{t('Remove client')}</button>
   </div>

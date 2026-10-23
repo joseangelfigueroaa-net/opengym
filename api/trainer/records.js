@@ -15,7 +15,7 @@ import crypto from 'node:crypto';
 export const KINDS = {
   weight: { kg: [20, 400] },
   fat: { pct: [2, 75] },
-  measures: { waist: [20, 250], hip: [20, 250], chest: [20, 250], arm: [10, 100], thigh: [10, 150] },
+  measures: { waist: [20, 250], hip: [20, 250], chest: [20, 250], arm: [10, 100], thigh: [10, 150], height: [100, 250] },
   steps: { n: [0, 150000] },
   sleep: { h: [0, 24] },
   meal: null   // free text, validated below
@@ -132,4 +132,13 @@ export function weekSummary(entries, today, days = 7) {
     return [k, v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null];
   })) : null;
   return { steps: avg('steps', 'n'), sleep: avg('sleep', 'h'), meals: recent.filter(e => e.kind === 'meal').length, macros, macroDays: totals.length };
+}
+
+/** Everything eaten on one day, added up: meals logged and each macro in total. The server counts
+ *  it too, so the calorie total a client sees is the one that was saved, not a client-side sum. */
+export function dayTotals(entries, day) {
+  const meals = (entries || []).filter(e => e.kind === 'meal' && e.d === day);
+  const out = { meals: meals.length };
+  for (const k of Object.keys(MACROS)) out[k] = meals.reduce((n, e) => n + (e.v[k] || 0), 0);
+  return out;
 }

@@ -45,7 +45,7 @@ export function makePost({ title, body, link, file }, now = Date.now()) {
 }
 
 // Magic bytes, so a renamed executable can't be served back as "image/png".
-function looksLike(type, b) {
+export function looksLike(type, b) {
   const hex = b.subarray(0, 12).toString('hex');
   if (type === 'image/png') return hex.startsWith('89504e47');
   if (type === 'image/jpeg') return hex.startsWith('ffd8ff');

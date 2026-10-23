@@ -10,7 +10,11 @@ import { confirmSheet } from '../sheets.jsx'
 import { recordSheet } from '../components/RecordSheet.jsx'
 import LineChart from '../components/LineChart.jsx'
 import HealthSyncSoon from '../components/HealthSyncSoon.jsx'
+import Reactions from '../components/Reactions.jsx'
+import MealComments from '../components/MealComments.jsx'
+import ProgressPhotos from '../components/ProgressPhotos.jsx'
 import Icon from '../components/Icon.jsx'
+import { useSocial } from '../lib/social.js'
 
 // The client's "Log" tab: one tap per thing to note down — weight, body fat, measurements,
 // steps, sleep, a meal — and the list of what's been logged, by them or by their trainer.
@@ -21,9 +25,11 @@ export default function Log() {
   const S = useStore(s => s.S)
   const toast = useUI(s => s.toast)
   const [recs, setRecs] = useState(null)
+  const [today, setToday] = useState(null)   // the server's add-up of today's meals
   const features = useFeatures()
   const goal = useMyTrainer(!!user)?.macroGoal || null
-  const load = () => api('/api/records').then(d => setRecs(d.records)).catch(() => setRecs([]))
+  const social = useSocial(user?.id)
+  const load = () => api('/api/records?day=' + todayISO()).then(d => { setRecs(d.records); setToday(d.today) }).catch(() => setRecs([]))
   useEffect(() => { if (user) load(); else setRecs([]) }, [!!user])
 
   const del = r => confirmSheet({
@@ -39,7 +45,11 @@ export default function Log() {
   const lastW = S.bodyweight[S.bodyweight.length - 1]
   // today's meals, added up; shown with the trainer's daily goal when there is one
   const todayMeals = (recs || []).filter(r => r.kind === 'meal' && r.d === todayISO())
-  const eaten = Object.fromEntries(MACROS.map(([k]) => [k, todayMeals.reduce((n, r) => n + (r.v[k] || 0), 0)]))
+  const eaten = today ? Object.fromEntries(MACROS.map(([k]) => [k, today[k] || 0]))
+    : Object.fromEntries(MACROS.map(([k]) => [k, todayMeals.reduce((n, r) => n + (r.v[k] || 0), 0)]))
+  // body mass index, from the latest weigh-in and the latest height
+  const heightCm = (recs || []).find(r => r.kind === 'measures' && r.v.height != null)?.v.height
+  const bmi = lastW && heightCm ? lastW.w / ((heightCm / 100) ** 2) : null
   const showMacros = features.includes('macros') && (goal || todayMeals.some(r => MACROS.some(([k]) => r.v[k] != null)))
 
   return <div className="narrow">
@@ -74,6 +84,12 @@ export default function Log() {
       {!goal && <div className="dim small">{t('Your trainer has not set a daily goal yet.')}</div>}
     </div>}
 
+    {bmi && <div className="card row between" style={{ gap: 8 }}>
+      <div><h2 style={{ margin: 0 }}>{t('Body mass index')}</h2>
+        <div className="dim small">{t('From your latest weight and height ({0} cm)', fmtNum(heightCm))}</div></div>
+      <div style={{ fontSize: '1.6rem', fontWeight: 700 }}>{fmtNum(Math.round(bmi * 10) / 10)}</div>
+    </div>}
+
     {fat.length > 1 && <div className="card">
       <h2 style={{ margin: '0 0 8px' }}>{t('Body fat')}</h2>
       <div className="chart"><LineChart points={fat.map(r => ({ t: new Date(r.d).getTime(), y: r.v.pct, d: r.d }))} h={130} unit="%" /></div>
@@ -95,11 +111,16 @@ export default function Log() {
             <div style={{ minWidth: 0 }}>
               <div className="small" style={{ overflowWrap: 'anywhere' }}><b>{t(RECORD_KINDS[r.kind].label)}</b> · {recordText(r.kind, r.v)}</div>
               <div className="dim" style={{ fontSize: '.72rem' }}>{fmtDate(r.d, true)} · {r.role === 'trainer' ? t('by your trainer') : t('by you')}</div>
+              <Reactions social={social} k={'r:' + r.id} myId={user.id} readOnly />
+              {r.kind === 'meal' && <MealComments social={social} recordId={r.id} myId={user.id} />}
             </div>
             {r.role === 'client' && <button className="iconbtn" style={{ width: 44, height: 44, fontSize: 16, color: 'var(--red)' }} onClick={() => del(r)} aria-label={t('Delete record')}><Icon name="trash" /></button>}
           </div>)}
         </div>
         : <div className="empty small">{t('Nothing logged yet. Tap one of the buttons above.')}</div>}
+
+      <h4 className="sec">{t('Progress photos')}</h4>
+      <ProgressPhotos owner={user.id} canUpload canDelete />
     </>}
   </div>
 }

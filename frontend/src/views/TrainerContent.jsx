@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
+import { useSocial } from '../lib/social.js'
 import { confirmSheet } from '../sheets.jsx'
 import ContentPost from '../components/ContentPost.jsx'
 import { Button, TextField, TextArea } from '../components/ui.jsx'
@@ -27,6 +28,7 @@ export default function TrainerContent() {
   const [form, setForm] = useState({ title: '', body: '', link: '' })
   const [file, setFile] = useState(null)
   const [busy, setBusy] = useState(false)
+  const social = useSocial(user?.id)   // how many of their clients reacted to each post
   const fileRef = useRef(null)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -79,7 +81,7 @@ export default function TrainerContent() {
       </form>
       <div>
         {!posts ? <div className="muted small">{t('Loading…')}</div>
-          : posts.length ? posts.map(p => <ContentPost key={p.id} post={p} trainerId={user.id} onDelete={() => del(p)} />)
+          : posts.length ? posts.map(p => <ContentPost key={p.id} post={p} trainerId={user.id} onDelete={() => del(p)} social={social} readOnly />)
           : <div className="empty small">{t('Nothing published yet.')}</div>}
       </div>
     </div>

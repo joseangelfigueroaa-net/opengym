@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUI } from '../store/useUI.js'
+import { useStore } from '../store/useStore.js'
 import { api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
+import { useSocial } from '../lib/social.js'
 import ContentPost from '../components/ContentPost.jsx'
 import Icon from '../components/Icon.jsx'
 
-// A client's view of their trainer's content library.
+// A client's view of their trainer's content library. The client can react to each post.
 export default function ContentFeed() {
   const nav = useNavigate()
   const toast = useUI(s => s.toast)
+  const user = useStore(s => s.user)
   const [d, setD] = useState(null)
+  const social = useSocial(d?.trainer?.id)
   useEffect(() => { api('/api/content').then(setD).catch(e => toast(e.message)) }, [])
   return <div className="narrow">
     <div className="hdr">
@@ -20,7 +24,7 @@ export default function ContentFeed() {
     </div>
     {!d ? <div className="muted small">{t('Loading…')}</div>
       : !d.trainer ? <div className="empty small">{t('You don’t have a trainer yet.')}</div>
-      : d.posts.length ? d.posts.map(p => <ContentPost key={p.id} post={p} trainerId={d.trainer.id} />)
+      : d.posts.length ? d.posts.map(p => <ContentPost key={p.id} post={p} trainerId={d.trainer.id} social={social} myId={user?.id} />)
       : <div className="empty small">{t('Your trainer hasn’t published anything yet.')}</div>}
   </div>
 }

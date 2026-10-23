@@ -1,13 +1,15 @@
 import { t } from '../lib/i18n.js'
 import { fmtDate } from '../lib/format.js'
 import Icon from './Icon.jsx'
+import Reactions from './Reactions.jsx'
 
 // One post from a trainer's content library, as both the trainer and their clients see it.
 // Files come from an authenticated endpoint (the session cookie rides along), never a public URL.
 export const fileUrl = (trainerId, postId) => '/api/content/file?trainer=' + encodeURIComponent(trainerId) + '&post=' + encodeURIComponent(postId)
 const kb = n => n < 1048576 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(1) + ' MB'
 
-export default function ContentPost({ post, trainerId, onDelete }) {
+// `social` (useSocial on the trainer) adds the reactions: a client taps, the trainer sees the counts.
+export default function ContentPost({ post, trainerId, onDelete, social, myId, readOnly }) {
   const url = post.file && fileUrl(trainerId, post.id)
   return <article className="card">
     <div className="row between" style={{ gap: 8, alignItems: 'flex-start' }}>
@@ -23,5 +25,6 @@ export default function ContentPost({ post, trainerId, onDelete }) {
     {post.file && post.file.type === 'application/pdf' &&
       <a className="btn tinted" style={{ marginTop: 10 }} href={url} target="_blank" rel="noopener"><Icon name="download" /> {post.file.name} · {kb(post.file.size)}</a>}
     {post.link && <a className="btn tinted" style={{ marginTop: 10, overflowWrap: 'anywhere' }} href={post.link} target="_blank" rel="noopener noreferrer"><Icon name="link" /> {t('Open link')}</a>}
+    {social && <Reactions social={social} k={'p:' + post.id} myId={myId} readOnly={readOnly} />}
   </article>
 }

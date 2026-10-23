@@ -347,3 +347,92 @@ test('admin: disabling an account removes its push subscriptions', async () => {
 test('server: still up after every regression above', async () => {
   assert.equal((await get('/api/health')).status, 200);
 });
+
+/* ================= client content, meals, reactions, comments, photos ================= */
+
+const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex').toString('base64');
+const TODAY = new Date().toISOString().slice(0, 10);
+
+test('content: a client sees the trainer\'s posts and the file, nobody else does', async () => {
+  const made = await post('/api/trainer/content', { title: 'Plan de piernas', body: 'Sentadillas lunes' }, { who: 't1' });
+  assert.equal(made.status, 200);
+  const mine = await get('/api/content', { who: 'c1' });
+  assert.ok(mine.json.posts.some(p => p.title === 'Plan de piernas'), 'linked client sees it');
+  assert.equal(mine.json.trainer.id, 't1');
+  assert.ok(!(await get('/api/content', { who: 'x' })).json.posts.some(p => p.title === 'Plan de piernas'), 'unlinked does not');
+  assert.ok(!(await get('/api/content', { who: 'c2' })).json.posts.some(p => p.title === 'Plan de piernas'), 'other trainer\'s client does not');
+});
+
+test('meals: a client logs a meal with its description and calories, and the day adds up', async () => {
+  const meal = { kind: 'meal', d: TODAY, v: { meal: 'lunch', text: 'arroz con pollo', kcal: 600, protein: 40 } };
+  assert.equal((await post('/api/records', meal, { who: 'c1' })).status, 200);
+  assert.equal((await post('/api/records', { kind: 'meal', d: TODAY, v: { meal: 'dinner', text: 'ensalada', kcal: 250, carbs: 20 } }, { who: 'c1' })).status, 200);
+  const list = await get('/api/records?day=' + TODAY, { who: 'c1' });
+  assert.ok(list.json.today.meals >= 2);
+  assert.ok(list.json.today.kcal >= 850, 'calories add up: ' + list.json.today.kcal);
+  assert.ok(list.json.records.some(e => e.v.text === 'arroz con pollo'), 'the description is kept');
+  assert.equal((await post('/api/records', { kind: 'meal', d: TODAY, v: { meal: 'lunch', text: 'x', kcal: 99999 } }, { who: 'c1' })).status, 400, 'absurd calories refused');
+});
+
+test('measures: height is a measurement, and out-of-range heights are refused', async () => {
+  assert.equal((await post('/api/records', { kind: 'measures', d: TODAY, v: { height: 172, waist: 80 } }, { who: 'c1' })).status, 200);
+  assert.equal((await post('/api/records', { kind: 'measures', d: TODAY, v: { height: 40 } }, { who: 'c1' })).status, 400);
+  const list = await get('/api/records?day=' + TODAY, { who: 'c1' });
+  assert.ok(list.json.records.some(e => e.kind === 'measures' && e.v.height === 172));
+});
+
+test('comments: only the client\'s trainer comments on a meal, and the client can read it', async () => {
+  const list = await get('/api/records?day=' + TODAY, { who: 'c1' });
+  const meal = list.json.records.find(e => e.kind === 'meal' && e.v.text === 'arroz con pollo');
+  assert.ok(meal);
+  assert.equal((await post('/api/social/comment', { owner: 'c1', record: meal.id, text: 'Buena proteina, sigue asi' }, { who: 't1' })).status, 200);
+  assert.equal((await post('/api/social/comment', { owner: 'c1', record: meal.id, text: 'hola' }, { who: 'c1' })).status, 404, 'a client cannot comment');
+  assert.equal((await post('/api/social/comment', { owner: 'c1', record: meal.id, text: 'hola' }, { who: 'x' })).status, 404, 'a stranger cannot');
+  assert.equal((await post('/api/social/comment', { owner: 'c1', record: meal.id, text: 'hola' }, { who: 't2' })).status, 404, 'another trainer cannot');
+  assert.equal((await post('/api/social/comment', { owner: 'c1', record: meal.id, text: '   ' }, { who: 't1' })).status, 400, 'empty refused');
+  const seen = await get('/api/social?owner=c1', { who: 'c1' });
+  assert.ok(seen.json.comments[meal.id].some(x => x.text.includes('proteina')), 'the client reads it');
+  assert.equal((await get('/api/social?owner=c1', { who: 'x' })).status, 404, 'a stranger cannot read it');
+});
+
+test('reactions: trainer reacts to a workout, client to the trainer\'s post; one per person, toggled', async () => {
+  const r1 = await post('/api/social/react', { owner: 'c1', key: 'w:entreno-1', e: '🔥' }, { who: 't1' });
+  assert.equal(r1.status, 200);
+  assert.equal(r1.json.reactions.length, 1);
+  const r2 = await post('/api/social/react', { owner: 'c1', key: 'w:entreno-1', e: '👏' }, { who: 't1' });
+  assert.deepEqual(r2.json.reactions.map(x => x.e), ['👏'], 'a new emoji replaces the old one');
+  const r3 = await post('/api/social/react', { owner: 'c1', key: 'w:entreno-1', e: '👏' }, { who: 't1' });
+  assert.deepEqual(r3.json.reactions, [], 'the same emoji again takes it back');
+  assert.equal((await post('/api/social/react', { owner: 'c1', key: 'w:entreno-1', e: '💩' }, { who: 't1' })).status, 400, 'only listed reactions');
+  assert.equal((await post('/api/social/react', { owner: 'c1', key: 'p:abc', e: '🔥' }, { who: 't1' })).status, 400, 'a client\'s items are not content');
+  assert.equal((await post('/api/social/react', { owner: 'c1', key: 'w:entreno-1', e: '🔥' }, { who: 'x' })).status, 404, 'a stranger cannot react');
+  assert.equal((await post('/api/social/react', { owner: 'c1', key: 'w:entreno-1', e: '🔥' }, { who: 'c1' })).status, 404, 'nobody reacts to their own');
+  const postId = (await get('/api/content', { who: 'c1' })).json.posts.find(p => p.title === 'Plan de piernas').id;
+  assert.equal((await post('/api/social/react', { owner: 't1', key: 'p:' + postId, e: '💪' }, { who: 'c1' })).status, 200, 'the client reacts to the trainer\'s post');
+  assert.equal((await post('/api/social/react', { owner: 't1', key: 'p:' + postId, e: '💪' }, { who: 'x' })).status, 404, 'an unlinked person cannot');
+});
+
+test('photos: a client uploads progress photos, the trainer sees them, a stranger does not', async () => {
+  const up = await post('/api/photos', { d: TODAY, note: 'semana 1', file: { type: 'image/png', data: PNG } }, { who: 'c1' });
+  assert.equal(up.status, 200);
+  const id = up.json.photo.id;
+  assert.ok((await get('/api/photos', { who: 'c1' })).json.photos.some(p => p.id === id));
+  assert.ok((await get('/api/photos?owner=c1', { who: 't1' })).json.photos.some(p => p.id === id), 'the linked trainer sees it');
+  assert.equal((await get('/api/photos?owner=c1', { who: 'x' })).status, 404, 'a stranger does not');
+  const file = await get('/api/photos/file?owner=c1&id=' + id, { who: 't1' });
+  assert.equal(file.status, 200);
+  assert.equal(file.headers.get('content-type'), 'image/png');
+  assert.equal((await get('/api/photos/file?owner=c1&id=' + id, { who: 'x' })).status, 404, 'files are private');
+  assert.equal((await post('/api/photos', { d: TODAY, file: { type: 'image/gif', data: PNG } }, { who: 'c1' })).status, 400, 'only JPG, PNG, WebP');
+  assert.equal((await post('/api/photos', { d: TODAY, file: { type: 'image/png', data: Buffer.from('not a png at all').toString('base64') } }, { who: 'c1' })).status, 400, 'bytes must match the type');
+  assert.equal((await post('/api/photos/delete', { id }, { who: 'x' })).status, 404, 'only the owner deletes');
+  assert.equal((await post('/api/photos/delete', { id }, { who: 'c1' })).status, 200);
+  assert.equal((await get('/api/photos', { who: 'c1' })).json.photos.some(p => p.id === id), false, 'and it is gone');
+});
+
+test('photos: a full-size 3.5 MB photo uploads (the body limit fits its base64)', async () => {
+  const big = Buffer.alloc(3.4 * 1024 * 1024);
+  Buffer.from('89504e470d0a1a0a', 'hex').copy(big);
+  const r = await post('/api/photos', { d: TODAY, note: 'grande', file: { type: 'image/png', data: big.toString('base64') } }, { who: 'c1' });
+  assert.equal(r.status, 200, r.text.slice(0, 120));
+});

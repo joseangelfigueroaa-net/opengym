@@ -13,6 +13,8 @@ import * as C from './chat.js';
 import * as K from './content.js';
 import * as A from './assign.js';
 import * as P from './profile.js';
+import * as SOC from './social.js';
+import * as PH from './photos.js';
 import { demoClient } from './demo.js';
 
 export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb, saveDb, readState, writeState, userById, files, dataDir, sendPush }) {
@@ -30,7 +32,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   // the server's 500 handler, which never echoes it.
   const fail = (res, e) => {
     if (e instanceof T.TrainerError) return json(res, T.HTTP_FOR[e.code] || 400, { error: e.message, code: e.code });
-    if (e instanceof R.RecordError || e instanceof C.ChatError || e instanceof K.ContentError || e instanceof A.AssignError || e instanceof P.ProfileError) return json(res, 400, { error: e.message });
+    if (e instanceof R.RecordError || e instanceof C.ChatError || e instanceof K.ContentError || e instanceof A.AssignError || e instanceof P.ProfileError || e instanceof SOC.SocialError || e instanceof PH.PhotoError) return json(res, 400, { error: e.message });
     throw e;
   };
   const db = () => T.ensureShape(getDb());
@@ -68,6 +70,11 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   const mine = (file, trainerId) => ({ ...file, items: (file.items || []).filter(a => a.by === trainerId) });
   const today = () => new Date().toISOString().slice(0, 10);
   const contentDir = trainerId => path.join(dataDir, 'content', safe(trainerId));
+  const loadSocial = ownerId => load('social-' + safe(ownerId) + '.json');
+  const photosOf = ownerId => load('photos-' + safe(ownerId) + '.json');
+  const photoDir = ownerId => path.join(dataDir, 'photos', safe(ownerId));
+  // a client's photos are seen by the client and by the trainer they are linked to
+  const canPhotos = (user, ownerId) => user.id === ownerId || T.isLinked(db(), user.id, ownerId);
 
   /** The trainer's own client by id, or a refusal already sent. */
   const ownClient = (req, res, trainer, id) => {
@@ -282,7 +289,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
         file.posts.push(post);
         store('content-' + safe(trainer.id) + '.json', file);
         // every client hears about it once, by push; the app shows it in their Today tab
-        for (const cid of T.clientIdsOf(db(), trainer.id)) notify(cid, trainer.name, post.title, '#/home');
+        for (const cid of T.clientIdsOf(db(), trainer.id)) notify(cid, trainer.name, post.title, '#/content');
         json(res, 200, { post: K.publicPost(post) });
       } catch (e) { fail(res, e); }
     },
@@ -382,7 +389,10 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     // A client's own records (the trainer's entries for them included).
     'GET /api/records': async (req, res) => {
       const user = signedIn(req, res); if (!user) return;
-      json(res, 200, { records: R.latest(recordsOf(user.id).entries, 500) });
+      // `day` is the client's own today, so the totals match the day they are looking at
+      const day = /^\d{4}-\d{2}-\d{2}$/.test(query(req, 'day') || '') ? query(req, 'day') : today();
+      const entries = recordsOf(user.id).entries;
+      json(res, 200, { records: R.latest(entries, 500), today: R.dayTotals(entries, day) });
     },
 
     'POST /api/records': async (req, res) => {
@@ -406,6 +416,119 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
         store('records-' + safe(user.id) + '.json', file);
         json(res, 200, { ok: true });
       } catch (e) { fail(res, e); }
+    },
+
+    /* ------------------------------ reactions and comments ------------------------------ */
+
+    // Reactions and comments on one owner's items (default: the signed-in user's own). Anyone
+    // linked to the owner may read them.
+    'GET /api/social': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const owner = userById(query(req, 'owner') || user.id);
+      if (!owner || !SOC.canSee(db(), user.id, owner.id)) return json(res, 404, { error: 'nothing to show' });
+      json(res, 200, SOC.summaryOf(loadSocial(owner.id)));
+    },
+
+    // Toggles this person's reaction on an item: a client's trainer on their workouts and records,
+    // a client on the trainer's content.
+    'POST /api/social/react': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const body = await readBody(req);
+      const owner = userById(String(body.owner || ''));
+      if (!owner || owner.id === user.id || !SOC.canSee(db(), user.id, owner.id)) return json(res, 404, { error: 'nothing to react to' });
+      try {
+        SOC.checkKey(owner, body.key);
+        const file = loadSocial(owner.id);
+        const reactions = SOC.react(file, { reactorId: user.id, key: String(body.key), e: String(body.e || '') });
+        store('social-' + safe(owner.id) + '.json', file);
+        json(res, 200, { reactions });
+      } catch (e) { fail(res, e); }
+    },
+
+    // A trainer's comment on one of a client's meals.
+    'POST /api/social/comment': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const body = await readBody(req);
+      const owner = userById(String(body.owner || ''));
+      if (!owner || !T.isTrainer(user) || !T.isLinked(db(), user.id, owner.id)) return json(res, 404, { error: 'nothing to comment on' });
+      const meal = (recordsOf(owner.id).entries || []).find(e => e.id === String(body.record || '') && e.kind === 'meal');
+      if (!meal) return json(res, 404, { error: 'no such meal' });
+      try {
+        const file = loadSocial(owner.id);
+        const comment = SOC.comment(file, { reactorId: user.id, recordId: meal.id, text: body.text });
+        store('social-' + safe(owner.id) + '.json', file);
+        notify(owner.id, user.name, comment.text, '#/log');
+        json(res, 200, { comment });
+      } catch (e) { fail(res, e); }
+    },
+
+    'POST /api/social/comment/delete': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const body = await readBody(req);
+      const owner = userById(String(body.owner || ''));
+      if (!owner || !SOC.canSee(db(), user.id, owner.id)) return json(res, 404, { error: 'nothing to show' });
+      try {
+        const file = loadSocial(owner.id);
+        SOC.removeComment(file, String(body.id || ''), user.id);
+        store('social-' + safe(owner.id) + '.json', file);
+        json(res, 200, { ok: true });
+      } catch (e) { fail(res, e); }
+    },
+
+    /* ------------------------------ progress photos ------------------------------ */
+
+    // A client's photos, newest first.
+    'GET /api/photos': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const owner = query(req, 'owner') || user.id;
+      if (!canPhotos(user, owner)) return json(res, 404, { error: 'nothing to show' });
+      json(res, 200, { photos: (photosOf(owner).items || []).map(PH.publicPhoto).reverse() });
+    },
+
+    'POST /api/photos': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const body = await readBody(req);
+      try {
+        const file = photosOf(user.id);
+        file.items = file.items || [];
+        if (file.items.length >= PH.MAX_PHOTOS) throw new PH.PhotoError('photo limit reached — delete old ones first');
+        const { item, bytes } = PH.makePhoto(body);
+        await fs.promises.mkdir(photoDir(user.id), { recursive: true });
+        await fs.promises.writeFile(path.join(photoDir(user.id), item.id), bytes);
+        file.items.push(item);
+        store('photos-' + safe(user.id) + '.json', file);
+        json(res, 200, { photo: PH.publicPhoto(item) });
+      } catch (e) { fail(res, e); }
+    },
+
+    // Files are private: the client and their linked trainer, signed in.
+    'GET /api/photos/file': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const owner = query(req, 'owner') || user.id;
+      if (!canPhotos(user, owner)) return json(res, 404, { error: 'not found' });
+      const item = (photosOf(owner).items || []).find(p => p.id === query(req, 'id'));
+      if (!item) return json(res, 404, { error: 'not found' });
+      const file = path.join(photoDir(owner), safe(item.id));
+      let size;
+      try { size = (await fs.promises.stat(file)).size; } catch { return json(res, 404, { error: 'not found' }); }
+      res.writeHead(200, {
+        'Content-Type': item.type, 'Content-Length': size, 'Cache-Control': 'private, max-age=3600',
+        'X-Content-Type-Options': 'nosniff'
+      });
+      fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
+    },
+
+    // Only the client removes their own photos.
+    'POST /api/photos/delete': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const body = await readBody(req);
+      const file = photosOf(user.id);
+      const item = (file.items || []).find(p => p.id === String(body.id || ''));
+      if (!item) return json(res, 404, { error: 'no such photo' });
+      file.items = file.items.filter(p => p !== item);
+      store('photos-' + safe(user.id) + '.json', file);
+      await fs.promises.rm(path.join(photoDir(user.id), safe(item.id)), { force: true });
+      json(res, 200, { ok: true });
     },
 
     // Public: the join screen shows whose link it is before anyone signs in. The trainer's name

@@ -187,3 +187,22 @@ test('a client summary survives any shape of client-written state', () => {
     T.clientDetail({ id: 'c1', name: 'María' }, link, S, null, NOW);
   }
 });
+
+/* ---------------- calories per day ---------------- */
+
+import * as RR from "../trainer/records.js";
+
+test("the day total adds up meals of that day only, macro by macro", () => {
+  const entries = [
+    { kind: "meal", d: "2026-10-22", v: { meal: "lunch", text: "a", kcal: 600, protein: 40 } },
+    { kind: "meal", d: "2026-10-22", v: { meal: "dinner", text: "b", kcal: 250, carbs: 20 } },
+    { kind: "meal", d: "2026-10-21", v: { meal: "lunch", text: "c", kcal: 900 } },
+    { kind: "weight", d: "2026-10-22", v: { kg: 80 } }
+  ];
+  const t = RR.dayTotals(entries, "2026-10-22");
+  assert.equal(t.meals, 2);
+  assert.equal(t.kcal, 850);
+  assert.equal(t.protein, 40);
+  assert.equal(t.carbs, 20);
+  assert.equal(RR.dayTotals(undefined, "2026-10-22").kcal, 0, "no records, zero");
+});

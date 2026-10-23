@@ -34,7 +34,8 @@ const INVITE_ONLY = /^(1|true|yes|on)$/i.test(process.env.INVITE_ONLY || '');
 const SESSION_DAYS = Math.max(1, +(process.env.SESSION_DAYS || 90) || 90);
 const MAX_BODY = 5 * 1024 * 1024;        // a whole training history, or an uploaded file
 const SMALL_BODY = 256 * 1024;            // everything else: no form or message comes near this
-const LARGE_BODIES = new Set(['PUT /api/data', 'POST /api/trainer/content']);
+// Files travel as base64 inside JSON (a 3.5 MB photo is about 4.7 MB on the wire), so those routes get the big limit
+const LARGE_BODIES = new Set(['PUT /api/data', 'POST /api/trainer/content', 'POST /api/photos']);
 // Secure cookies require HTTPS; over plain http://localhost the flag would drop the cookie
 const SECURE = /^https:/i.test(ORIGIN) ? ' Secure;' : '';
 

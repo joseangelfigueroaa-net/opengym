@@ -35,7 +35,7 @@ export const RECORD_KINDS = {
   fat: { label: 'Body fat', icon: 'flame', fields: [['pct', 'Body fat', '%']] },
   measures: {
     label: 'Measurements', icon: 'target', fields: [
-      ['waist', 'Waist', 'cm'], ['hip', 'Hips', 'cm'], ['chest', 'Chest', 'cm'], ['arm', 'Arm', 'cm'], ['thigh', 'Thigh', 'cm']]
+      ['height', 'Height', 'cm'], ['waist', 'Waist', 'cm'], ['hip', 'Hips', 'cm'], ['chest', 'Chest', 'cm'], ['arm', 'Arm', 'cm'], ['thigh', 'Thigh', 'cm']]
   },
   steps: { label: 'Steps', icon: 'figureRun', fields: [['n', 'Steps', '']] },
   sleep: { label: 'Sleep', icon: 'moon', fields: [['h', 'Hours slept', 'h']] },
