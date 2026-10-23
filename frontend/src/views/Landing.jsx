@@ -22,7 +22,6 @@ const CLIENT = [
   ['figureRun', 'Fotos de progreso', 'Sube tus fotos cada semana y compara la primera con la última. Solo tú y tu entrenador las ven.'],
   ['history', 'Gráficas de avance', 'Peso, grasa y medidas en el tiempo, y cómo sube el peso en los ejercicios que más repites.'],
   ['chat', 'Reacciones y comentarios', 'Tu entrenador reacciona a tus entrenos y comenta tus comidas. Tú reaccionas a su contenido.'],
-  ['sparkles', 'Coach de IA (opcional)', 'Si tu instalación lo tiene activado, un coach de IA revisa tu semana y propone ajustes que tú decides aceptar.'],
 ]
 const PLANS = [
   ['Free', '1 cliente', 'Para empezar con un cliente.'],
