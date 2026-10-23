@@ -12,7 +12,7 @@ const TRAINER = [
   ['dumbbell', 'Entrenos asignados por día', 'Envía el entreno de hoy o un plan de hasta 62 días. El cliente lo recibe en su app con un aviso al teléfono.'],
   ['sparkles', 'Contenido para tus clientes', 'Publica guías, PDFs e imágenes. Tus clientes las ven en su app y reaccionan con emojis.'],
   ['chat', 'Chat con cada cliente', 'Conversa dentro de la app, con avisos al teléfono y mensajes leídos.'],
-  ['clipboard', 'Tu perfil público', 'Tu historia, certificaciones, años de experiencia y metodologías, visibles para tus clientes.'],
+  ['clipboard', 'Tu perfil público', 'Comparte tu perfil con tus clientes para que te conozcan mejor.'],
   ['target', 'Comenta y reacciona', 'Reacciona a entrenos, registros y avances. Comenta las comidas de tus clientes.'],
 ]
 const CLIENT = [
