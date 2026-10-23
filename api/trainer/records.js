@@ -10,6 +10,7 @@
  * already read); weightSeries() merges the two so every screen shows one curve.
  */
 import crypto from 'node:crypto';
+import { estimateMeal } from './nutrition.js';
 
 // Allowed fields per kind and their bounds. Anything else in `v` is dropped, never stored.
 export const KINDS = {
@@ -41,11 +42,20 @@ export function makeEntry({ kind, d, v }, author, now = Date.now()) {
     if (!meal) throw new RecordError('choose which meal it was');
     if (!text) throw new RecordError('describe what was eaten');
     clean = { meal, text };
+    const typed = Object.keys(MACROS).some(k => v[k] !== undefined && v[k] !== null && v[k] !== '');
     for (const [k, [lo, hi]] of Object.entries(MACROS)) {
       if (v[k] === undefined || v[k] === null || v[k] === '') continue;
       const n = Number(v[k]);
       if (!Number.isFinite(n) || n < lo || n > hi) throw new RecordError(`${k} must be between ${lo} and ${hi}`);
       clean[k] = Math.round(n);
+    }
+    // Nobody types the numbers: without them, they are estimated from the description. If a food
+    // is not recognised, the meal is kept with no numbers and marked, rather than refused.
+    if (!typed) {
+      const e = estimateMeal(text);
+      if (e) for (const k of Object.keys(MACROS)) clean[k] = e[k];
+      clean.est = true;
+      if (!e) clean.unknown = true;
     }
   } else {
     for (const [k, [lo, hi]] of Object.entries(KINDS[kind])) {

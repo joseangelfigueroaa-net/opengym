@@ -15,6 +15,7 @@ import * as A from './assign.js';
 import * as P from './profile.js';
 import * as SOC from './social.js';
 import * as PH from './photos.js';
+import { estimateMeal } from './nutrition.js';
 import { demoClient } from './demo.js';
 
 export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb, saveDb, readState, writeState, userById, files, dataDir, sendPush }) {
@@ -419,6 +420,13 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     },
 
     /* ------------------------------ reactions and comments ------------------------------ */
+
+    // What a meal description comes to, shown while the client types. Saving estimates it again.
+    'POST /api/nutrition/estimate': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const body = await readBody(req);
+      json(res, 200, { estimate: estimateMeal(String(body.text || '').slice(0, 300)) });
+    },
 
     // Reactions and comments on one owner's items (default: the signed-in user's own). Anyone
     // linked to the owner may read them.

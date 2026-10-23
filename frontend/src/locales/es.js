@@ -1218,4 +1218,13 @@ export default {
   "Body mass index": "Índice de masa corporal (IMC)",
   "From your latest weight and height ({0} cm)": "Según tu último peso y tu altura ({0} cm)",
   "Height": "Altura",
+  // Calorie and macro estimates
+  "About {0} kcal": "Unos {0} kcal",
+  "Protein {0} g · Carbs {1} g · Fat {2} g": "Proteína {0} g · Carbohidratos {1} g · Grasas {2} g",
+  "Not recognised, left out: {0}": "No reconocido, no se incluyó: {0}",
+  "No known food in this yet. Name the foods, e.g. \"2 arepas, 100 g de pollo\".": "Aún no reconozco ningún alimento. Nombra los alimentos, por ejemplo \"2 arepas, 100 g de pollo\".",
+  "Describe what you ate. The calories and macros are worked out for you.": "Describe lo que comiste. Las calorías y los macros se calculan por ti.",
+  "Estimated from common food tables. Your trainer can correct it.": "Estimado con tablas nutricionales comunes. Tu entrenador puede corregirlo.",
+  "estimated": "estimado",
+  "not estimated": "sin estimar",
 }

@@ -55,7 +55,8 @@ test('the week summary averages steps and sleep and counts meals', () => {
   const mk = (kind, d, v) => R.makeEntry({ kind, d, v }, client, NOW);
   const e = [mk('steps', '2026-10-20', { n: 8000 }), mk('steps', '2026-10-18', { n: 6000 }), mk('steps', '2026-10-01', { n: 99999 }),
     mk('sleep', '2026-10-19', { h: 7.5 }), mk('meal', '2026-10-20', { meal: 'lunch', text: 'arroz' })];
-  assert.deepEqual(R.weekSummary(e, '2026-10-20'), { steps: 7000, sleep: 7.5, meals: 1, macros: null, macroDays: 0 });
+  // "arroz" with no amount is one typical serving (150 g), estimated, so the day has macros
+  assert.deepEqual(R.weekSummary(e, '2026-10-20'), { steps: 7000, sleep: 7.5, meals: 1, macros: { kcal: 195, protein: 4, carbs: 42, fat: 0 }, macroDays: 1 });
 });
 
 /* ---------------- status ---------------- */

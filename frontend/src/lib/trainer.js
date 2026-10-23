@@ -49,7 +49,8 @@ export const MEASURE_ZONES = RECORD_KINDS.measures.fields
 
 /** One line saying what a record holds: "72,4 kg", "Waist 88 cm · Arm 35 cm", "Lunch: rice…". */
 export function recordText(kind, v) {
-  if (kind === 'meal') return t(MEALS.find(m => m[0] === v.meal)?.[1] || 'Meal') + ': ' + v.text + (macroText(v) ? ' (' + macroText(v) + ')' : '')
+  if (kind === 'meal') return t(MEALS.find(m => m[0] === v.meal)?.[1] || 'Meal') + ': ' + v.text
+    + (v.unknown ? ' (' + t('not estimated') + ')' : macroText(v) ? ' (' + macroText(v) + (v.est ? ' · ' + t('estimated') : '') + ')' : '')
   if (kind === 'steps') return Math.round(v.n).toLocaleString(dateLocale()) + ' ' + t('steps')
   return RECORD_KINDS[kind].fields.filter(([k]) => v[k] != null)
     .map(([k, label, unit]) => (kind === 'measures' ? t(label) + ' ' : '') + fmtNum(v[k]) + (unit ? ' ' + unit : '')).join(' · ')

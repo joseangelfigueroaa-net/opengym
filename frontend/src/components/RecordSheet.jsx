@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
+import { api } from '../lib/api.js'
 import { t } from '../lib/i18n.js'
-import { todayISO } from '../lib/format.js'
-import { RECORD_KINDS, MEALS, MACROS, saveRecord, recordKindsFor } from '../lib/trainer.js'
+import { todayISO, fmtNum } from '../lib/format.js'
+import { RECORD_KINDS, MEALS, saveRecord, recordKindsFor } from '../lib/trainer.js'
 import { useFeatures } from '../lib/features.js'
 import Icon from './Icon.jsx'
 import { Button, NumberField, TextArea } from './ui.jsx'
@@ -22,9 +23,21 @@ function RecordSheet({ clientId, clientName, kind: fixedKind, onSaved, close }) 
   const [busy, setBusy] = useState(false)
   const set = (k, n) => setV(o => ({ ...o, [k]: n }))
   const features = useFeatures()
+  // A meal's calories and macros are worked out from the description, as the client types it
+  const [est, setEst] = useState(null)
+  useEffect(() => {
+    if (kind !== 'meal') return
+    const text = (v.text || '').trim()
+    if (!text) { setEst(null); return }
+    const timer = setTimeout(() => {
+      api('/api/nutrition/estimate', { method: 'POST', body: JSON.stringify({ text }) })
+        .then(r => setEst(r.estimate)).catch(() => setEst(null))
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [kind, v.text])
 
   const save = async () => {
-    const vals = kind === 'meal' ? { meal, text: (v.text || '').trim(), ...Object.fromEntries(MACROS.filter(([k]) => v[k] != null).map(([k]) => [k, v[k]])) } : Object.fromEntries(Object.entries(v).filter(([, n]) => n != null && n !== ''))
+    const vals = kind === 'meal' ? { meal, text: (v.text || '').trim() } : Object.fromEntries(Object.entries(v).filter(([, n]) => n != null && n !== ''))
     if (kind !== 'meal' && !Object.keys(vals).length) { toast(t('Enter at least one value')); return }
     if (kind === 'meal' && !vals.text) { toast(t('Describe what was eaten')); return }
     setBusy(true)
@@ -66,15 +79,16 @@ function RecordSheet({ clientId, clientName, kind: fixedKind, onSaved, close }) 
       </div>
       <label className="small muted" htmlFor="rec-meal" style={{ display: 'block', margin: '12px 0 4px' }}>{t('What was eaten?')}</label>
       <TextArea id="rec-meal" rows={3} maxLength={300} placeholder={t('E.g. 2 arepas with shredded chicken and avocado')} value={v.text || ''} onChange={e => set('text', e.target.value)} />
-      {features.includes('macros') && <>
-        <div className="small muted" style={{ margin: '12px 0 6px' }}>{t('Macros (optional)')}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          {MACROS.map(([k, label, unit]) => <label key={k} className="small muted" style={{ display: 'grid', gap: 4 }}>
-            <span>{t(label)} ({unit})</span>
-            <NumberField className="field" value={v[k] ?? null} nullable decimal={false} onChange={n => set(k, n)} aria-label={t(label)} />
-          </label>)}
-        </div>
-      </>}
+      <div className="card small" style={{ marginTop: 12 }} aria-live="polite">
+        {est ? <>
+          <div style={{ fontWeight: 600 }}>{t('About {0} kcal', fmtNum(est.kcal))}</div>
+          {features.includes('macros') && <div className="dim">{t('Protein {0} g · Carbs {1} g · Fat {2} g', fmtNum(est.protein), fmtNum(est.carbs), fmtNum(est.fat))}</div>}
+          {est.unmatched.length > 0 && <div className="dim">{t('Not recognised, left out: {0}', est.unmatched.join(', '))}</div>}
+        </> : <div className="dim">{(v.text || '').trim()
+          ? t('No known food in this yet. Name the foods, e.g. "2 arepas, 100 g de pollo".')
+          : t('Describe what you ate. The calories and macros are worked out for you.')}</div>}
+        <div className="dim" style={{ marginTop: 4, fontSize: '.72rem' }}>{t('Estimated from common food tables. Your trainer can correct it.')}</div>
+      </div>
     </> : <div style={{ display: 'grid', gridTemplateColumns: def.fields.length > 1 ? '1fr 1fr' : '1fr', gap: 10, marginTop: 12 }}>
       {def.fields.map(([k, label, unit]) => (
         <label key={k} className="small muted" style={{ display: 'grid', gap: 4 }}>
