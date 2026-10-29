@@ -220,6 +220,8 @@ export function clientSummary(user, link, S, rec = null, now = Date.now()) {
     weight: lastW ? lastW.w : null,
     weightDate: lastW ? lastW.d : null,
     status: clientStatus({ workouts, weights, entries }, now),
+    // share of planned sessions done over four weeks (null without a weekly plan)
+    adherence: adherence(S, now).pct,
     lastSync: S._ts || null
   };
 }

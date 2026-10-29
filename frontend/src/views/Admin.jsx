@@ -27,7 +27,8 @@ const dur = ms => { const m = Math.max(0, Math.floor(ms / 60000)); return m < 60
 function UserDetail({ id, onChanged, close }) {
   const [d, setD] = useState(null)
   const toast = useUI(s => s.toast)
-  useEffect(() => { api('/api/admin/user?id=' + encodeURIComponent(id)).then(setD).catch(e => toast(e.message)) }, [id])
+  const [gymName, setGymName] = useState('')
+  useEffect(() => { api('/api/admin/user?id=' + encodeURIComponent(id)).then(r => { setD(r); setGymName(r.user.gym?.name || '') }).catch(e => toast(e.message)) }, [id])
   if (!d) return <div className="muted small">Cargando…</div>
   const u = d.user
   const setDisabled = disabled => {
@@ -41,6 +42,15 @@ function UserDetail({ id, onChanged, close }) {
       .then(r => { setD({ ...d, user: { ...u, trainer: r.trainer ? r.trainer.plan : null } }); toast(r.trainer ? 'Plan de entrenador: ' + r.trainer.plan.charAt(0).toUpperCase() + r.trainer.plan.slice(1) : 'Rol de entrenador retirado'); onChanged() })
       .catch(e => toast(e.message))
   }
+  // Trainnery: makes the account a gym owner on a plan, renames the gym, or closes it.
+  const setGym = plan => {
+    if (plan !== 'none' && !gymName.trim()) { toast('Escribe el nombre del gimnasio'); return }
+    if (plan === 'none') return confirmSheet({ title: '¿Cerrar ' + (u.gym?.name || 'el gimnasio') + '?', message: 'Los socios y entrenadores quedan fuera del gimnasio. Los vínculos que el gimnasio creó se deshacen.', confirmText: 'Cerrar gimnasio', danger: true, onConfirm: () => sendGym(null) })
+    sendGym(plan)
+  }
+  const sendGym = plan => api('/api/admin/user/gym', { method: 'POST', body: JSON.stringify({ id: u.id, name: gymName, plan }) })
+    .then(r => { setD({ ...d, user: { ...u, gym: r.gym } }); toast(r.gym ? 'Gimnasio: ' + r.gym.name + ' · ' + r.gym.plan : 'Gimnasio cerrado'); onChanged() })
+    .catch(e => toast(e.message))
   // Trainnery: a sample client (no passkey) linked to this trainer, to show a filled-in client file.
   const demoClient = () => {
     api('/api/admin/demo-client', { method: 'POST', body: JSON.stringify({ trainerId: u.id }) })
@@ -53,6 +63,7 @@ function UserDetail({ id, onChanged, close }) {
       {u.admin && <span className="tag acc">admin</span>}
       {u.demo && <span className="tag">demo</span>}
       {u.trainer && <span className="tag acc">entrenador · {u.trainer}</span>}
+      {u.gymRole && <span className="tag acc">gimnasio · {u.gymRole.name} · {{ owner: 'dueño', trainer: 'staff', member: 'socio' }[u.gymRole.role]}</span>}
       {u.disabled && <span className="tag" style={{ color: 'var(--red)' }}>desactivado</span>}
       {u.invitedBy && <span className="tag">invitación {u.invitedBy}</span>}
       <span className="tag">alta {u.created ? fmtDate(u.created.slice(0, 10)) : '—'}</span>
@@ -77,6 +88,14 @@ function UserDetail({ id, onChanged, close }) {
     {u.trainer && <div className="dim small" style={{ marginTop: 6 }}>{u.clients} cliente{u.clients === 1 ? '' : 's'} vinculado{u.clients === 1 ? '' : 's'}</div>}
     {u.trainer && <Button icon="person" style={{ marginTop: 10 }} onClick={demoClient}>Crear cliente demo</Button>}
     {u.trainer && <div className="dim small" style={{ marginTop: 6 }}>Un cliente de ejemplo con dos meses de datos, vinculado a {u.name}. Ocupa un cupo de su plan y no puede iniciar sesión.</div>}
+    <h4 className="sec">Gimnasio</h4>
+    <input className="input" placeholder="Nombre del gimnasio" maxLength={60} value={gymName} onChange={e => setGymName(e.target.value)} aria-label="Nombre del gimnasio" />
+    <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }} role="radiogroup" aria-label="Plan de gimnasio">
+      {[['none', 'Sin gimnasio'], ['basic', 'Básico · 100 socios · 3 entrenadores'], ['pro', 'Pro · 400 · 10'], ['chain', 'Cadena · 5000 · 100']].map(([v, label]) =>
+        <button key={v} type="button" role="radio" aria-checked={(u.gym?.plan || 'none') === v} className={'chip nocap' + ((u.gym?.plan || 'none') === v ? ' on' : '')}
+          onClick={() => setGym(v)}>{label}</button>)}
+    </div>
+    <div className="dim small" style={{ marginTop: 6 }}>El dueño ve su panel en Gimnasio: invita entrenadores, comparte el código de socios y asigna socios a entrenadores. Para cambiar el nombre, escríbelo y toca el plan actual.</div>
     <h4 className="sec">Historial de entrenos</h4>
     {d.workouts.length ? <div className="list" style={{ gap: 0 }}>
       {d.workouts.slice(0, 60).map(w => <div key={w.id} className="row between" style={{ padding: '9px 2px', borderBottom: '1px solid var(--sep)' }}>

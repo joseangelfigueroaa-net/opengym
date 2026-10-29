@@ -58,12 +58,14 @@ export default function Login() {
   const { setUser, pullState, setGuest } = useStore()
   // Opened from a trainer's invite link: say whose, so the person knows why they're signing up.
   const [inviter, setInviter] = useState(null)
+  const [gymName, setGymName] = useState(null)   // or a gym's link
   const [google, setGoogle] = useState(false)
   const [inviteOnly, setInviteOnly] = useState(false)
   const [code, setCode] = useState(() => (pendingInviteToken() || '').toUpperCase())
   useEffect(() => {
     const token = pendingInviteToken()
-    if (token) api('/api/invite?token=' + encodeURIComponent(token)).then(r => setInviter(r.trainer.name)).catch(() => {})
+    if (token) api('/api/invite?token=' + encodeURIComponent(token)).then(r => setInviter(r.trainer.name))
+      .catch(() => api('/api/gym/join?token=' + encodeURIComponent(token)).then(r => setGymName(r.gym.name)).catch(() => {}))
     api('/api/config').then(c => { setGoogle(!!c.google); setInviteOnly(!!c.invite_only) }).catch(() => {})
     // coming back from Google: the server puts the outcome in the address after #/login?google=
     const why = (window.location.hash.split('google=')[1] || '').split('&')[0]
@@ -107,6 +109,9 @@ export default function Login() {
       <div className="muted" style={{ marginBottom: 34 }}>{t('Your workouts. Your weights. Your profile.')}</div>
       {inviter && <div className="card small" style={{ textAlign: 'left', marginBottom: 16, borderColor: 'var(--acc)' }}>
         {t('{0} invited you to be their client. Create your profile, or sign in if you already have one, to accept.', inviter)}
+      </div>}
+      {gymName && <div className="card small" style={{ textAlign: 'left', marginBottom: 16, borderColor: 'var(--acc)' }}>
+        {t('You were invited to {0}. Create your profile, or sign in if you already have one, to join.', gymName)}
       </div>}
       {google && <>
         {inviteOnly && <input className="input" placeholder={t('Invite code')} maxLength={40} value={code} aria-label={t('Invite code')}

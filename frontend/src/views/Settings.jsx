@@ -35,6 +35,24 @@ function MyTrainerRow() {
   return <Row icon="person" iconTint="var(--teal)" title={t('Your trainer: {0}', trainer.name)} subtitle={t('Sees your workouts, body weight and plan. Tap to leave.')} onClick={leave} />
 }
 
+// A member's side of a gym: what the gym sees, and the way out. Staff leave through the owner.
+function MyGymRow() {
+  const toast = useUI(s => s.toast)
+  const user = useStore(s => s.user)
+  const setUser = useStore(s => s.setUser)
+  const g = user?.gym
+  if (!g || g.role === 'owner') return null
+  if (g.role === 'trainer') return <Row icon="dumbbell" iconTint="var(--teal)" title={t('You work at {0}', g.name)} subtitle={t('The gym assigns you members.')} />
+  const leave = () => confirmSheet({
+    title: t('Leave {0}?', g.name),
+    message: t('The gym stops seeing your activity, and a trainer it assigned you stops seeing your data. Your data stays with you.'),
+    confirmText: t('Leave'), danger: true,
+    onConfirm: () => api('/api/me/gym/leave', { method: 'POST', body: '{}' })
+      .then(() => api('/api/me')).then(r => { setUser(r.user); toast(t('You left {0}', g.name)) }).catch(e => toast(e.message))
+  })
+  return <Row icon="dumbbell" iconTint="var(--teal)" title={t('Your gym: {0}', g.name)} subtitle={t('Sees your name, shift, trainer and when you last trained. Tap to leave.')} onClick={leave} />
+}
+
 export default function Settings() {
   const nav = useNavigate()
   const S = useStore(s => s.S)
@@ -98,7 +116,7 @@ export default function Settings() {
 
   return <div className="narrow">
     <div className="hdr">
-      <button className="iconbtn" onClick={() => nav(user?.trainer ? '/trainer/profile' : '/home')} aria-label={t('Back')}><Icon name="chevronLeft" /></button>
+      <button className="iconbtn" onClick={() => nav(user?.trainer ? '/trainer/profile' : user?.gym?.role === 'owner' ? '/gym' : '/home')} aria-label={t('Back')}><Icon name="chevronLeft" /></button>
       <div style={{ flex: 1, marginLeft: 10 }}><h1>{t('Settings')}</h1></div>
     </div>
 
@@ -121,6 +139,8 @@ export default function Settings() {
           : <Row icon="person" iconTint="var(--acc)" title={t('Link a Google account')} subtitle={t('Sign in with Google or Gmail too, to this same profile.')} accessory="chevron"
             onClick={() => { window.location.href = '/api/auth/google/start?link=1' }} />)}
         {user.trainer && <Row icon="clipboard" iconTint="var(--acc)" title={t('Trainer dashboard')} subtitle={t('Your clients and invite links')} accessory="chevron" onClick={() => nav('/trainer')} />}
+        {user.gym?.role === 'owner' && <Row icon="dumbbell" iconTint="var(--acc)" title={t('Gym dashboard')} subtitle={user.gym.name} accessory="chevron" onClick={() => nav('/gym')} />}
+        <MyGymRow />
         <MyTrainerRow />
         {user.admin && <Row icon="wrench" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin')} />}
         <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={() => askSignOut(signOut, nav)} />

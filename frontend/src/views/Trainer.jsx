@@ -10,7 +10,7 @@ import { confirmSheet } from '../sheets.jsx'
 import SignOutButton from '../components/SignOutButton.jsx'
 import Icon from '../components/Icon.jsx'
 import { LogoMark } from '../components/Logo.jsx'
-import { Button } from '../components/ui.jsx'
+import { Button, SearchField } from '../components/ui.jsx'
 
 // A trainer's home: who needs attention, their seats, the links still waiting to be used, and
 // the clients who joined. Guarded server-side too — every call here 403s for an account
@@ -19,12 +19,17 @@ import { Button } from '../components/ui.jsx'
 const PLAN = { free: 'Free', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' }
 // Who needs a look first: inactive, then stalled, then new, then on track; ties by name.
 const RANK = { inactive: 0, stalled: 1, new: 2, ok: 3 }
+const FILTERS = [['all', 'All'], ['look', 'Need a look'], ['unread', 'Unread'], ['new', 'No activity yet']]
+const needsLook = c => c.status?.code === 'inactive' || c.status?.code === 'stalled'
+const MATCH = { all: () => true, look: needsLook, unread: c => c.unread > 0, new: c => c.status?.code === 'new' }
 
 export default function Trainer() {
   const nav = useNavigate()
   const user = useStore(s => s.user)
   const toast = useUI(s => s.toast)
   const [d, setD] = useState(null)
+  const [filter, setFilter] = useState('all')
+  const [q, setQ] = useState('')
 
   const load = () => api('/api/trainer/clients').then(setD).catch(e => toast(e.message))
   // Keyed on the role, not on mount: the cached profile may predate an admin granting it, and
@@ -48,12 +53,14 @@ export default function Trainer() {
   const clients = d ? [...d.clients].sort((a, b) => (RANK[a.status?.code] ?? 9) - (RANK[b.status?.code] ?? 9) || a.name.localeCompare(b.name)) : []
   const count = code => clients.filter(c => c.status?.code === code).length
   const unread = clients.reduce((n, c) => n + (c.unread || 0), 0)
+  const ql = q.trim().toLowerCase()
+  const shown = clients.filter(MATCH[filter]).filter(c => !ql || c.name.toLowerCase().includes(ql))
 
   return <div>
     <div className="hdr">
       <LogoMark size={34} />
       <div style={{ flex: 1, marginLeft: 10 }}><h1 style={{ margin: 0 }}>{t('Your clients')}</h1>
-        <div className="sub">{d ? t('{0} of {1} seats · {2} plan', d.seats.clients + d.seats.open, d.seats.limit, PLAN[d.seats.plan]) : t('Loading…')}</div></div>
+        <div className="sub">{d ? t('{0} of {1} seats · {2} plan', d.seats.clients + d.seats.open, d.seats.limit, PLAN[d.seats.plan]) + (user.gym?.role === 'trainer' ? ' · ' + user.gym.name : '') : t('Loading…')}</div></div>
       <div className="row" style={{ gap: 8 }}>
         <button className="iconbtn" onClick={load} aria-label={t('Refresh')}><Icon name="reset" /></button>
         <SignOutButton />
@@ -63,16 +70,21 @@ export default function Trainer() {
     {d && clients.length > 0 && <div className="tiles" style={{ marginBottom: 12 }}>
       <div className="tile"><div className="l">{t('Clients')}</div><div className="v">{clients.length}</div></div>
       <div className="tile"><div className="l">{t('On track')}</div><div className="v">{count('ok')}</div></div>
-      <div className="tile"><div className="l">{t('Need a look')}</div><div className="v" style={{ color: count('inactive') + count('stalled') ? 'var(--orange)' : undefined }}>{count('inactive') + count('stalled')}</div></div>
-      <div className="tile"><div className="l">{t('Unread messages')}</div><div className="v" style={{ color: unread ? 'var(--acc)' : undefined }}>{unread}</div></div>
+      <button className="tile" style={{ textAlign: 'left' }} onClick={() => setFilter('look')}><div className="l">{t('Need a look')}</div><div className="v" style={{ color: count('inactive') + count('stalled') ? 'var(--orange)' : undefined }}>{count('inactive') + count('stalled')}</div></button>
+      <button className="tile" style={{ textAlign: 'left' }} onClick={() => setFilter('unread')}><div className="l">{t('Unread messages')}</div><div className="v" style={{ color: unread ? 'var(--acc)' : undefined }}>{unread}</div></button>
     </div>}
 
     <div className="cols">
       <div>
         <h4 className="sec" style={{ marginTop: 0 }}>{t('Clients')}</h4>
+        {clients.length > 5 && <SearchField value={q} onChange={e => setQ(e.target.value)} onClear={() => setQ('')} placeholder={t('Search clients')} aria-label={t('Search clients')} />}
+        {clients.length > 0 && <div className="chips" style={{ margin: '10px 0' }}>
+          {FILTERS.map(([v, label]) => <button key={v} className={'chip nocap' + (filter === v ? ' on' : '')} aria-pressed={filter === v} onClick={() => setFilter(v)}>{t(label)}</button>)}
+        </div>}
         {!d ? <div className="muted small">{t('Loading…')}</div>
+          : clients.length && !shown.length ? <div className="empty small">{t('Nobody here.')}</div>
           : clients.length ? <div className="card" style={{ padding: '4px 14px' }}>
-            {clients.map((c, n) => {
+            {shown.map((c, n) => {
               const st = statusTag(c.status)
               return <button key={c.id} className="row between" onClick={() => nav('/trainer/c/' + c.id)}
                 style={{ width: '100%', padding: '11px 0', borderTop: n ? '1px solid var(--sep)' : 'none', background: 'none', textAlign: 'left', color: 'inherit', gap: 10 }}>
@@ -80,6 +92,7 @@ export default function Trainer() {
                   <div className="dim" style={{ fontSize: '.75rem' }}>
                     {c.lastWorkout ? t('Last workout {0}', fmtDate(c.lastWorkout)) : t('No workouts yet')}
                     {c.weight != null && ' · ' + fmtNum(c.weight) + ' ' + c.unit}
+                    {c.adherence != null && ' · ' + t('Plan {0}%', c.adherence)}
                   </div></div>
                 <div className="row" style={{ gap: 8, flexShrink: 0 }}>
                   {c.unread > 0 && <span className="tag acc nocap" aria-label={t('{0} unread messages', c.unread)}><Icon name="chat" /> {c.unread}</span>}

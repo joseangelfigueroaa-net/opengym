@@ -15,6 +15,7 @@ import { coachRoutes } from './coach/routes.js';
 import { startCadence } from './coach/cadence.js';
 import { trainerRoutes } from './trainer/routes.js';
 import * as trainer from './trainer/logic.js';
+import * as gym from './trainer/gym.js';
 import { createStore } from './lib/store.js';
 import { clientIp, createLimiter, crossSiteWrite } from './lib/security.js';
 import * as GG from './lib/google.js';
@@ -60,14 +61,24 @@ let db = { users: [], creds: [], subs: [], invites: [] };
 try { db = JSON.parse(fs.readFileSync(dbFile, 'utf8')); } catch {}
 db.subs = db.subs || [];
 db.invites = db.invites || [];
-trainer.ensureShape(db);
+gym.ensureShape(db);
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 // What the app learns about the signed-in account. `trainer` is null for everyone but trainers.
-const publicUser = user => ({ id: user.id, name: user.name, admin: isAdmin(user), google: !!user.google, trainer: trainer.isTrainer(user) ? { plan: trainer.planOf(user), features: trainer.featuresOf(user) } : null });
+const publicUser = user => ({ id: user.id, name: user.name, admin: isAdmin(user), google: !!user.google, trainer: trainer.isTrainer(user) ? { plan: trainer.planOf(user), features: trainer.featuresOf(user) } : null, gym: gym.roleOf(db, user) });
 // A trainer's invite link doubles as a signup code on an invite-only instance, so a new client
 // can create a profile from the link alone. Signing up reserves the link for that profile
 // (signupBy); accepting it afterwards is what links the two and spends it.
 const trainerCodeOk = code => { try { trainer.usableInvite(db, code); return true; } catch { return false; } };
+// A gym's link works the same way: its member code lets anyone sign up (the gym's plan caps how
+// many join), and a staff link is reserved for the profile it creates.
+const gymCodeOk = code => { try { gym.usableInvite(db, code); return true; } catch { return false; } };
+const linkCodeOk = code => trainerCodeOk(code) || gymCodeOk(code);
+function claimLinkCode(user, code) {
+  if (trainerCodeOk(code)) { const t = trainer.usableInvite(db, code).inv; t.signupBy = user.id; user.invitedBy = 'trainer:' + t.trainerId; return; }
+  const g = gym.usableInvite(db, code).inv;
+  if (g.kind === 'trainer') g.signupBy = user.id;
+  user.invitedBy = 'gym:' + g.gymId;
+}
 // db.json changes on every sign-in, link and invite. Several changes in one tick become one
 // write, serialized once, off the request path; compact, since nobody edits it by hand.
 let dbDirty = false;
@@ -383,7 +394,7 @@ const routes = {
     const name = String(body.name || '').trim().slice(0, 40);
     if (!name) return json(res, 400, { error: 'name required' });
     const code = String(body.code || '').trim().toUpperCase();
-    if (INVITE_ONLY && !db.invites.some(i => i.code === code && !i.usedBy && !i.revoked) && !trainerCodeOk(code))
+    if (INVITE_ONLY && !db.invites.some(i => i.code === code && !i.usedBy && !i.revoked) && !linkCodeOk(code))
       return json(res, 403, { error: 'a valid invite code is required' });
     const uid = crypto.randomBytes(12).toString('base64url');
     const options = await generateRegistrationOptions({
@@ -418,13 +429,13 @@ const routes = {
     let invite = null;
     if (INVITE_ONLY) {
       invite = db.invites.find(i => i.code === c.code && !i.usedBy && !i.revoked);
-      if (!invite && !trainerCodeOk(c.code)) return json(res, 403, { error: 'invite code is no longer valid — ask for a new one' });
+      if (!invite && !linkCodeOk(c.code)) return json(res, 403, { error: 'invite code is no longer valid — ask for a new one' });
     }
     const user = { id: c.uid, name: c.name, created: new Date().toISOString() };
     if (invite) { user.invitedBy = invite.code; invite.usedBy = user.id; invite.usedAt = user.created; }
     // A trainer's link let them in instead: it now belongs to this profile, which still has to
     // accept it (Join), and it cannot sign anyone else up.
-    else if (INVITE_ONLY) { const t = trainer.usableInvite(db, c.code).inv; t.signupBy = user.id; user.invitedBy = 'trainer:' + t.trainerId; }
+    else if (INVITE_ONLY) claimLinkCode(user, c.code);
     db.users.push(user);
     db.creds.push({
       id: credential.id, userId: user.id,
@@ -520,11 +531,11 @@ const routes = {
     let invite = null;
     if (INVITE_ONLY) {
       invite = db.invites.find(i => i.code === c.code && !i.usedBy && !i.revoked);
-      if (!invite && !trainerCodeOk(c.code)) return fail('invite');
+      if (!invite && !linkCodeOk(c.code)) return fail('invite');
     }
     const user = { id: crypto.randomBytes(12).toString('base64url'), name: String(claims.given_name || claims.name || 'Trainnery').trim().slice(0, 40) || 'Trainnery', created: new Date().toISOString(), google: claims.sub };
     if (invite) { user.invitedBy = invite.code; invite.usedBy = user.id; invite.usedAt = user.created; }
-    else if (INVITE_ONLY) { const t = trainer.usableInvite(db, c.code).inv; t.signupBy = user.id; user.invitedBy = 'trainer:' + t.trainerId; }
+    else if (INVITE_ONLY) claimLinkCode(user, c.code);
     db.users.push(user);
     saveDb();
     redirect(res, '/#/home', sessionCookie(user));
@@ -649,6 +660,7 @@ const routes = {
         id: u.id, name: u.name, created: u.created || null,
         disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null, demo: !!u.demo,
         trainer: trainer.isTrainer(u) ? trainer.planOf(u) : null,
+        gym: gym.roleOf(db, u),
         clients: trainer.clientIdsOf(db, u.id).length,
         workouts: workouts.length,
         lastWorkout: last ? last.d : null,
@@ -669,7 +681,8 @@ const routes = {
     const S = trainer.cleanState(readState(u.id));
     json(res, 200, {
       user: { id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null, demo: !!u.demo,
-        trainer: trainer.isTrainer(u) ? trainer.planOf(u) : null, clients: trainer.clientIdsOf(db, u.id).length },
+        trainer: trainer.isTrainer(u) ? trainer.planOf(u) : null, clients: trainer.clientIdsOf(db, u.id).length,
+        gym: (g => g ? { name: g.name, plan: g.plan } : null)(gym.ownedGym(db, u.id)), gymRole: gym.roleOf(db, u) },
       unit: S.unit || 'kg',
       lastSync: S._ts || null,
       routines: S.routines.map(r => ({ id: r.id, name: r.name, emoji: r.emoji, count: (Array.isArray(r.ex) ? r.ex : []).length })),

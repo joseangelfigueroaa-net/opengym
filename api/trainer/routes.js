@@ -15,6 +15,7 @@ import * as A from './assign.js';
 import * as P from './profile.js';
 import * as SOC from './social.js';
 import * as PH from './photos.js';
+import * as G from './gym.js';
 import { estimateMeal, prefetchMeal } from './nutrition.js';
 import { demoClient } from './demo.js';
 
@@ -33,10 +34,11 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   // the server's 500 handler, which never echoes it.
   const fail = (res, e) => {
     if (e instanceof T.TrainerError) return json(res, T.HTTP_FOR[e.code] || 400, { error: e.message, code: e.code });
+    if (e instanceof G.GymError) return json(res, G.HTTP_FOR[e.code] || 400, { error: e.message, code: e.code });
     if (e instanceof R.RecordError || e instanceof C.ChatError || e instanceof K.ContentError || e instanceof A.AssignError || e instanceof P.ProfileError || e instanceof SOC.SocialError || e instanceof PH.PhotoError) return json(res, 400, { error: e.message });
     throw e;
   };
-  const db = () => T.ensureShape(getDb());
+  const db = () => G.ensureShape(getDb());
   const NUTRITION_PLAN = 'meals and macros come with the Silver plan or higher';
   const query = (req, k) => new URL(req.url, 'http://x').searchParams.get(k);
   const seats = (trainer, now = Date.now()) => ({
@@ -92,6 +94,16 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   };
   const author = (user, role) => ({ id: user.id, role });
   const notify = (uid, title, body, url) => sendPush(uid, { title, body: body.slice(0, 140), tag: 'chat', url }).catch?.(() => {});
+
+  // The gym this signed-in account owns, or a refusal already sent.
+  const asOwner = (req, res) => {
+    const user = signedIn(req, res); if (!user) return null;
+    const gym = G.ownedGym(db(), user.id);
+    if (!gym) { json(res, 403, { error: 'this account does not own a gym' }); return null; }
+    return { user, gym };
+  };
+  const memberStatus = uid => { const u = userById(uid); return u ? T.clientSummary(u, { created: '' }, readState(uid), recordsOf(uid)).status : null; };
+  const gymView = gym => G.overview(db(), gym, memberStatus);
 
   return {
     /* ------------------------------ trainer ------------------------------ */
@@ -579,6 +591,100 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       dropPairData(user.id);
       saveDb();
       json(res, 200, { ok: true });
+    },
+
+    /* ------------------------------ gyms ------------------------------ */
+
+    'GET /api/gym': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      json(res, 200, gymView(o.gym));
+    },
+
+    'POST /api/gym/invite': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      const body = await readBody(req);
+      try { const inv = G.createInvite(db(), o.gym, body.kind); saveDb(); json(res, 200, { invite: { token: inv.token, kind: inv.kind, created: inv.created } }); }
+      catch (e) { fail(res, e); }
+    },
+
+    'POST /api/gym/invite/revoke': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      const body = await readBody(req);
+      try { G.revokeInvite(db(), o.gym, String(body.token || '')); saveDb(); json(res, 200, gymView(o.gym)); }
+      catch (e) { fail(res, e); }
+    },
+
+    'POST /api/gym/assign': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      const body = await readBody(req);
+      try {
+        G.assign(db(), o.gym, String(body.member || ''), String(body.trainer || ''));
+        saveDb();
+        notify(String(body.member), o.gym.name, `${userById(String(body.trainer))?.name || ''}`, '#/my-trainer');
+        json(res, 200, gymView(o.gym));
+      } catch (e) { fail(res, e); }
+    },
+
+    'POST /api/gym/unassign': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      const body = await readBody(req);
+      try { G.unassign(db(), o.gym, String(body.member || '')); saveDb(); json(res, 200, gymView(o.gym)); }
+      catch (e) { fail(res, e); }
+    },
+
+    // Spreads every member without a trainer over the trainers with room, shift first.
+    'POST /api/gym/auto-assign': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      try { const r = G.autoAssign(db(), o.gym); saveDb(); json(res, 200, { ...gymView(o.gym), result: r }); }
+      catch (e) { fail(res, e); }
+    },
+
+    'POST /api/gym/staff/remove': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      const body = await readBody(req);
+      try { G.removeStaff(db(), o.gym, String(body.id || '')); saveDb(); json(res, 200, gymView(o.gym)); }
+      catch (e) { fail(res, e); }
+    },
+
+    'POST /api/gym/shift': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      const body = await readBody(req);
+      try { G.setShift(db(), o.gym, body.kind === 'trainer' ? 'trainer' : 'member', String(body.id || ''), body.shift); saveDb(); json(res, 200, gymView(o.gym)); }
+      catch (e) { fail(res, e); }
+    },
+
+    // Public, like /api/invite: the join screen names the gym before anyone signs in.
+    'GET /api/gym/join': async (req, res) => {
+      try { const { gym, inv } = G.usableInvite(db(), query(req, 'token'), Date.now(), readSession(req)); json(res, 200, { gym: { name: gym.name }, kind: inv.kind }); }
+      catch (e) { fail(res, e); }
+    },
+
+    'POST /api/gym/join': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const body = await readBody(req);
+      try { const { gym, kind } = G.join(db(), user, body.token, { shift: body.shift }); saveDb(); json(res, 200, { gym: { name: gym.name }, kind }); }
+      catch (e) { fail(res, e); }
+    },
+
+    'GET /api/me/gym': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      json(res, 200, { gym: G.roleOf(db(), user) });
+    },
+
+    'POST /api/me/gym/leave': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      try { G.leave(db(), user.id); saveDb(); json(res, 200, { ok: true }); }
+      catch (e) { fail(res, e); }
+    },
+
+    // Makes an account a gym owner on a plan, renames the gym, or (plan: null) closes it.
+    'POST /api/admin/user/gym': async (req, res) => {
+      if (!requireAdmin(req, res)) return;
+      const body = await readBody(req);
+      const u = userById(body.id);
+      if (!u) return json(res, 404, { error: 'no such user' });
+      try { const g = G.setGym(db(), u, { name: body.name, plan: body.plan || null }); saveDb(); json(res, 200, { ok: true, gym: g ? { id: g.id, name: g.name, plan: g.plan } : null }); }
+      catch (e) { fail(res, e); }
     },
 
     /* ------------------------------ admin ------------------------------ */

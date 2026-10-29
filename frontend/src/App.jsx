@@ -41,6 +41,8 @@ import Knowledge from './views/Knowledge.jsx'
 import Log from './views/Log.jsx'
 import ClientChat from './views/ClientChat.jsx'
 import ContentFeed from './views/ContentFeed.jsx'
+import Gym from './views/Gym.jsx'
+import GymJoin from './views/GymJoin.jsx'
 import { api } from './lib/api.js'
 import { applyAssignments } from './lib/trainer.js'
 import { todayISO } from './lib/format.js'
@@ -116,7 +118,9 @@ function Shell() {
   // device before that would sync it back and replace the client's real data
   useTrainerWeighIns(ready && !!user && !user.trainer)
   useTrainerAssignments(ready && !!user && !user.trainer)
-  const home = user?.trainer ? '/trainer' : '/home'
+  // a gym owner lands on the gym; a trainer on their clients; everyone else on Today
+  const owner = user?.gym?.role === 'owner'
+  const home = owner ? '/gym' : user?.trainer ? '/trainer' : '/home'
   const led = trainerLed(user)
 
   const authed = user || isGuest
@@ -137,7 +141,7 @@ function Shell() {
           {!authed ? (loc.pathname === '/' ? <Landing /> : <Login />) : (
             <Routes>
               {/* a trainer's home is their client panel */}
-              <Route path="/home" element={user?.trainer ? <Navigate to="/trainer" replace /> : <Home />} />
+              <Route path="/home" element={owner ? <Navigate to="/gym" replace /> : user?.trainer ? <Navigate to="/trainer" replace /> : <Home />} />
               {/* a client's plan comes from their trainer (trainerLed): no plan building */}
               <Route path="/plan" element={led ? <Navigate to="/home" replace /> : <Plan />} />
               <Route path="/plan/r/:id" element={led ? <Navigate to="/home" replace /> : <RoutineEdit />} />
@@ -154,7 +158,8 @@ function Shell() {
               <Route path="/coach/proposal" element={<CoachProposal />} />
               {/* Trainnery: trainers and their clients. The trainer screens gate themselves on
                   user.trainer and the API refuses everyone else; /join is a trainer's invite link. */}
-              <Route path="/trainer" element={<Trainer />} />
+              {/* a signed-in account without the role (or whose cached profile had it) goes to its own home */}
+              <Route path="/trainer" element={user && !user.trainer ? <Navigate to={home} replace /> : <Trainer />} />
               <Route path="/trainer/c/:id" element={<TrainerClient />} />
               <Route path="/trainer/c/:id/models" element={<TrainerPrograms />} />
               <Route path="/trainer/chat" element={<TrainerChat />} />
@@ -168,6 +173,9 @@ function Shell() {
               <Route path="/chat" element={<ClientChat />} />
               <Route path="/content" element={<ContentFeed />} />
               <Route path="/join/:token" element={<Join />} />
+              {/* gyms: the owner's panel (gates itself on user.gym) and a gym's join link */}
+              <Route path="/gym" element={owner ? <Gym /> : <Navigate to={home} replace />} />
+              <Route path="/gym/join/:token" element={<GymJoin />} />
               <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/home" replace />} />
               <Route path="*" element={<Navigate to={home} replace />} />
             </Routes>

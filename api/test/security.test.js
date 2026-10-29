@@ -38,7 +38,9 @@ fs.writeFileSync(path.join(DATA, 'db.json'), JSON.stringify({
     { id: 't3', name: 'Trainer Three', created: NOW, trainer: { plan: 'gold', since: NOW } },
     { id: 'c3', name: 'Client Three', created: NOW },
     { id: 'c4', name: 'Client Four', created: NOW },
-    { id: 'y', name: 'To Disable', created: NOW }
+    { id: 'y', name: 'To Disable', created: NOW },
+    // gyms: g1 will own one, gt joins its staff, gm joins as a member
+    { id: 'g1', name: 'Gym Owner', created: NOW }, { id: 'gt', name: 'Gym Trainer', created: NOW }, { id: 'gm', name: 'Gym Member', created: NOW }
   ],
   creds: [], subs: [], invites: [],
   links: [{ trainerId: 't1', clientId: 'c1', created: NOW }, { trainerId: 't2', clientId: 'c2', created: NOW },
@@ -62,7 +64,7 @@ const cookie = (uid, { exp = Date.now() + 86400000, ver = 0, secret = SECRET } =
   const payload = `${uid}:${exp}:${ver}`;
   return 'gymsid=' + payload + '.' + crypto.createHmac('sha256', secret).update(payload).digest('base64url');
 };
-const as = Object.fromEntries(['admin', 't1', 't2', 'c1', 'c2', 'x', 't3', 'c3', 'c4', 'y'].map(u => [u, cookie(u)]));
+const as = Object.fromEntries(['admin', 't1', 't2', 'c1', 'c2', 'x', 't3', 'c3', 'c4', 'y', 'g1', 'gt', 'gm'].map(u => [u, cookie(u)]));
 
 let ipSeq = 0;
 /** A request; each gets its own visitor address unless one is given, so limits stay out of the way. */
@@ -445,4 +447,40 @@ test('google sign-in: off on an instance without its secrets, and nothing leaks'
   assert.equal(r.status, 302, 'the callback only redirects');
   assert.match(r.headers.get('location'), /google=off/);
   assert.equal(r.headers.get('set-cookie'), null, 'no session is set');
+});
+
+test('gym: owner invites staff and members, assigns, and sees activity but not personal data', async () => {
+  assert.equal((await get('/api/gym', { who: 'g1' })).status, 403, 'not an owner yet');
+  assert.equal((await post('/api/admin/user/gym', { id: 'g1', name: 'Gym Centro', plan: 'basic' }, { who: 'g1' })).status, 403, 'self-made owner');
+  assert.equal((await post('/api/admin/user/gym', { id: 'g1', name: 'Gym Centro', plan: 'basic' }, { who: 'admin' })).status, 200);
+  assert.equal((await get('/api/me', { who: 'g1' })).json.user.gym.role, 'owner');
+
+  const staff = (await post('/api/gym/invite', { kind: 'trainer' }, { who: 'g1' })).json.invite.token;
+  const member = (await post('/api/gym/invite', { kind: 'member' }, { who: 'g1' })).json.invite.token;
+  assert.equal((await get('/api/gym/join?token=' + member)).json.gym.name, 'Gym Centro');
+  assert.equal((await post('/api/gym/join', { token: staff, shift: 'morning' }, { who: 'gt' })).status, 200);
+  assert.ok((await get('/api/me', { who: 'gt' })).json.user.trainer, 'staff became a trainer');
+  assert.equal((await post('/api/gym/join', { token: member, shift: 'morning' }, { who: 'gm' })).status, 200);
+  assert.equal((await post('/api/gym/join', { token: staff }, { who: 'x' })).status, 409, 'staff link is single-use');
+
+  // nobody but the owner manages the gym
+  for (const who of ['gt', 'gm', 'x', 't1']) {
+    assert.equal((await get('/api/gym', { who })).status, 403, who);
+    assert.equal((await post('/api/gym/assign', { member: 'gm', trainer: 'gt' }, { who })).status, 403, who);
+  }
+  // the owner cannot hand a member to a trainer who does not work there
+  assert.equal((await post('/api/gym/assign', { member: 'gm', trainer: 't1' }, { who: 'g1' })).status, 404);
+  const auto = await post('/api/gym/auto-assign', {}, { who: 'g1' });
+  assert.deepEqual(auto.json.result, { assigned: 1, left: 0 });
+  // the trainer now reads the member like any client
+  assert.equal((await get('/api/trainer/client?id=gm', { who: 'gt' })).status, 200);
+  const view = (await get('/api/gym', { who: 'g1' })).json;
+  const row = view.members.find(m => m.id === 'gm');
+  assert.equal(row.trainerName, 'Gym Trainer');
+  assert.equal(row.weight, undefined, 'the owner sees no body data');
+  // the owner can't read the member's file through the trainer routes
+  assert.equal((await get('/api/trainer/client?id=gm', { who: 'g1' })).status, 403);
+
+  assert.equal((await post('/api/me/gym/leave', {}, { who: 'gm' })).status, 200);
+  assert.equal((await get('/api/trainer/client?id=gm', { who: 'gt' })).status, 403, 'leaving the gym ends the gym trainer link');
 });

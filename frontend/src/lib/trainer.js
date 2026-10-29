@@ -7,7 +7,8 @@ import { fmtNum } from './format.js'
 import { DEMO } from './demo.js'
 import { MOBILE } from './mobile.js'
 
-const JOIN = /^#\/join\/([0-9a-f]{32})$/i
+// a trainer's link (#/join/…) or a gym's (#/gym/join/…): both work as a signup code
+const JOIN = /^#\/(?:gym\/)?join\/([0-9a-f]{32})$/i
 
 // The invite token in the address bar, if someone opened a trainer's link. Read from the hash
 // directly so the signup sheet can use it before the router has rendered anything.
