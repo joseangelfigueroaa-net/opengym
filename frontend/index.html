@@ -3,22 +3,67 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Trainnery</title>
-<meta name="description" content="Trainnery: la app para entrenadores personales y sus clientes. Asigna entrenos por metodología, sigue el progreso, las medidas y las comidas, y chatea con tus clientes.">
+<title>Trainnery | App para gimnasios y entrenadores personales</title>
+<meta name="description" content="App para gimnasios y entrenadores personales: asigna entrenos, sigue el peso, las medidas y las comidas de tus clientes y reparte socios entre entrenadores.">
 <link rel="canonical" href="https://trainnery.com/">
-<meta name="robots" content="index, follow">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="author" content="Trainnery">
 <!-- link previews (WhatsApp, Telegram, social): invite links are shared this way -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Trainnery">
 <meta property="og:locale" content="es_LA">
 <meta property="og:url" content="https://trainnery.com/">
-<meta property="og:title" content="Trainnery — entrena con tu entrenador personal">
-<meta property="og:description" content="Entrenos asignados por tu entrenador, tu progreso y el chat con él, en una sola app.">
-<meta property="og:image" content="https://trainnery.com/icon-512.png">
-<meta property="og:image:width" content="512">
-<meta property="og:image:height" content="512">
-<meta property="og:image:alt" content="Logo de Trainnery">
-<meta name="twitter:card" content="summary">
+<meta property="og:title" content="Trainnery: la app para gimnasios, entrenadores y sus clientes">
+<meta property="og:description" content="Entrenos asignados, progreso, comidas con calorías y chat con cada cliente. Los gimnasios reparten a sus socios entre sus entrenadores.">
+<meta property="og:image" content="https://trainnery.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Trainnery: la app para gimnasios, entrenadores y sus clientes">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Trainnery: la app para gimnasios, entrenadores y sus clientes">
+<meta name="twitter:description" content="Entrenos asignados, progreso, comidas con calorías y chat con cada cliente.">
+<meta name="twitter:image" content="https://trainnery.com/og-image.png">
+<!-- structured data: what Trainnery is, who makes it, and the trainer plans with their prices -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://trainnery.com/#org",
+      "name": "Trainnery",
+      "url": "https://trainnery.com/",
+      "logo": "https://trainnery.com/icon-512.png",
+      "email": "support@trainnery.com"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://trainnery.com/#site",
+      "url": "https://trainnery.com/",
+      "name": "Trainnery",
+      "inLanguage": "es",
+      "publisher": { "@id": "https://trainnery.com/#org" }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Trainnery",
+      "url": "https://trainnery.com/",
+      "applicationCategory": "HealthApplication",
+      "applicationSubCategory": "Fitness",
+      "operatingSystem": "Web, iOS, Android",
+      "inLanguage": "es",
+      "description": "App para gimnasios, entrenadores personales y sus clientes: entrenos asignados, seguimiento de peso, medidas y comidas, fotos de progreso, chat, y reparto de socios entre los entrenadores de un gimnasio.",
+      "publisher": { "@id": "https://trainnery.com/#org" },
+      "offers": [
+        { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD", "description": "1 cliente" },
+        { "@type": "Offer", "name": "Silver", "price": "9.99", "priceCurrency": "USD", "description": "5 clientes, al mes" },
+        { "@type": "Offer", "name": "Gold", "price": "34.99", "priceCurrency": "USD", "description": "25 clientes, al mes" },
+        { "@type": "Offer", "name": "Platinum", "price": "49.99", "priceCurrency": "USD", "description": "50 clientes, al mes" }
+      ]
+    }
+  ]
+}
+</script>
 <meta name="theme-color" content="#0c0e12">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">

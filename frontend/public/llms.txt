@@ -1,0 +1,25 @@
+# Trainnery
+
+> Trainnery es una app web (también instalable en el teléfono) para gimnasios, entrenadores personales y sus clientes, en español. Sitio: https://trainnery.com/
+
+## Para gimnasios
+- El gimnasio invita a sus entrenadores con un enlace personal y a sus socios con un código.
+- Asigna cada socio a un entrenador, o los reparte automáticamente según el turno (mañana, tarde, noche) y el cupo de cada entrenador.
+- Ve qué socios necesitan atención y la carga de cada entrenador. No ve el peso, las comidas, las fotos ni los mensajes de los socios.
+- La app puede usar los colores del gimnasio para su equipo y sus socios.
+- Planes: Básico (100 socios, 3 entrenadores), Pro (400 socios, 10 entrenadores) y Cadena. Contacto: support@trainnery.com
+
+## Para entrenadores personales
+- Lista de clientes con su estado (al día, sin actividad, peso estancado) y el cumplimiento del plan.
+- Entrenos asignados por día o planes de hasta 62 días, con aviso al teléfono del cliente.
+- Ficha del cliente: peso, grasa corporal, medidas, entrenos, comidas con calorías y macros estimados, fotos de progreso.
+- Chat con cada cliente, contenido (guías, PDF, imágenes), reacciones y comentarios.
+- Planes mensuales en USD: Free (1 cliente, gratis), Silver (5 clientes, 9,99), Gold (25 clientes, 34,99), Platinum (50 clientes, 49,99).
+
+## Para clientes
+- Registran peso, medidas, pasos, sueño y comidas; la app estima calorías y macros a partir de la descripción de la comida.
+- Reciben los entrenos de su entrenador y ven gráficas de su avance.
+- Inicio de sesión sin contraseña: passkey o cuenta de Google.
+
+## Pagos
+Efectivo, Pago Móvil (tasa BCV), Binance y Zinli. Sin cobro automático.

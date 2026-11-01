@@ -1,5 +1,8 @@
+# Trainnery: the public page is the front page; the app behind sign-in and the API are private.
 User-agent: *
 Allow: /$
+Allow: /og-image.png
+Allow: /llms.txt
 Disallow: /api/
 Disallow: /img/
 Disallow: /gif/

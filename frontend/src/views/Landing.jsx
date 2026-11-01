@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, MotionConfig } from 'motion/react'
-import { Barbell, Scales, ChatCircle, Target, ClipboardText, Camera, ForkKnife, Fingerprint, ShieldCheck, ChartLineUp, UserCircle, Sparkle, ArrowRight, Heartbeat, Users, Envelope } from '@phosphor-icons/react'
+import { Barbell, Scales, ChatCircle, Target, ClipboardText, Camera, ForkKnife, Fingerprint, ShieldCheck, ChartLineUp, UserCircle, Sparkle, ArrowRight, Heartbeat, Users, Envelope, Buildings, Shuffle, Clock, Palette, Eye, UserPlus } from '@phosphor-icons/react'
 import { LogoMark, BRAND } from '../components/Logo.jsx'
 import PromoCharts from '../components/PromoCharts.jsx'
 
@@ -10,6 +10,15 @@ import PromoCharts from '../components/PromoCharts.jsx'
 // list, and charts. Motion uses springs and transforms only; reduced motion is respected below.
 
 const WEIGHT_WEEKS = [84.2, 83.6, 83.9, 82.8, 82.1, 81.7, 80.9, 80.4, 79.6, 79.2, 78.7, 78.4]
+
+const GYM = [
+  { icon: UserPlus, title: 'Entra con un enlace', text: 'Invita a cada entrenador con su enlace y comparte un código para tus socios: en la recepción o por WhatsApp.' },
+  { icon: Shuffle, title: 'Reparto automático', text: 'Un toque asigna a cada socio sin entrenador al que tiene más cupo, respetando su turno.' },
+  { icon: Clock, title: 'Por turnos', text: 'Cada entrenador y cada socio con su turno, para que nadie quede con quien no coincide.' },
+  { icon: Eye, title: 'Quién falta', text: 'Ve qué socios dejaron de venir y la carga de cada entrenador, sin entrar en los datos privados del socio.' },
+  { icon: Buildings, title: 'Si un entrenador se va', text: 'Sus socios vuelven a la lista para reasignarlos. Los clientes que trajo él siguen con él.' },
+  { icon: Palette, title: 'Tus colores', text: 'Tu equipo y tus socios ven la app con los colores de tu marca.' },
+]
 
 const TRAINER = [
   { icon: Users, title: 'Tus clientes en una sola lista', text: 'Cada cliente con su estado: al día, sin actividad o estancado. Abres su ficha y ves peso, grasa, medidas, entrenos y comidas.' },
@@ -95,7 +104,7 @@ export default function Landing() {
 
     <section className="lp-hero" aria-labelledby="lp-h1">
       <motion.div className="lp-hero-copy" variants={stagger} initial="hidden" animate="show">
-        <motion.p className="lp-kicker" variants={rise}>Para entrenadores personales y sus clientes</motion.p>
+        <motion.p className="lp-kicker" variants={rise}>Para gimnasios, entrenadores personales y sus clientes</motion.p>
         <motion.h1 id="lp-h1" variants={rise}>Entrena, registra y avanza con tu entrenador</motion.h1>
         <motion.p className="lp-lead" variants={rise}>Entrenos asignados, comidas con calorías calculadas, fotos y gráficas de avance, y un chat con cada cliente, todo en una sola app.</motion.p>
         <motion.div className="lp-cta" variants={rise}>
@@ -105,6 +114,17 @@ export default function Landing() {
         <motion.p className="lp-fine" variants={rise}>Sin contraseñas: entras con passkey o con tu cuenta de Google.</motion.p>
       </motion.div>
       <HeroPanel />
+    </section>
+
+    <section className="lp-sec" aria-labelledby="lp-gyms">
+      <div className="lp-sec-head">
+        <p className="lp-eyebrow">Para gimnasios</p>
+        <h2 id="lp-gyms">Tu gimnasio, tus entrenadores y tus socios, conectados</h2>
+        <p className="lp-sub">Planes Básico (100 socios), Pro (400) y Cadena. Escríbenos a <a href="mailto:support@trainnery.com">support@trainnery.com</a> y lo activamos para tu gimnasio.</p>
+      </div>
+      <motion.ul className="lp-rows" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
+        {GYM.map(r => <Row key={r.title} {...r} />)}
+      </motion.ul>
     </section>
 
     <section className="lp-sec" aria-labelledby="lp-trainers">
@@ -221,6 +241,7 @@ const CSS = `
 .lp-eyebrow{color:var(--accent);font-weight:600;font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;margin:0 0 8px}
 .lp-sec h2,.lp-final h2{font-weight:800;font-size:clamp(1.55rem,3.6vw,2.2rem);line-height:1.15;margin:0 0 10px;letter-spacing:-.01em;text-wrap:balance}
 .lp-sub{color:var(--muted);margin:0}
+.lp-sub a{color:var(--accent)}
 .lp-rows{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
 .lp-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:6px 40px;padding:22px 0;border-bottom:1px solid var(--line)}
 .lp-row-head{display:flex;align-items:center;gap:14px;min-width:0}
