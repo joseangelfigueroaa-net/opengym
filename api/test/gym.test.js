@@ -169,3 +169,27 @@ test('a gym colour scheme reaches everyone in it, and only known colours are sto
   G.setGym(db, user(db, 'owner'), { plan: 'basic', brand: { accent: 'url(x)', theme: '__proto__' } });
   assert.equal(gym.brand, null);
 });
+
+test('the owner can train at their own gym, keeping their own trainer plan', () => {
+  const { db, gym } = setup();
+  T.setTrainer(user(db, 'owner'), 'silver');
+  G.addOwnerAsStaff(db, gym, user(db, 'owner'), { shift: 'evening' });
+  assert.equal(user(db, 'owner').trainer.plan, 'silver');
+  assert.equal(G.roleOf(db, user(db, 'owner')).role, 'owner');
+  G.assign(db, gym, 'm1', 'owner');
+  assert.equal(T.linkOf(db, 'm1').trainerId, 'owner');
+  assert.equal(code(() => G.addOwnerAsStaff(db, gym, user(db, 'owner'))), 'has_gym');
+  assert.equal(code(() => G.addOwnerAsStaff(db, gym, user(db, 'ana'))), 'not_owner');
+});
+
+test('a client of a staff trainer who joins as a member counts as a gym member of that trainer', () => {
+  const db = fresh();
+  const gym = G.setGym(db, user(db, 'owner'), { name: 'G', plan: 'basic' });
+  T.setTrainer(user(db, 'owner'), 'silver');
+  db.links.push({ trainerId: 'owner', clientId: 'm1', created: '2026-01-01' });
+  G.addOwnerAsStaff(db, gym, user(db, 'owner'));
+  G.join(db, user(db, 'm1'), G.createInvite(db, gym, 'member').token);
+  const v = G.overview(db, gym, () => null);
+  assert.equal(v.members[0].trainerId, 'owner');
+  assert.equal(v.trainers[0].members, 1);
+});

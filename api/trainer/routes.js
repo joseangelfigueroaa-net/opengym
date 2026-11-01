@@ -639,6 +639,14 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       catch (e) { fail(res, e); }
     },
 
+    // The owner joins their own staff (no link needed): they train members too.
+    'POST /api/gym/staff/self': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      const body = await readBody(req);
+      try { G.addOwnerAsStaff(db(), o.gym, o.user, { shift: body.shift }); saveDb(); json(res, 200, gymView(o.gym)); }
+      catch (e) { fail(res, e); }
+    },
+
     'POST /api/gym/staff/remove': async (req, res) => {
       const o = asOwner(req, res); if (!o) return;
       const body = await readBody(req);

@@ -196,6 +196,9 @@ export default function Gym() {
           </div>)}
         </div>
 
+        {!d.trainers.some(x => x.id === user.id) && <Button icon="person" style={{ marginTop: 10 }} disabled={d.trainers.length >= d.gym.limits.trainers}
+          onClick={() => apply(post('/api/gym/staff/self'), t('You now train at {0}', d.gym.name))}>{t('Train here too')}</Button>}
+
         <h4 className="sec">{t('Invite')}</h4>
         <div className="card">
           <Button variant="primary" icon="link" onClick={() => invite('trainer')} disabled={d.trainers.length + staffInvites.length >= d.gym.limits.trainers}>{t('Invite a trainer')}</Button>

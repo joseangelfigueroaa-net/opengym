@@ -170,6 +170,19 @@ export function join(db, user, token, { shift } = {}, now = Date.now()) {
   return { gym, kind: inv.kind };
 }
 
+/** The owner works the floor too: they join their own gym's staff without a link. A trainer
+ *  keeps their own plan; an owner who isn't one gets the gym's staff plan, like any staff. */
+export function addOwnerAsStaff(db, gym, owner, { shift } = {}, now = Date.now()) {
+  if (gym.ownerId !== owner.id) throw new GymError('not_owner', 'only the owner can do this');
+  if (staffRow(db, gym.id, owner.id)) throw new GymError('has_gym', 'you are already a trainer here');
+  if (db.gymStaff.some(s => s.userId === owner.id)) throw new GymError('has_gym', 'you already work at another gym on Trainnery');
+  if (memberRow(db, owner.id)) throw new GymError('has_gym', 'leave your gym as a member first');
+  if (staffOf(db, gym.id).length >= limitsOf(gym).trainers) throw new GymError('limit', 'your gym plan has no room for another trainer');
+  const at = new Date(now).toISOString();
+  db.gymStaff.push({ gymId: gym.id, userId: owner.id, shift: cleanShift(shift), since: at });
+  if (!T.isTrainer(owner)) owner.trainer = { plan: STAFF_PLAN, since: at, viaGym: gym.id };
+}
+
 /* ---------------- assignment ---------------- */
 
 const staffIds = (db, gymId) => new Set(staffOf(db, gymId).map(s => s.userId));
