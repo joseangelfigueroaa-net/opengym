@@ -301,6 +301,18 @@ export function leave(db, userId) {
   db.gymMembers = db.gymMembers.filter(x => x !== m);
 }
 
+/** An account is deleted: it leaves its gym, as staff or member, and member links that named it
+ *  as the trainer go back to "the gym assigns later". An owner closes the gym first. Returns the
+ *  gym it was in, if any. */
+export function forgetUser(db, userId) {
+  if (ownedGym(db, userId)) throw new GymError('bad', 'this account owns a gym — close the gym first');
+  const row = db.gymStaff.find(s => s.userId === userId) || memberRow(db, userId);
+  db.gymStaff = db.gymStaff.filter(s => s.userId !== userId);
+  db.gymMembers = db.gymMembers.filter(m => m.userId !== userId);
+  db.gymInvites.forEach(i => { if (i.trainerId === userId) delete i.trainerId; });
+  return row ? gymById(db, row.gymId) : null;
+}
+
 /** The owner changes what a trainer or a member may do. */
 export function setPerms(db, gym, kind, userId, perms) {
   const row = kind === 'trainer' ? staffRow(db, gym.id, userId) : db.gymMembers.find(m => m.gymId === gym.id && m.userId === userId);

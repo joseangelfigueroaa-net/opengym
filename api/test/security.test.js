@@ -517,3 +517,21 @@ test('gym: the gym and its people write to each other; outsiders cannot; the pan
   const row = (await get('/api/gym', { who: 'g1' })).json.members.find(m => m.id === 'gm');
   assert.equal(row.planned, false);
 });
+
+test('admin: deleting an account removes it and its files; admins and gym owners are refused', async () => {
+  assert.equal((await post('/api/admin/user/delete', { id: 'gm' }, { who: 't1' })).status, 403);
+  assert.equal((await post('/api/admin/user/delete', { id: 'admin' }, { who: 'admin' })).status, 400, 'not an admin');
+  assert.equal((await post('/api/admin/user/delete', { id: 'g1' }, { who: 'admin' })).status, 409, 'a gym owner closes the gym first');
+  assert.ok(fs.existsSync(path.join(DATA, 'gymchat-' + (await get('/api/gym', { who: 'g1' })).json.gym.id + '-gm.json')));
+  const r = await post('/api/admin/user/delete', { id: 'gm' }, { who: 'admin' });
+  assert.equal(r.status, 200);
+  assert.equal((await get('/api/me', { who: 'gm' })).status, 401, 'its session is gone');
+  assert.equal((await get('/api/admin/user?id=gm', { who: 'admin' })).status, 404);
+  assert.ok(!fs.readdirSync(DATA).some(f => /(^|-)gm\.json$/.test(f)), 'no file of theirs is left');
+  const d = (await get('/api/gym', { who: 'g1' })).json;
+  assert.ok(!d.members.some(m => m.id === 'gm'));
+  // a trainer on staff: they leave the gym's staff
+  assert.equal((await post('/api/admin/user/delete', { id: 'gt' }, { who: 'admin' })).status, 200);
+  assert.ok(!(await get('/api/gym', { who: 'g1' })).json.trainers.some(t => t.id === 'gt'));
+  assert.equal((await post('/api/admin/user/delete', { id: 'gt' }, { who: 'admin' })).status, 404, 'already gone');
+});

@@ -36,6 +36,20 @@ function UserDetail({ id, onChanged, close }) {
       .then(() => { toast(disabled ? 'Usuario desactivado' : 'Usuario activado'); onChanged(); close() })
       .catch(e => toast(e.message))
   }
+  // Deletes the account and everything filed under it. A gym owner closes the gym first.
+  const remove = () => {
+    if (u.gymRole?.role === 'owner') return toast('Primero cierra su gimnasio (más abajo) y después elimina la cuenta')
+    confirmSheet({
+      title: '¿Eliminar a ' + u.name + '?',
+      message: 'Se borran para siempre su cuenta, sus entrenos, registros, fotos, mensajes y contenido.'
+        + (u.clients ? ' Sus ' + u.clients + ' clientes se quedan sin entrenador.' : '')
+        + (u.gymRole ? ' Sale de ' + u.gymRole.name + '.' : '') + ' No se puede deshacer.',
+      confirmText: 'Eliminar para siempre', danger: true,
+      onConfirm: () => api('/api/admin/user/delete', { method: 'POST', body: JSON.stringify({ id: u.id }) })
+        .then(() => { toast(u.name + ' eliminado'); onChanged(); close() })
+        .catch(e => toast(e.message))
+    })
+  }
   // Trainnery: makes the account a trainer on a plan, or takes the role away (links are kept).
   const setTrainer = plan => {
     api('/api/admin/user/trainer', { method: 'POST', body: JSON.stringify({ id: u.id, plan: plan === 'none' ? null : plan }) })
@@ -80,6 +94,8 @@ function UserDetail({ id, onChanged, close }) {
       onClick={() => u.disabled ? setDisabled(false)
         : confirmSheet({ title: '¿Desactivar a ' + u.name + '?', message: 'Se cierra su sesión en todos los dispositivos y no podrá sincronizar ni entrar hasta que se reactive.', confirmText: 'Desactivar', danger: true, onConfirm: () => setDisabled(true) })}>
       {u.disabled ? 'Activar cuenta' : 'Desactivar cuenta'}</button>}
+    {!u.admin && <button className="btn danger" style={{ margin: '4px 0' }} onClick={remove}>
+      <Icon name="trash" /> Eliminar cuenta</button>}
     <h4 className="sec">Plan de entrenador</h4>
     {/* five choices: a wrapping row of chips, a segmented control does not fit them on a phone */}
     <div className="row" style={{ gap: 6, flexWrap: 'wrap' }} role="radiogroup" aria-label="Plan de entrenador">

@@ -119,6 +119,15 @@ export function unlink(db, trainerId, clientId) {
   db.links = db.links.filter(l => !(l.trainerId === trainerId && l.clientId === clientId));
 }
 
+/** An account is deleted: every link and open invite it was part of goes with it. Its clients
+ *  stay, without a trainer. Returns them. */
+export function forgetUser(db, userId) {
+  const clients = clientIdsOf(db, userId);
+  db.links = db.links.filter(l => l.trainerId !== userId && l.clientId !== userId);
+  db.trainerInvites = db.trainerInvites.filter(i => i.trainerId !== userId && i.usedBy !== userId && i.signupBy !== userId);
+  return clients;
+}
+
 /** Read access: a trainer sees a client's state only while the link exists. */
 export function assertCanRead(db, trainer, clientId) {
   if (!isTrainer(trainer)) throw new TrainerError('not_trainer', 'this account is not a trainer');

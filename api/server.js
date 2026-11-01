@@ -90,7 +90,8 @@ function saveDb() {
 // Fields of the synced state the server itself reads, and the type it reads them as.
 const STATE_ARRAYS = ['workouts', 'routines', 'bodyweight', 'customEx'];
 const STATE_OBJECTS = ['week', 'dayPlan', 'reminder', 'coach', 'exWeights'];
-const stateName = uid => 'state-' + String(uid).replace(/[^a-zA-Z0-9_-]/g, '') + '.json';
+const safeId = uid => String(uid).replace(/[^a-zA-Z0-9_-]/g, '');
+const stateName = uid => 'state-' + safeId(uid) + '.json';
 const readState = uid => files.read(stateName(uid), null);
 function writeState(uid, S) {
   files.write(stateName(uid), S);
@@ -708,6 +709,38 @@ const routes = {
     }
     saveDb();
     json(res, 200, { ok: true, id: u.id, disabled: u.disabled });
+  },
+
+  // Deletes an account and everything filed under it: passkeys, devices, workouts, records,
+  // chats, photos, content, its gym seat and its links. Its clients stay, without a trainer.
+  // Admins, yourself and gym owners (close the gym first) are refused.
+  'POST /api/admin/user/delete': async (req, res) => {
+    const admin = requireAdmin(req, res); if (!admin) return;
+    const body = await readBody(req);
+    const u = userById(body.id);
+    if (!u) return json(res, 404, { error: 'no such user' });
+    if (u.id === admin.id || isAdmin(u)) return json(res, 400, { error: 'cannot delete an admin' });
+    let g, clients;
+    try { g = gym.forgetUser(gym.ensureShape(db), u.id); }
+    catch (e) { if (e instanceof gym.GymError) return json(res, 409, { error: e.message }); throw e; }
+    clients = trainer.forgetUser(db, u.id);
+    db.users = db.users.filter(x => x.id !== u.id);
+    db.creds = db.creds.filter(c => c.userId !== u.id);
+    db.subs = db.subs.filter(s => s.userId !== u.id);
+    presence.delete(u.id); cancelRestTimer(u.id); reminders.delete(u.id);
+    saveDb();
+    // the notes this trainer kept on each client are theirs, and go with them
+    for (const cid of clients) {
+      const name = 'assign-' + safeId(cid) + '.json', f = files.read(name, {});
+      if (f.profile && (!f.profile.by || f.profile.by === u.id)) files.write(name, { ...f, profile: null });
+    }
+    const id = safeId(u.id);
+    const names = ['state', 'records', 'assign', 'chat', 'social', 'photos', 'content'].map(k => k + '-' + id + '.json');
+    if (g) names.push('gymchat-' + safeId(g.id) + '-' + id + '.json');
+    await Promise.all(names.map(n => files.remove(n)));
+    for (const dir of ['content', 'photos']) await fs.promises.rm(path.join(DATA, dir, id), { recursive: true, force: true });
+    coachJobs.clearUser(u.id);
+    json(res, 200, { ok: true, id: u.id, clients: clients.length });
   },
 
   'GET /api/admin/invites': async (req, res) => {
