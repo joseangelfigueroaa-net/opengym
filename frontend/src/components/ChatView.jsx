@@ -17,13 +17,14 @@ const when = iso => {
     : d.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString(dateLocale(), { hour: '2-digit', minute: '2-digit' })
 }
 
-export default function ChatView({ withId, onOther }) {
+// `base`: /api/chat (trainer and client) or /api/gym/chat (a gym and one of its people).
+export default function ChatView({ withId, onOther, base = '/api/chat' }) {
   const toast = useUI(s => s.toast)
   const [chat, setChat] = useState(null)       // { messages, me, other, readByOther } | { error }
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const endRef = useRef(null)
-  const url = '/api/chat' + (withId ? '?with=' + encodeURIComponent(withId) : '')
+  const url = base + (withId ? '?with=' + encodeURIComponent(withId) : '')
 
   const load = () => api(url).then(c => {
     setChat(prev => {
@@ -47,7 +48,7 @@ export default function ChatView({ withId, onOther }) {
     if (!msg || busy) return
     setBusy(true)
     try {
-      const r = await api('/api/chat', { method: 'POST', body: JSON.stringify({ with: withId, text: msg }) })
+      const r = await api(base, { method: 'POST', body: JSON.stringify({ with: withId, text: msg }) })
       setText('')
       setChat(c => ({ ...c, messages: [...c.messages, r.message] }))
     } catch (err) { toast(err.message) }

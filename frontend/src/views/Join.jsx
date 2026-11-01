@@ -36,8 +36,9 @@ export default function Join() {
         <div className="muted" style={{ marginBottom: 24 }}>{inv.error}</div>
         <Button onClick={() => nav('/home', { replace: true })}>{t('Go to the app')}</Button>
       </> : <>
-        <h1 style={{ margin: '12px 0 6px' }}>{t('{0} invited you', inv.trainer.name)}</h1>
-        <div className="muted" style={{ marginBottom: 24 }}>{t('As their client, they will see your workouts, body weight and plan. They cannot change anything, and you can leave anytime in Settings.')}</div>
+        <h1 style={{ margin: '12px 0 6px' }}>{inv.gym ? t('{0} invited you to {1}', inv.trainer.name, inv.gym.name) : t('{0} invited you', inv.trainer.name)}</h1>
+        <div className="muted" style={{ marginBottom: 24 }}>{t('As their client, they will see your workouts, body weight and plan. They cannot change anything, and you can leave anytime in Settings.')}
+          {inv.gym && <> {t('You also join {0} as a member: the gym sees your name, your trainer and when you last trained, not your weights, meals, photos or messages.', inv.gym.name)}</>}</div>
         <Button variant="primary" onClick={accept} disabled={busy}>{busy ? t('Accepting…') : t('Accept invite')}</Button>
         <div style={{ height: 10 }} />
         <Button variant="ghost" className="dim" onClick={() => nav('/home', { replace: true })}>{t('Not now')}</Button>

@@ -4,9 +4,16 @@
  *
  *   gyms[]        { id, name, ownerId, plan: 'basic' | 'pro' | 'chain', created, brand? }     one gym per owner
  *                 brand: { accent, theme } — the app's colours for everyone in the gym (owner, staff, members)
- *   gymStaff[]    { gymId, userId, shift, since }      trainers who work there
- *   gymMembers[]  { gymId, userId, shift, since }      people who train there; one gym per person
- *   gymInvites[]  { token, gymId, kind: 'trainer' | 'member', created, usedBy?, usedAt?, signupBy? }
+ *   gymStaff[]    { gymId, userId, shift, since, perms, cap? }   trainers who work there
+ *   gymMembers[]  { gymId, userId, shift, since, perms }   people who train there; one gym per person
+ *   gymInvites[]  { token, gymId, kind: 'trainer' | 'member', created, perms, trainerId?, usedBy?, usedAt?, signupBy? }
+ *
+ * Permissions are chosen when the gym sends the invite and can be changed later by the owner:
+ *   staff:   content (publish to the whole gym), members (see every member and their activity),
+ *            assign (assign and move members between trainers)
+ *   members: content (see the gym's own posts)
+ * A trainer's clients at the gym are the gym's members (links[].viaGym): the gym pays for them.
+ * A trainer's clients from outside the gym stay on the trainer's own plan, out of the gym's sight.
  *
  * A member's trainer is the ordinary trainer↔client link (db.links), so everything a trainer
  * already does for a client works the same for a gym member. The gym owns the assignment: it
@@ -25,6 +32,11 @@ export const GYM_PLANS = {
   chain: { members: 5000, trainers: 100 }
 };
 export const SHIFTS = ['morning', 'afternoon', 'evening'];
+export const STAFF_PERMS = ['content', 'members', 'assign'];
+export const MEMBER_PERMS = ['content'];
+const DEFAULT_PERMS = { trainer: [], member: ['content'] };
+// How many of the gym's members one trainer can carry (their own clients are on their own plan).
+export const PER_TRAINER = 50;
 // The app's own accent names (frontend/src/lib/format.js ACCENTS) and themes.
 export const BRAND_ACCENTS = ['lime', 'sky', 'orange', 'violet', 'pink', 'red', 'teal', 'gold'];
 export const BRAND_THEMES = ['dark', 'light'];
@@ -50,6 +62,7 @@ export function ensureShape(db) {
 
 const isPlan = p => typeof p === 'string' && Object.hasOwn(GYM_PLANS, p);
 const cleanShift = s => (SHIFTS.includes(s) ? s : '');
+export const cleanPerms = (kind, p) => Array.isArray(p) ? [...new Set(p.filter(x => (kind === 'trainer' ? STAFF_PERMS : MEMBER_PERMS).includes(x)))] : DEFAULT_PERMS[kind];
 const cleanName = n => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 60);
 const ms = iso => Date.parse(iso);
 /** A gym's colours, or null for the app's own. Unknown values are dropped, never stored. */
@@ -74,9 +87,9 @@ export function roleOf(db, user) {
   const own = ownedGym(db, user.id);
   if (own) return { id: own.id, name: own.name, role: 'owner', brand: own.brand || null };
   const staff = db.gymStaff.find(s => s.userId === user.id);
-  if (staff) { const g = gymById(db, staff.gymId); if (g) return { id: g.id, name: g.name, role: 'trainer', shift: staff.shift, brand: g.brand || null }; }
+  if (staff) { const g = gymById(db, staff.gymId); if (g) return { id: g.id, name: g.name, role: 'trainer', shift: staff.shift, perms: staff.perms || [], brand: g.brand || null }; }
   const m = memberRow(db, user.id);
-  if (m) { const g = gymById(db, m.gymId); if (g) return { id: g.id, name: g.name, role: 'member', shift: m.shift, brand: g.brand || null }; }
+  if (m) { const g = gymById(db, m.gymId); if (g) return { id: g.id, name: g.name, role: 'member', shift: m.shift, perms: m.perms || DEFAULT_PERMS.member, brand: g.brand || null }; }
   return null;
 }
 
@@ -114,18 +127,19 @@ const isExpired = (inv, now) => now - ms(inv.created) > daysFor(inv.kind) * 8640
 export const openInvites = (db, gymId, now = Date.now()) =>
   db.gymInvites.filter(i => i.gymId === gymId && !i.usedBy && !isExpired(i, now));
 
-export function createInvite(db, gym, kind, now = Date.now()) {
+/** `perms` are what the person gets on joining; a member invite can name the trainer they go to. */
+export function createInvite(db, gym, kind, now = Date.now(), { perms, trainerId } = {}) {
   if (kind !== 'trainer' && kind !== 'member') throw new GymError('bad', 'unknown invite kind');
+  if (kind === 'member' && trainerId && !staffRow(db, gym.id, String(trainerId))) throw new GymError('not_staff', 'this trainer does not work at your gym');
   const lim = limitsOf(gym);
   if (kind === 'trainer' && staffOf(db, gym.id).length + openInvites(db, gym.id, now).filter(i => i.kind === 'trainer').length >= lim.trainers)
     throw new GymError('limit', 'your gym plan has no room for another trainer');
   if (kind === 'member' && membersOf(db, gym.id).length >= lim.members)
     throw new GymError('limit', 'your gym plan has no room for more members');
-  // one live member code at a time: a new one replaces the one on the wall
-  if (kind === 'member') db.gymInvites = db.gymInvites.filter(i => !(i.gymId === gym.id && i.kind === 'member'));
   let token;
   do { token = crypto.randomBytes(16).toString('hex'); } while (db.gymInvites.some(i => i.token === token) || db.trainerInvites.some(i => i.token === token));
-  const inv = { token, gymId: gym.id, kind, created: new Date(now).toISOString() };
+  const inv = { token, gymId: gym.id, kind, created: new Date(now).toISOString(), perms: cleanPerms(kind, perms),
+    ...(kind === 'member' && trainerId ? { trainerId: String(trainerId) } : {}) };
   db.gymInvites.push(inv);
   return inv;
 }
@@ -157,7 +171,7 @@ export function join(db, user, token, { shift } = {}, now = Date.now()) {
     if (memberRow(db, user.id)) throw new GymError('has_gym', 'leave your gym as a member before joining one as staff');
     if (T.linkOf(db, user.id)) throw new GymError('has_trainer', 'leave your own trainer before joining a gym as staff');
     if (staffOf(db, gym.id).length >= limitsOf(gym).trainers) throw new GymError('limit', 'this gym has no room for another trainer');
-    db.gymStaff.push({ gymId: gym.id, userId: user.id, shift: cleanShift(shift), since: at });
+    db.gymStaff.push({ gymId: gym.id, userId: user.id, shift: cleanShift(shift), since: at, perms: inv.perms || [] });
     if (!T.isTrainer(user)) user.trainer = { plan: STAFF_PLAN, since: at, viaGym: gym.id };
     inv.usedBy = user.id; inv.usedAt = at;
   } else {
@@ -165,7 +179,12 @@ export function join(db, user, token, { shift } = {}, now = Date.now()) {
     if (cur) throw new GymError('has_gym', cur.gymId === gym.id ? 'you are already a member of this gym' : 'you are already a member of another gym — leave it first');
     if (db.gymStaff.some(s => s.userId === user.id)) throw new GymError('has_gym', 'staff cannot also be members');
     if (membersOf(db, gym.id).length >= limitsOf(gym).members) throw new GymError('limit', 'this gym has no room for more members');
-    db.gymMembers.push({ gymId: gym.id, userId: user.id, shift: cleanShift(shift), since: at });
+    db.gymMembers.push({ gymId: gym.id, userId: user.id, shift: cleanShift(shift), since: at, perms: inv.perms || DEFAULT_PERMS.member });
+    const link = T.linkOf(db, user.id);
+    // already training with someone on staff: from now on the gym pays for them, not the trainer
+    if (link && staffRow(db, gym.id, link.trainerId)) link.viaGym = gym.id;
+    // the invite named a trainer: go straight to them, if they have room
+    else if (!link && inv.trainerId) { try { assign(db, gym, user.id, inv.trainerId, now); } catch { /* stays unassigned; the gym sees it */ } }
   }
   return { gym, kind: inv.kind };
 }
@@ -179,7 +198,7 @@ export function addOwnerAsStaff(db, gym, owner, { shift } = {}, now = Date.now()
   if (memberRow(db, owner.id)) throw new GymError('has_gym', 'leave your gym as a member first');
   if (staffOf(db, gym.id).length >= limitsOf(gym).trainers) throw new GymError('limit', 'your gym plan has no room for another trainer');
   const at = new Date(now).toISOString();
-  db.gymStaff.push({ gymId: gym.id, userId: owner.id, shift: cleanShift(shift), since: at });
+  db.gymStaff.push({ gymId: gym.id, userId: owner.id, shift: cleanShift(shift), since: at, perms: [...STAFF_PERMS] });
   if (!T.isTrainer(owner)) owner.trainer = { plan: STAFF_PLAN, since: at, viaGym: gym.id };
 }
 
@@ -187,7 +206,9 @@ export function addOwnerAsStaff(db, gym, owner, { shift } = {}, now = Date.now()
 
 const staffIds = (db, gymId) => new Set(staffOf(db, gymId).map(s => s.userId));
 const userOf = (db, id) => db.users.find(u => u.id === id) || null;
-const hasRoom = (db, trainer) => T.clientIdsOf(db, trainer.id).length < T.limitOf(trainer);
+const capOf = (db, gym, trainerId) => staffRow(db, gym.id, trainerId)?.cap || PER_TRAINER;
+const gymClientsOf = (db, gym, trainerId) => membersOf(db, gym.id).filter(m => T.linkOf(db, m.userId)?.trainerId === trainerId).length;
+const hasRoom = (db, gym, trainer) => gymClientsOf(db, gym, trainer.id) < capOf(db, gym, trainer.id);
 
 /** The member's current trainer, if that trainer works at this gym. */
 export const gymTrainerOf = (db, gym, memberId) => {
@@ -211,7 +232,7 @@ export function assign(db, gym, memberId, trainerId, now = Date.now()) {
   const link = T.linkOf(db, memberId);
   if (link && link.trainerId === trainerId) return link;
   if (link && !staffIds(db, gym.id).has(link.trainerId)) throw new GymError('has_trainer', 'this member already has a personal trainer outside the gym');
-  if (!hasRoom(db, trainer)) throw new GymError('no_room', `${trainer.name} has no free seats`);
+  if (!hasRoom(db, gym, trainer)) throw new GymError('no_room', `${trainer.name} has no free seats`);
   if (link) db.links = db.links.filter(l => l !== link);
   const next = { trainerId, clientId: memberId, created: new Date(now).toISOString(), viaGym: gym.id };
   db.links.push(next);
@@ -225,11 +246,12 @@ export function unassign(db, gym, memberId) {
   db.links = db.links.filter(l => !(l.clientId === memberId && l.trainerId === tid));
 }
 
-/** Clients each staff trainer carries, counting every client (not just gym members): seats are seats. */
+/** The gym's members each staff trainer carries, against the gym's cap per trainer. Their own
+ *  clients from outside the gym are their business, and not shown. */
 export function load(db, gym) {
   return staffOf(db, gym.id).map(s => {
     const u = userOf(db, s.userId);
-    return { id: s.userId, name: u?.name || '?', shift: s.shift, clients: T.clientIdsOf(db, s.userId).length, limit: u ? T.limitOf(u) : 0, disabled: !!u?.disabled };
+    return { id: s.userId, name: u?.name || '?', shift: s.shift, perms: s.userId === gym.ownerId ? [...STAFF_PERMS] : s.perms || [], clients: gymClientsOf(db, gym, s.userId), limit: capOf(db, gym, s.userId), disabled: !!u?.disabled };
   });
 }
 
@@ -279,6 +301,46 @@ export function leave(db, userId) {
   db.gymMembers = db.gymMembers.filter(x => x !== m);
 }
 
+/** The owner changes what a trainer or a member may do. */
+export function setPerms(db, gym, kind, userId, perms) {
+  const row = kind === 'trainer' ? staffRow(db, gym.id, userId) : db.gymMembers.find(m => m.gymId === gym.id && m.userId === userId);
+  if (!row) throw new GymError(kind === 'trainer' ? 'not_staff' : 'not_member', 'no such person at your gym');
+  if (kind === 'trainer' && userId === gym.ownerId) throw new GymError('bad', 'the owner can always do everything');
+  row.perms = cleanPerms(kind, perms || []);
+  return row;
+}
+
+/** The gym this account works in, if it may do `perm` there: the owner may do anything, staff what
+ *  their permissions say. null when neither. */
+export function gymFor(db, user, perm) {
+  if (!user) return null;
+  const own = ownedGym(db, user.id);
+  if (own) return own;
+  const s = db.gymStaff.find(x => x.userId === user.id);
+  if (!s || !(s.perms || []).includes(perm)) return null;
+  return gymById(db, s.gymId);
+}
+
+/** A trainer at a gym invites a client for the gym: the client joins as a member, assigned to them. */
+export function acceptClientInvite(db, client, inv, now = Date.now()) {
+  const gym = gymById(db, inv.gymId);
+  const trainer = userOf(db, inv.trainerId);
+  if (!gym || !trainer || !staffRow(db, gym.id, trainer.id)) throw new GymError('invalid', 'this invite link is no longer valid');
+  if (trainer.id === client.id) throw new GymError('bad', 'you cannot be your own client');
+  const link = T.linkOf(db, client.id);
+  if (link) throw new GymError('has_trainer', link.trainerId === trainer.id ? "you are already this trainer's client" : 'you already have a trainer — leave them first');
+  const cur = memberRow(db, client.id);
+  if (cur && cur.gymId !== gym.id) throw new GymError('has_gym', 'you are already a member of another gym — leave it first');
+  if (db.gymStaff.some(s => s.userId === client.id)) throw new GymError('has_gym', 'staff cannot also be members');
+  if (!cur && membersOf(db, gym.id).length >= limitsOf(gym).members) throw new GymError('limit', 'this gym has no room for more members');
+  if (!hasRoom(db, gym, trainer)) throw new GymError('no_room', `${trainer.name} has no free seats`);
+  const at = new Date(now).toISOString();
+  if (!cur) db.gymMembers.push({ gymId: gym.id, userId: client.id, shift: '', since: at, perms: DEFAULT_PERMS.member });
+  db.links.push({ trainerId: trainer.id, clientId: client.id, created: at, viaGym: gym.id });
+  inv.usedBy = client.id; inv.usedAt = at;
+  return { trainer, gym };
+}
+
 export function setShift(db, gym, kind, userId, shift) {
   const row = kind === 'trainer' ? staffRow(db, gym.id, userId) : db.gymMembers.find(m => m.gymId === gym.id && m.userId === userId);
   if (!row) throw new GymError(kind === 'trainer' ? 'not_staff' : 'not_member', 'no such person at your gym');
@@ -296,11 +358,11 @@ export function overview(db, gym, statusOf, now = Date.now()) {
     const outside = !tid && !!T.linkOf(db, m.userId);
     let status = { code: 'new', days: null, last: null };
     try { status = statusOf(m.userId) || status; } catch { /* one member's file never costs the list */ }
-    return { id: m.userId, name: u?.name || '?', shift: m.shift, since: m.since, trainerId: tid, trainerName: tid ? names[tid] : null, outside, status };
+    return { id: m.userId, name: u?.name || '?', shift: m.shift, since: m.since, perms: m.perms || DEFAULT_PERMS.member, trainerId: tid, trainerName: tid ? names[tid] : null, outside, status };
   });
   return {
     gym: { id: gym.id, name: gym.name, plan: gym.plan, limits: limitsOf(gym), brand: gym.brand || null },
     trainers, members,
-    invites: openInvites(db, gym.id, now).map(i => ({ token: i.token, kind: i.kind, created: i.created, expires: new Date(ms(i.created) + daysFor(i.kind) * 86400000).toISOString() }))
+    invites: openInvites(db, gym.id, now).map(i => ({ token: i.token, kind: i.kind, created: i.created, perms: i.perms || DEFAULT_PERMS[i.kind], trainerId: i.trainerId || null, expires: new Date(ms(i.created) + daysFor(i.kind) * 86400000).toISOString() }))
   };
 }

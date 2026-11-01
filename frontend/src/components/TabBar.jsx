@@ -34,6 +34,7 @@ export default function TabBar({ onStart }) {
   if (owner && !isTrainer) return (
     <nav id="tabbar" aria-label={t('Sections')}>
       <Tab on={path === '/gym'} icon="dumbbell" to="/gym" label={t('Gym')} />
+      <Tab on={path.startsWith('/trainer/content')} icon="library" to="/trainer/content" label={t('Content')} />
       <Tab on={path.startsWith('/knowledge')} icon="lightbulb" to="/knowledge" label={t('Knowledge')} />
       <Tab on={path === '/settings' || path === '/admin'} icon="gear" to="/settings" label={t('Settings')} />
     </nav>
@@ -44,7 +45,7 @@ export default function TabBar({ onStart }) {
       <Tab on={path === '/trainer' || path.startsWith('/trainer/c/')} icon="person" to="/trainer" label={t('Clients')} />
       <Tab on={path.startsWith('/trainer/chat')} icon="chat" to="/trainer/chat" label={t('Chat')} badge={unread} />
       <Tab on={path.startsWith('/trainer/content')} icon="library" to="/trainer/content" label={t('Content')} />
-      {owner
+      {owner || (user.gym?.role === 'trainer' && (user.gym.perms || []).includes('members'))
         ? <Tab on={path === '/gym'} icon="dumbbell" to="/gym" label={t('Gym')} />
         : <Tab on={path.startsWith('/knowledge')} icon="lightbulb" to="/knowledge" label={t('Knowledge')} />}
       <Tab on={path === '/trainer/profile' || path === '/settings' || path === '/admin'} icon="personCircle" to="/trainer/profile" label={t('Profile')} />

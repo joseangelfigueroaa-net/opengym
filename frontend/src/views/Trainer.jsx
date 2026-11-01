@@ -38,7 +38,8 @@ export default function Trainer() {
   if (!user?.trainer) return null
 
   const full = d && d.seats.clients + d.seats.open >= d.seats.limit
-  const invite = () => api('/api/trainer/invite', { method: 'POST', body: '{}' })
+  // at a gym: a client for the gym (the gym pays) or one of their own (their plan)
+  const invite = (forGym = false) => api('/api/trainer/invite', { method: 'POST', body: JSON.stringify({ forGym }) })
     .then(async ({ invite }) => { load(); const msg = await shareInvite(invite.token); if (msg) toast(msg) })
     .catch(e => toast(e.message))
   const reshare = token => shareInvite(token).then(msg => msg && toast(msg))
@@ -60,7 +61,7 @@ export default function Trainer() {
     <div className="hdr">
       <LogoMark size={34} />
       <div style={{ flex: 1, marginLeft: 10 }}><h1 style={{ margin: 0 }}>{t('Your clients')}</h1>
-        <div className="sub">{d ? t('{0} of {1} seats · {2} plan', d.seats.clients + d.seats.open, d.seats.limit, PLAN[d.seats.plan]) + (user.gym?.role === 'trainer' ? ' · ' + user.gym.name : '') : t('Loading…')}</div></div>
+        <div className="sub">{d ? t('{0} of {1} seats · {2} plan', d.seats.clients + d.seats.open, d.seats.limit, PLAN[d.seats.plan]) + (d.gym ? ' · ' + t('{0} from {1}', d.seats.gym, d.gym.name) : '') : t('Loading…')}</div></div>
       <div className="row" style={{ gap: 8 }}>
         <button className="iconbtn" onClick={load} aria-label={t('Refresh')}><Icon name="reset" /></button>
         <SignOutButton />
@@ -95,6 +96,7 @@ export default function Trainer() {
                     {c.adherence != null && ' · ' + t('Plan {0}%', c.adherence)}
                   </div></div>
                 <div className="row" style={{ gap: 8, flexShrink: 0 }}>
+                  {c.gym && <span className="tag nocap">{t('Gym')}</span>}
                   {c.unread > 0 && <span className="tag acc nocap" aria-label={t('{0} unread messages', c.unread)}><Icon name="chat" /> {c.unread}</span>}
                   <span className={'tag nocap ' + st.cls}>{st.text}</span>
                   <Icon name="chevronRight" className="dim" />
@@ -108,13 +110,18 @@ export default function Trainer() {
       <div>
         <h4 className="sec" style={{ marginTop: 0 }}>{t('Invite')}</h4>
         <div className="card">
-          <Button variant="primary" icon="link" onClick={invite} disabled={!d || full}>{t('Invite a client')}</Button>
+          {d?.gym && <>
+            <Button variant="primary" icon="link" onClick={() => invite(true)}>{t('Invite a client for {0}', d.gym.name)}</Button>
+            <div className="dim small" style={{ margin: '8px 0 12px' }}>{t('They join the gym as a member, assigned to you. The gym pays for them.')}</div>
+          </>}
+          <Button variant={d?.gym ? 'plain' : 'primary'} icon="link" onClick={() => invite(false)} disabled={!d || full}>{d?.gym ? t('Invite a client of your own') : t('Invite a client')}</Button>
           <div className="dim small" style={{ marginTop: 8 }}>
             {full ? t('Your plan is full. Remove a client or cancel an open invite to free a seat.')
+              : d?.gym ? t('Outside the gym, on your own plan. The gym doesn’t see them.')
               : t('Send the link by WhatsApp or email. It works once and expires in {0} days.', d ? d.inviteDays : 14)}
           </div>
           {d?.invites.map(i => <div key={i.token} className="row between" style={{ padding: '9px 2px', borderTop: '1px solid var(--sep)', marginTop: 8 }}>
-            <div><div className="small" style={{ fontWeight: 600 }}>{t('Waiting to be accepted')}</div>
+            <div><div className="small" style={{ fontWeight: 600 }}>{i.forGym ? t('Gym client, waiting') : t('Waiting to be accepted')}</div>
               <div className="dim" style={{ fontSize: '.72rem' }}>{t('Created {0}', fmtDate(i.created.slice(0, 10)))}</div></div>
             <div className="row" style={{ gap: 6 }}>
               {/* 44px: these sit side by side on a phone, the one place a mis-tap cancels a link */}

@@ -484,3 +484,36 @@ test('gym: owner invites staff and members, assigns, and sees activity but not p
   assert.equal((await post('/api/me/gym/leave', {}, { who: 'gm' })).status, 200);
   assert.equal((await get('/api/trainer/client?id=gm', { who: 'gt' })).status, 403, 'leaving the gym ends the gym trainer link');
 });
+
+test('gym: invite permissions decide what staff may do, and gym posts say who wrote them', async () => {
+  // gt is on the staff since the test above, invited with no permissions
+  assert.equal((await get('/api/gym', { who: 'gt' })).status, 403, 'staff without "members" cannot open the panel');
+  assert.equal((await post('/api/gym/content', { title: 'x', body: 'y' }, { who: 'gt' })).status, 403, 'nor publish for the gym');
+  assert.equal((await post('/api/gym/perms', { kind: 'trainer', id: 'gt', perms: ['members', 'content'] }, { who: 'gt' })).status, 403, 'nor grant themselves anything');
+  assert.equal((await post('/api/gym/perms', { kind: 'trainer', id: 'gt', perms: ['members', 'content'] }, { who: 'g1' })).status, 200);
+  assert.equal((await get('/api/gym', { who: 'gt' })).status, 200);
+  assert.equal((await post('/api/gym/assign', { member: 'gm', trainer: 'gt' }, { who: 'gt' })).status, 403, '"assign" was not granted');
+  assert.equal((await post('/api/gym/content', { title: 'Horario de diciembre', body: 'Cerramos el 25' }, { who: 'g1' })).status, 200);
+  assert.equal((await post('/api/gym/content', { title: 'Rutina de movilidad', body: '10 min' }, { who: 'gt' })).status, 200);
+  // gm rejoins as a member and sees both posts, each with its author
+  const code = (await post('/api/gym/invite', { kind: 'member' }, { who: 'g1' })).json.invite.token;
+  assert.equal((await post('/api/gym/join', { token: code }, { who: 'gm' })).status, 200);
+  const feed = (await get('/api/content', { who: 'gm' })).json.posts;
+  assert.deepEqual(feed.map(p => [p.title, p.author.kind, p.author.name]).sort(), [['Horario de diciembre', 'gym', 'Gym Centro'], ['Rutina de movilidad', 'trainer', 'Gym Trainer']]);
+  // someone outside the gym sees none of it
+  assert.equal((await get('/api/content', { who: 'x' })).json.posts.length, 0);
+});
+
+test('gym: the gym and its people write to each other; outsiders cannot; the panel shows assigned workouts', async () => {
+  assert.equal((await post('/api/gym/chat', { with: 'gm', text: 'Hola, bienvenido' }, { who: 'g1' })).status, 200);
+  const mine = (await get('/api/gym/chat', { who: 'gm' })).json;
+  assert.equal(mine.other.name, 'Gym Centro');
+  assert.equal(mine.messages.at(-1).text, 'Hola, bienvenido');
+  assert.equal((await post('/api/gym/chat', { text: 'Gracias' }, { who: 'gm' })).status, 200);
+  assert.equal((await get('/api/gym/chat/unread', { who: 'g1' })).json.count, 1);
+  assert.equal((await post('/api/gym/chat', { with: 'c1', text: 'spam' }, { who: 'g1' })).status, 404, 'not someone at the gym');
+  assert.equal((await post('/api/gym/chat', { text: 'hola' }, { who: 'x' })).status, 404, 'x has no gym');
+  assert.equal((await get('/api/gym/chat?with=gm', { who: 'gt' })).json.other.name, 'Gym Centro', 'a trainer reads only their own thread with the gym');
+  const row = (await get('/api/gym', { who: 'g1' })).json.members.find(m => m.id === 'gm');
+  assert.equal(row.planned, false);
+});

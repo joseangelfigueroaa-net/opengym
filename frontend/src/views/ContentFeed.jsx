@@ -8,7 +8,8 @@ import { useSocial } from '../lib/social.js'
 import ContentPost from '../components/ContentPost.jsx'
 import Icon from '../components/Icon.jsx'
 
-// A client's view of their trainer's content library. The client can react to each post.
+// A client's feed: their trainer's posts and their gym's, newest first, each saying who wrote it.
+// The client reacts to their trainer's posts; the gym's are read-only.
 export default function ContentFeed() {
   const nav = useNavigate()
   const toast = useUI(s => s.toast)
@@ -19,12 +20,13 @@ export default function ContentFeed() {
   return <div className="narrow">
     <div className="hdr">
       <button className="iconbtn" onClick={() => nav('/home')} aria-label={t('Back')}><Icon name="chevronLeft" /></button>
-      <div style={{ flex: 1, marginLeft: 8 }}><h1 style={{ margin: 0 }}>{t('From your trainer')}</h1>
-        <div className="sub capitalize">{d?.trainer ? d.trainer.name : ''}</div></div>
+      <div style={{ flex: 1, marginLeft: 8 }}><h1 style={{ margin: 0 }}>{d?.gym ? t('Content') : t('From your trainer')}</h1>
+        <div className="sub capitalize">{[d?.trainer?.name, d?.gym?.name].filter(Boolean).join(' · ')}</div></div>
     </div>
     {!d ? <div className="muted small">{t('Loading…')}</div>
-      : !d.trainer ? <div className="empty small">{t('You don’t have a trainer yet.')}</div>
-      : d.posts.length ? d.posts.map(p => <ContentPost key={p.id} post={p} trainerId={d.trainer.id} social={social} myId={user?.id} />)
-      : <div className="empty small">{t('Your trainer hasn’t published anything yet.')}</div>}
+      : !d.trainer && !d.gym ? <div className="empty small">{t('You don’t have a trainer yet.')}</div>
+      : d.posts.length ? d.posts.map(p => <ContentPost key={p.source + p.id} post={p} trainerId={p.source}
+        social={p.source === d.trainer?.id ? social : null} myId={user?.id} />)
+      : <div className="empty small">{t('Nothing published yet.')}</div>}
   </div>
 }

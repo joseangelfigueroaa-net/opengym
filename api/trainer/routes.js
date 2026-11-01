@@ -41,10 +41,12 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   const db = () => G.ensureShape(getDb());
   const NUTRITION_PLAN = 'meals and macros come with the Silver plan or higher';
   const query = (req, k) => new URL(req.url, 'http://x').searchParams.get(k);
+  // The trainer's own seats (their plan) and, apart, the gym's clients they train.
   const seats = (trainer, now = Date.now()) => ({
     plan: T.planOf(trainer), limit: T.limitOf(trainer),
-    clients: T.clientIdsOf(db(), trainer.id).length,
-    open: T.openInvites(db(), trainer.id, now).length
+    clients: T.personalIdsOf(db(), trainer.id).length,
+    open: T.openInvites(db(), trainer.id, now).filter(i => !i.gymId).length,
+    gym: T.clientIdsOf(db(), trainer.id).length - T.personalIdsOf(db(), trainer.id).length
   });
 
   /* ---------- per-user JSON files next to db.json ---------- */
@@ -95,6 +97,13 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   const author = (user, role) => ({ id: user.id, role });
   const notify = (uid, title, body, url) => sendPush(uid, { title, body: body.slice(0, 140), tag: 'chat', url }).catch?.(() => {});
 
+  // The gym where this account may do `perm` (the owner may do anything), or a refusal already sent.
+  const asGym = (req, res, perm) => {
+    const user = signedIn(req, res); if (!user) return null;
+    const gym = G.gymFor(db(), user, perm);
+    if (!gym) { json(res, 403, { error: 'you cannot do this at the gym' }); return null; }
+    return { user, gym };
+  };
   // The gym this signed-in account owns, or a refusal already sent.
   const asOwner = (req, res) => {
     const user = signedIn(req, res); if (!user) return null;
@@ -103,7 +112,29 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     return { user, gym };
   };
   const memberStatus = uid => { const u = userById(uid); return u ? T.clientSummary(u, { created: '' }, readState(uid), recordsOf(uid)).status : null; };
-  const gymView = gym => G.overview(db(), gym, memberStatus);
+  // The gym's conversation with one person (a member or a trainer). The gym writes as its owner.
+  const gymChatName = (gym, uid) => 'gymchat-' + safe(gym.id) + '-' + safe(uid) + '.json';
+  const gymChatOf = (gym, uid) => load(gymChatName(gym, uid));
+  const inGym = (gym, uid) => !!G.staffRow(db(), gym.id, uid) || G.membersOf(db(), gym.id).some(m => m.userId === uid);
+  // The gym's side of the panel adds what only files know: does the member have workouts coming
+  // from their trainer (the gym never sends workouts itself), and unread messages to the gym.
+  const withFiles = (view, gym) => ({
+    ...view,
+    members: view.members.map(m => ({ ...m, planned: A.upcoming(assignOf(m.id), today()).length > 0, unread: C.unreadFor(gymChatOf(gym, m.id), gym.ownerId) })),
+    trainers: view.trainers.map(x => ({ ...x, unread: x.id === gym.ownerId ? 0 : C.unreadFor(gymChatOf(gym, x.id), gym.ownerId) }))
+  });
+  const gymView = (gym, user) => ({ ...withFiles(G.overview(db(), gym, memberStatus), gym), me: { owner: gym.ownerId === user?.id, perms: gym.ownerId === user?.id ? G.STAFF_PERMS : G.staffRow(db(), gym.id, user?.id)?.perms || [] } });
+  // A gym's posts live like a trainer's, filed under the gym's id; each one says who wrote it.
+  const gymOf = user => { const r = G.roleOf(db(), user); return r ? G.gymById(db(), r.id) : null; };
+  const canSeeGymContent = (user, gym) => {
+    const r = G.roleOf(db(), user);
+    return !!r && r.id === gym.id && (r.role !== 'member' || (r.perms || []).includes('content'));
+  };
+  const authorOf = (post, owner) => {
+    if (post.gym) { const g = G.gymById(db(), owner); const by = userById(post.by); return by && g && by.id !== g.ownerId ? { kind: 'trainer', name: by.name, gym: g.name } : { kind: 'gym', name: g?.name || '' }; }
+    const by = userById(owner); return { kind: 'trainer', name: by?.name || '' };
+  };
+  const withAuthor = (post, owner) => ({ ...K.publicPost(post), source: owner, author: authorOf(post, owner), by: post.by || owner });
 
   return {
     /* ------------------------------ trainer ------------------------------ */
@@ -140,8 +171,9 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
           return { id: u.id, name: u.name, since: l.created, workouts: 0, status: { code: 'new', days: null, last: null }, unread: 0 };
         }
       }).filter(Boolean);
-      const invites = T.openInvites(db(), trainer.id, now).map(i => ({ token: i.token, created: i.created }));
-      json(res, 200, { clients, invites, seats: seats(trainer, now), inviteDays: T.INVITE_DAYS });
+      const staff = db().gymStaff.find(s => s.userId === trainer.id);
+      const gym = staff && G.gymById(db(), staff.gymId);
+      json(res, 200, { clients, invites: T.openInvites(db(), trainer.id, now).map(i => ({ token: i.token, created: i.created, forGym: !!i.gymId })), seats: seats(trainer, now), inviteDays: T.INVITE_DAYS, gym: gym ? { name: gym.name } : null });
     },
 
     'GET /api/trainer/client': async (req, res) => {
@@ -179,8 +211,12 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
 
     'POST /api/trainer/invite': async (req, res) => {
       const trainer = asTrainer(req, res); if (!trainer) return;
+      const body = await readBody(req);
       try {
-        const inv = T.createInvite(db(), trainer);
+        // a trainer at a gym chooses: a client for the gym (the gym pays) or their own (their plan)
+        const staff = db().gymStaff.find(s => s.userId === trainer.id);
+        if (body.forGym && !staff) return json(res, 400, { error: 'you do not work at a gym' });
+        const inv = T.createInvite(db(), trainer, Date.now(), body.forGym ? { gymId: staff.gymId } : {});
         saveDb();
         json(res, 200, { invite: { token: inv.token, created: inv.created }, seats: seats(trainer) });
       } catch (e) { fail(res, e); }
@@ -285,7 +321,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
 
     'GET /api/trainer/content': async (req, res) => {
       const trainer = asTrainer(req, res); if (!trainer) return;
-      json(res, 200, { posts: (contentOf(trainer.id).posts || []).map(K.publicPost).reverse() });
+      json(res, 200, { posts: (contentOf(trainer.id).posts || []).map(p => withAuthor(p, trainer.id)).reverse() });
     },
 
     'POST /api/trainer/content': async (req, res) => {
@@ -324,15 +360,20 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'GET /api/content': async (req, res) => {
       const user = signedIn(req, res); if (!user) return;
       const owner = T.isTrainer(user) ? user : trainerOf(user);
-      if (!owner) return json(res, 200, { posts: [], trainer: null });
-      json(res, 200, { posts: (contentOf(owner.id).posts || []).map(K.publicPost).reverse(), trainer: { id: owner.id, name: owner.name } });
+      const gym = gymOf(user);
+      const posts = [
+        ...(owner ? (contentOf(owner.id).posts || []).map(p => withAuthor(p, owner.id)) : []),
+        ...(gym && canSeeGymContent(user, gym) ? (contentOf(gym.id).posts || []).map(p => withAuthor(p, gym.id)) : [])
+      ].sort((a, b) => b.at.localeCompare(a.at));
+      json(res, 200, { posts, trainer: owner ? { id: owner.id, name: owner.name } : null, gym: gym ? { id: gym.id, name: gym.name } : null });
     },
 
     // Files are private: only the trainer who posted them and that trainer's clients, signed in.
     'GET /api/content/file': async (req, res) => {
       const user = signedIn(req, res); if (!user) return;
       const trainerId = query(req, 'trainer'), postId = query(req, 'post');
-      const allowed = user.id === trainerId || T.isLinked(db(), trainerId, user.id);
+      const gym = G.gymById(db(), trainerId);   // a gym's file: anyone in the gym who sees its posts
+      const allowed = gym ? canSeeGymContent(user, gym) : user.id === trainerId || T.isLinked(db(), trainerId, user.id);
       if (!allowed) return json(res, 403, { error: 'forbidden' });
       const post = (contentOf(trainerId).posts || []).find(p => p.id === postId);
       if (!post || !post.file) return json(res, 404, { error: 'not found' });
@@ -559,7 +600,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     // is all it gives away — the token is the secret, not the name behind it.
     'GET /api/invite': async (req, res) => {
       const token = query(req, 'token');
-      try { const { trainer } = T.usableInvite(db(), token, Date.now(), readSession(req)); json(res, 200, { trainer: { name: trainer.name } }); }
+      try { const { trainer, inv } = T.usableInvite(db(), token, Date.now(), readSession(req)); json(res, 200, { trainer: { name: trainer.name }, gym: inv.gymId ? { name: G.gymById(db(), inv.gymId)?.name || '' } : null }); }
       catch (e) { fail(res, e); }
     },
 
@@ -567,7 +608,8 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const user = signedIn(req, res); if (!user) return;
       const body = await readBody(req);
       try {
-        const { trainer } = T.acceptInvite(db(), user, body.token);
+        const { inv } = T.usableInvite(db(), body.token, Date.now(), user);
+        const { trainer } = inv.gymId ? G.acceptClientInvite(db(), user, inv) : T.acceptInvite(db(), user, body.token);
         saveDb();
         json(res, 200, { trainer: { name: trainer.name } });
       } catch (e) { fail(res, e); }
@@ -596,46 +638,46 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     /* ------------------------------ gyms ------------------------------ */
 
     'GET /api/gym': async (req, res) => {
-      const o = asOwner(req, res); if (!o) return;
-      json(res, 200, gymView(o.gym));
+      const o = asGym(req, res, 'members'); if (!o) return;
+      json(res, 200, gymView(o.gym, o.user));
     },
 
     'POST /api/gym/invite': async (req, res) => {
       const o = asOwner(req, res); if (!o) return;
       const body = await readBody(req);
-      try { const inv = G.createInvite(db(), o.gym, body.kind); saveDb(); json(res, 200, { invite: { token: inv.token, kind: inv.kind, created: inv.created } }); }
+      try { const inv = G.createInvite(db(), o.gym, body.kind, Date.now(), { perms: body.perms, trainerId: body.trainer }); saveDb(); json(res, 200, { invite: { token: inv.token, kind: inv.kind, created: inv.created, perms: inv.perms } }); }
       catch (e) { fail(res, e); }
     },
 
     'POST /api/gym/invite/revoke': async (req, res) => {
       const o = asOwner(req, res); if (!o) return;
       const body = await readBody(req);
-      try { G.revokeInvite(db(), o.gym, String(body.token || '')); saveDb(); json(res, 200, gymView(o.gym)); }
+      try { G.revokeInvite(db(), o.gym, String(body.token || '')); saveDb(); json(res, 200, gymView(o.gym, o.user)); }
       catch (e) { fail(res, e); }
     },
 
     'POST /api/gym/assign': async (req, res) => {
-      const o = asOwner(req, res); if (!o) return;
+      const o = asGym(req, res, 'assign'); if (!o) return;
       const body = await readBody(req);
       try {
         G.assign(db(), o.gym, String(body.member || ''), String(body.trainer || ''));
         saveDb();
         notify(String(body.member), o.gym.name, `${userById(String(body.trainer))?.name || ''}`, '#/my-trainer');
-        json(res, 200, gymView(o.gym));
+        json(res, 200, gymView(o.gym, o.user));
       } catch (e) { fail(res, e); }
     },
 
     'POST /api/gym/unassign': async (req, res) => {
-      const o = asOwner(req, res); if (!o) return;
+      const o = asGym(req, res, 'assign'); if (!o) return;
       const body = await readBody(req);
-      try { G.unassign(db(), o.gym, String(body.member || '')); saveDb(); json(res, 200, gymView(o.gym)); }
+      try { G.unassign(db(), o.gym, String(body.member || '')); saveDb(); json(res, 200, gymView(o.gym, o.user)); }
       catch (e) { fail(res, e); }
     },
 
     // Spreads every member without a trainer over the trainers with room, shift first.
     'POST /api/gym/auto-assign': async (req, res) => {
-      const o = asOwner(req, res); if (!o) return;
-      try { const r = G.autoAssign(db(), o.gym); saveDb(); json(res, 200, { ...gymView(o.gym), result: r }); }
+      const o = asGym(req, res, 'assign'); if (!o) return;
+      try { const r = G.autoAssign(db(), o.gym); saveDb(); json(res, 200, { ...gymView(o.gym, o.user), result: r }); }
       catch (e) { fail(res, e); }
     },
 
@@ -643,21 +685,123 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     'POST /api/gym/staff/self': async (req, res) => {
       const o = asOwner(req, res); if (!o) return;
       const body = await readBody(req);
-      try { G.addOwnerAsStaff(db(), o.gym, o.user, { shift: body.shift }); saveDb(); json(res, 200, gymView(o.gym)); }
+      try { G.addOwnerAsStaff(db(), o.gym, o.user, { shift: body.shift }); saveDb(); json(res, 200, gymView(o.gym, o.user)); }
       catch (e) { fail(res, e); }
+    },
+
+    // The owner changes what a trainer or a member may do.
+    'POST /api/gym/perms': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      const body = await readBody(req);
+      try { G.setPerms(db(), o.gym, body.kind === 'trainer' ? 'trainer' : 'member', String(body.id || ''), body.perms); saveDb(); json(res, 200, gymView(o.gym, o.user)); }
+      catch (e) { fail(res, e); }
+    },
+
+    /* the gym's own posts: by the owner (signed as the gym) or a trainer allowed to publish */
+    'GET /api/gym/content': async (req, res) => {
+      const o = asGym(req, res, 'content'); if (!o) return;
+      json(res, 200, { posts: (contentOf(o.gym.id).posts || []).map(p => withAuthor(p, o.gym.id)).reverse(), gym: { id: o.gym.id, name: o.gym.name } });
+    },
+
+    'POST /api/gym/content': async (req, res) => {
+      const o = asGym(req, res, 'content'); if (!o) return;
+      const body = await readBody(req);
+      try {
+        const file = contentOf(o.gym.id);
+        file.posts = file.posts || [];
+        if (file.posts.length >= K.MAX_POSTS) throw new K.ContentError('content limit reached — delete old posts first');
+        const { post, bytes } = K.makePost(body);
+        post.by = o.user.id; post.gym = true;
+        if (bytes) {
+          await fs.promises.mkdir(contentDir(o.gym.id), { recursive: true });
+          await fs.promises.writeFile(path.join(contentDir(o.gym.id), post.id), bytes);
+        }
+        file.posts.push(post);
+        store('content-' + safe(o.gym.id) + '.json', file);
+        const from = authorOf(post, o.gym.id).name;
+        for (const m of G.membersOf(db(), o.gym.id)) if ((m.perms || ['content']).includes('content')) notify(m.userId, from, post.title, '#/content');
+        json(res, 200, { post: withAuthor(post, o.gym.id) });
+      } catch (e) { fail(res, e); }
+    },
+
+    // The owner removes any gym post; a trainer only their own.
+    'POST /api/gym/content/delete': async (req, res) => {
+      const o = asGym(req, res, 'content'); if (!o) return;
+      const body = await readBody(req);
+      const file = contentOf(o.gym.id);
+      const post = (file.posts || []).find(p => p.id === String(body.id || ''));
+      if (!post || (o.gym.ownerId !== o.user.id && post.by !== o.user.id)) return json(res, 404, { error: 'no such post' });
+      file.posts = file.posts.filter(p => p !== post);
+      store('content-' + safe(o.gym.id) + '.json', file);
+      if (post.file) await fs.promises.rm(path.join(contentDir(o.gym.id), post.id), { force: true });
+      json(res, 200, { ok: true });
+    },
+
+    /* the gym's messages: the owner writes to any member or trainer; each of them to the gym */
+    'GET /api/gym/chat': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const own = G.ownedGym(db(), user.id);
+      let gym, uid, other;
+      if (own && query(req, 'with')) {
+        gym = own; uid = query(req, 'with');
+        const u = userById(uid);
+        if (!u || !inGym(gym, uid)) return json(res, 404, { error: 'this person is not at your gym' });
+        other = { id: u.id, name: u.name };
+      } else {
+        gym = gymOf(user); uid = user.id;
+        if (!gym || gym.ownerId === user.id) return json(res, 404, { error: 'you have no gym to write to' });
+        other = { id: gym.ownerId, name: gym.name };
+      }
+      const file = gymChatOf(gym, uid);
+      if (C.unreadFor(file, user.id)) { C.markRead(file, user.id); store(gymChatName(gym, uid), file); }
+      json(res, 200, { messages: C.recent(file), me: user.id, other, readByOther: (file.read || {})[other.id] || null });
+    },
+
+    'POST /api/gym/chat': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const body = await readBody(req);
+      const own = G.ownedGym(db(), user.id);
+      let gym, uid, to;
+      if (own && body.with) {
+        gym = own; uid = String(body.with); to = uid;
+        if (!userById(uid) || !inGym(gym, uid)) return json(res, 404, { error: 'this person is not at your gym' });
+      } else {
+        gym = gymOf(user); uid = user.id; to = gym?.ownerId;
+        if (!gym || gym.ownerId === user.id) return json(res, 404, { error: 'you have no gym to write to' });
+      }
+      try {
+        const file = gymChatOf(gym, uid);
+        const msg = C.addMessage(file, user.id, body.text);
+        store(gymChatName(gym, uid), file);
+        notify(to, to === gym.ownerId ? user.name : gym.name, msg.text, to === gym.ownerId ? '#/gym/chat/' + uid : '#/gym/chat');
+        json(res, 200, { message: msg });
+      } catch (e) { fail(res, e); }
+    },
+
+    // Badge: the owner's unread across everyone at the gym; anyone else's from the gym.
+    'GET /api/gym/chat/unread': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const own = G.ownedGym(db(), user.id);
+      if (own) {
+        const ids = [...G.staffOf(db(), own.id).map(s => s.userId), ...G.membersOf(db(), own.id).map(m => m.userId)].filter(id => id !== user.id);
+        return json(res, 200, { count: ids.reduce((n, id) => n + C.unreadFor(gymChatOf(own, id), user.id), 0) });
+      }
+      const gym = gymOf(user);
+      json(res, 200, { count: gym ? C.unreadFor(gymChatOf(gym, user.id), user.id) : 0 });
     },
 
     'POST /api/gym/staff/remove': async (req, res) => {
       const o = asOwner(req, res); if (!o) return;
       const body = await readBody(req);
-      try { G.removeStaff(db(), o.gym, String(body.id || '')); saveDb(); json(res, 200, gymView(o.gym)); }
+      try { G.removeStaff(db(), o.gym, String(body.id || '')); saveDb(); json(res, 200, gymView(o.gym, o.user)); }
       catch (e) { fail(res, e); }
     },
 
     'POST /api/gym/shift': async (req, res) => {
-      const o = asOwner(req, res); if (!o) return;
       const body = await readBody(req);
-      try { G.setShift(db(), o.gym, body.kind === 'trainer' ? 'trainer' : 'member', String(body.id || ''), body.shift); saveDb(); json(res, 200, gymView(o.gym)); }
+      // a trainer's shift is the owner's call; a member's, anyone who assigns
+      const o = body.kind === 'trainer' ? asOwner(req, res) : asGym(req, res, 'assign'); if (!o) return;
+      try { G.setShift(db(), o.gym, body.kind === 'trainer' ? 'trainer' : 'member', String(body.id || ''), body.shift); saveDb(); json(res, 200, gymView(o.gym, o.user)); }
       catch (e) { fail(res, e); }
     },
 

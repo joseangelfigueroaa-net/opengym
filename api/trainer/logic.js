@@ -4,8 +4,9 @@
  * be tested against a plain object. Shapes added to db.json:
  *
  *   users[].trainer      { plan: 'free' | 'silver' | 'gold' | 'platinum', since }   set by an admin; absent = not a trainer
- *   links[]              { trainerId, clientId, created }     one trainer per client
- *   trainerInvites[]     { token, trainerId, created, usedBy?, usedAt? }
+ *   links[]              { trainerId, clientId, created, viaGym? }     one trainer per client;
+ *                        viaGym marks a gym's client (gym.js), which the gym pays for, not the trainer
+ *   trainerInvites[]     { token, trainerId, created, usedBy?, usedAt?, gymId? }   gymId: a gym client's invite
  *
  * The client's own state file is never written from here: a trainer only ever reads it.
  */
@@ -40,11 +41,14 @@ export const featuresOf = user => (isTrainer(user) ? PLAN_FEATURES[planOf(user)]
 export const hasFeature = (user, f) => featuresOf(user).includes(f);
 export const clientIdsOf = (db, trainerId) => db.links.filter(l => l.trainerId === trainerId).map(l => l.clientId);
 export const linkOf = (db, clientId) => db.links.find(l => l.clientId === clientId) || null;
+// The trainer's own clients, the ones their plan pays for (a gym's clients are the gym's).
+export const personalIdsOf = (db, trainerId) => db.links.filter(l => l.trainerId === trainerId && !l.viaGym).map(l => l.clientId);
 export const isLinked = (db, trainerId, clientId) => db.links.some(l => l.trainerId === trainerId && l.clientId === clientId);
 
-/** Seats in use count open invites too, so a free trainer can't hand out ten links for one seat. */
+/** Seats in use count open invites too, so a free trainer can't hand out ten links for one seat.
+ *  Only the trainer's own clients and invites: a gym's clients don't take the trainer's seats. */
 export function seatsUsed(db, trainerId, now = Date.now()) {
-  return clientIdsOf(db, trainerId).length + openInvites(db, trainerId, now).length;
+  return personalIdsOf(db, trainerId).length + openInvites(db, trainerId, now).filter(i => !i.gymId).length;
 }
 
 export function openInvites(db, trainerId, now = Date.now()) {
@@ -60,14 +64,15 @@ export function setTrainer(user, plan) {
   return user;
 }
 
-export function createInvite(db, trainer, now = Date.now()) {
+/** `gymId`: an invite for a client of the gym this trainer works at (gym.js checks the gym's room). */
+export function createInvite(db, trainer, now = Date.now(), { gymId } = {}) {
   if (!isTrainer(trainer)) throw new TrainerError('not_trainer', 'this account is not a trainer');
-  if (seatsUsed(db, trainer.id, now) >= limitOf(trainer))
+  if (!gymId && seatsUsed(db, trainer.id, now) >= limitOf(trainer))
     throw new TrainerError('limit', 'your plan is full — remove a client or an open invite first');
   let token;
   // 128 bits, made here and never by the browser: the link is the whole credential.
   do { token = crypto.randomBytes(16).toString('hex'); } while (db.trainerInvites.some(i => i.token === token));
-  const invite = { token, trainerId: trainer.id, created: new Date(now).toISOString() };
+  const invite = { token, trainerId: trainer.id, created: new Date(now).toISOString(), ...(gymId ? { gymId } : {}) };
   db.trainerInvites.push(invite);
   return invite;
 }
@@ -94,7 +99,7 @@ export function acceptInvite(db, client, token, now = Date.now()) {
     : 'you already have a trainer — leave them first');
   // The invite already holds its seat, so the limit cannot be exceeded here even if the plan
   // shrank since it was made; refuse anyway rather than overfill a downgraded plan.
-  if (clientIdsOf(db, trainer.id).length >= limitOf(trainer))
+  if (personalIdsOf(db, trainer.id).length >= limitOf(trainer))
     throw new TrainerError('limit', 'this trainer has no free seats right now');
   const link = { trainerId: trainer.id, clientId: client.id, created: new Date(now).toISOString() };
   db.links.push(link);
@@ -212,7 +217,7 @@ export function clientSummary(user, link, S, rec = null, now = Date.now()) {
   const last = workouts[workouts.length - 1];
   const lastW = weights[weights.length - 1];
   return {
-    id: user.id, name: user.name, since: link.created,
+    id: user.id, name: user.name, since: link.created, gym: !!link.viaGym,
     unit: S.unit || 'kg',
     workouts: workouts.length,
     last30: workouts.filter(w => w.d && daysAgo(w.d, now) < 30).length,

@@ -37,12 +37,14 @@ function MyTrainerRow() {
 
 // A member's side of a gym: what the gym sees, and the way out. Staff leave through the owner.
 function MyGymRow() {
+  const navTo = useNavigate()
   const toast = useUI(s => s.toast)
   const user = useStore(s => s.user)
   const setUser = useStore(s => s.setUser)
   const g = user?.gym
   if (!g || g.role === 'owner') return null
-  if (g.role === 'trainer') return <Row icon="dumbbell" iconTint="var(--teal)" title={t('You work at {0}', g.name)} subtitle={t('The gym assigns you members.')} />
+  const chat = <Row icon="chat" iconTint="var(--acc)" title={t('Messages with {0}', g.name)} accessory="chevron" onClick={() => navTo('/gym/chat')} />
+  if (g.role === 'trainer') return <><Row icon="dumbbell" iconTint="var(--teal)" title={t('You work at {0}', g.name)} subtitle={t('The gym assigns you members.')} />{chat}</>
   const leave = () => confirmSheet({
     title: t('Leave {0}?', g.name),
     message: t('The gym stops seeing your activity, and a trainer it assigned you stops seeing your data. Your data stays with you.'),
@@ -50,7 +52,7 @@ function MyGymRow() {
     onConfirm: () => api('/api/me/gym/leave', { method: 'POST', body: '{}' })
       .then(() => api('/api/me')).then(r => { setUser(r.user); toast(t('You left {0}', g.name)) }).catch(e => toast(e.message))
   })
-  return <Row icon="dumbbell" iconTint="var(--teal)" title={t('Your gym: {0}', g.name)} subtitle={t('Sees your name, shift, trainer and when you last trained. Tap to leave.')} onClick={leave} />
+  return <><Row icon="dumbbell" iconTint="var(--teal)" title={t('Your gym: {0}', g.name)} subtitle={t('Sees your name, shift, trainer and when you last trained. Tap to leave.')} onClick={leave} />{chat}</>
 }
 
 export default function Settings() {

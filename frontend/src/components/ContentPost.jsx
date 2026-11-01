@@ -9,13 +9,22 @@ export const fileUrl = (trainerId, postId) => '/api/content/file?trainer=' + enc
 const kb = n => n < 1048576 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(1) + ' MB'
 
 // `social` (useSocial on the trainer) adds the reactions: a client taps, the trainer sees the counts.
+// The author line: the gym itself, a trainer writing for the gym, or the client's own trainer.
+export function authorLine(a) {
+  if (!a) return ''
+  if (a.kind === 'gym') return a.name
+  return a.gym ? t('{0} · for {1}', a.name, a.gym) : a.name
+}
+
 export default function ContentPost({ post, trainerId, onDelete, social, myId, readOnly }) {
-  const url = post.file && fileUrl(trainerId, post.id)
+  const url = post.file && fileUrl(post.source || trainerId, post.id)
   return <article className="card">
     <div className="row between" style={{ gap: 8, alignItems: 'flex-start' }}>
       <div style={{ minWidth: 0 }}>
         <h3 style={{ margin: 0, overflowWrap: 'anywhere' }}>{post.title}</h3>
-        <div className="dim" style={{ fontSize: '.72rem' }}>{fmtDate(post.at.slice(0, 10), true)}</div>
+        <div className="dim" style={{ fontSize: '.72rem', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+          {post.author && <><Icon name={post.author.kind === 'gym' ? 'dumbbell' : 'person'} /><b className="capitalize">{authorLine(post.author)}</b> · </>}
+          {fmtDate(post.at.slice(0, 10), true)}</div>
       </div>
       {onDelete && <button className="iconbtn" style={{ width: 44, height: 44, fontSize: 16, color: 'var(--red)', flexShrink: 0 }} onClick={onDelete} aria-label={t('Delete post')}><Icon name="trash" /></button>}
     </div>

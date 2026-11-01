@@ -43,6 +43,7 @@ import ClientChat from './views/ClientChat.jsx'
 import ContentFeed from './views/ContentFeed.jsx'
 import Gym from './views/Gym.jsx'
 import GymJoin from './views/GymJoin.jsx'
+import GymChat from './views/GymChat.jsx'
 import { api } from './lib/api.js'
 import { applyAssignments } from './lib/trainer.js'
 import { todayISO } from './lib/format.js'
@@ -124,6 +125,8 @@ function Shell() {
   useTrainerAssignments(ready && !!user && !user.trainer)
   // a gym owner lands on the gym; a trainer on their clients; everyone else on Today
   const owner = user?.gym?.role === 'owner'
+  // a trainer the gym let see its members opens the panel too (read-only past their permissions)
+  const gymViewer = user?.gym?.role === 'trainer' && (user.gym.perms || []).includes('members')
   const home = owner ? '/gym' : user?.trainer ? '/trainer' : '/home'
   const led = trainerLed(user)
 
@@ -178,8 +181,10 @@ function Shell() {
               <Route path="/content" element={<ContentFeed />} />
               <Route path="/join/:token" element={<Join />} />
               {/* gyms: the owner's panel (gates itself on user.gym) and a gym's join link */}
-              <Route path="/gym" element={owner ? <Gym /> : <Navigate to={home} replace />} />
+              <Route path="/gym" element={owner || gymViewer ? <Gym /> : <Navigate to={home} replace />} />
               <Route path="/gym/join/:token" element={<GymJoin />} />
+              <Route path="/gym/chat" element={<GymChat />} />
+              <Route path="/gym/chat/:id" element={<GymChat />} />
               <Route path="/admin" element={user?.admin ? <Admin /> : <Navigate to="/home" replace />} />
               <Route path="*" element={<Navigate to={home} replace />} />
             </Routes>

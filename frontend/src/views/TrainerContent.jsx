@@ -6,10 +6,12 @@ import { t } from '../lib/i18n.js'
 import { useSocial } from '../lib/social.js'
 import { confirmSheet } from '../sheets.jsx'
 import ContentPost from '../components/ContentPost.jsx'
-import { Button, TextField, TextArea } from '../components/ui.jsx'
+import { Button, TextField, TextArea, Segmented } from '../components/ui.jsx'
 
 // The trainer's content library: guides, routines, tips — text, a link (video lives on
 // YouTube or Drive) or an image/PDF. Every client sees it in their app, newest first.
+// At a gym, the owner and trainers the gym allowed also publish for the whole gym: those posts
+// reach every member and are signed by the gym (the owner) or by the trainer who wrote them.
 
 const MAX_FILE = 3.5 * 1024 * 1024
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,application/pdf'
@@ -25,6 +27,9 @@ export default function TrainerContent() {
   const user = useStore(s => s.user)
   const toast = useUI(s => s.toast)
   const [posts, setPosts] = useState(null)
+  const g = user?.gym
+  const canGym = g?.role === 'owner' || (g?.role === 'trainer' && (g.perms || []).includes('content'))
+  const [scope, setScope] = useState(user?.trainer ? 'mine' : 'gym')
   const [form, setForm] = useState({ title: '', body: '', link: '' })
   const [file, setFile] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -32,9 +37,12 @@ export default function TrainerContent() {
   const fileRef = useRef(null)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const load = () => api('/api/trainer/content').then(d => setPosts(d.posts)).catch(e => toast(e.message))
-  useEffect(() => { if (user?.trainer) load() }, [!!user?.trainer])
-  if (!user?.trainer) return null
+  const load = () => Promise.all([
+    user?.trainer ? api('/api/trainer/content').then(d => d.posts) : [],
+    canGym ? api('/api/gym/content').then(d => d.posts.map(p => ({ ...p, gymPost: true }))) : []
+  ]).then(([a, b]) => setPosts([...a, ...b].sort((x, y) => y.at.localeCompare(x.at)))).catch(e => toast(e.message))
+  useEffect(() => { if (user?.trainer || canGym) load() }, [!!user?.trainer, canGym])
+  if (!user?.trainer && !canGym) return null
 
   const pick = e => {
     const f = e.target.files[0]
@@ -48,10 +56,10 @@ export default function TrainerContent() {
     try {
       const body = { ...form }
       if (file) body.file = { name: file.name, type: file.type, data: await asBase64(file) }
-      await api('/api/trainer/content', { method: 'POST', body: JSON.stringify(body) })
+      await api(scope === 'gym' ? '/api/gym/content' : '/api/trainer/content', { method: 'POST', body: JSON.stringify(body) })
       setForm({ title: '', body: '', link: '' }); setFile(null)
       if (fileRef.current) fileRef.current.value = ''
-      toast(t('Published — your clients can see it now'))
+      toast(scope === 'gym' ? t('Published — the whole gym can see it now') : t('Published — your clients can see it now'))
       load()
     } catch (err) { toast(err.message) }
     setBusy(false)
@@ -59,7 +67,7 @@ export default function TrainerContent() {
   const del = p => confirmSheet({
     title: t('Delete this post?'), message: t('Your clients stop seeing it. This cannot be undone.'),
     confirmText: t('Delete'), danger: true,
-    onConfirm: () => api('/api/trainer/content/delete', { method: 'POST', body: JSON.stringify({ id: p.id }) })
+    onConfirm: () => api(p.gymPost ? '/api/gym/content/delete' : '/api/trainer/content/delete', { method: 'POST', body: JSON.stringify({ id: p.id }) })
       .then(() => { toast(t('Post deleted')); load() }).catch(err => toast(err.message))
   })
 
@@ -69,6 +77,8 @@ export default function TrainerContent() {
     <div className="cols">
       <form className="card" onSubmit={publish} style={{ display: 'grid', gap: 10 }}>
         <h2 style={{ margin: 0 }}>{t('New post')}</h2>
+        {canGym && user?.trainer && <Segmented options={[{ value: 'mine', label: t('My clients') }, { value: 'gym', label: t('Whole gym') }]} value={scope} onChange={setScope} />}
+        {canGym && <div className="dim small">{scope === 'gym' ? (g.role === 'owner' ? t('Signed as {0}. Every member who can see the gym’s content gets it.', g.name) : t('Signed with your name, for the whole of {0}.', g.name)) : t('Only your clients see it.')}</div>}
         <label className="small muted" style={{ display: 'grid', gap: 4 }}>{t('Title')}
           <TextField maxLength={120} value={form.title} onChange={e => set('title', e.target.value)} placeholder={t('E.g. How to warm up before legs')} /></label>
         <label className="small muted" style={{ display: 'grid', gap: 4 }}>{t('Text')}
@@ -81,7 +91,8 @@ export default function TrainerContent() {
       </form>
       <div>
         {!posts ? <div className="muted small">{t('Loading…')}</div>
-          : posts.length ? posts.map(p => <ContentPost key={p.id} post={p} trainerId={user.id} onDelete={() => del(p)} social={social} readOnly />)
+          : posts.length ? posts.map(p => <ContentPost key={(p.gymPost ? 'g' : 't') + p.id} post={p} trainerId={p.source || user.id}
+            onDelete={!p.gymPost || g?.role === 'owner' || p.by === user.id ? () => del(p) : null} social={p.gymPost ? null : social} readOnly />)
           : <div className="empty small">{t('Nothing published yet.')}</div>}
       </div>
     </div>
