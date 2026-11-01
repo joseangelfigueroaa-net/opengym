@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { api } from '../lib/api.js'
-import { fmtDate, fmtNum, fmtVol, fmtDur } from '../lib/format.js'
+import { fmtDate, fmtNum, fmtVol, fmtDur, ACCENTS } from '../lib/format.js'
 import { workoutVolume, setsDone } from '../lib/history.js'
 import { confirmSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
@@ -48,7 +48,9 @@ function UserDetail({ id, onChanged, close }) {
     if (plan === 'none') return confirmSheet({ title: '¿Cerrar ' + (u.gym?.name || 'el gimnasio') + '?', message: 'Los socios y entrenadores quedan fuera del gimnasio. Los vínculos que el gimnasio creó se deshacen.', confirmText: 'Cerrar gimnasio', danger: true, onConfirm: () => sendGym(null) })
     sendGym(plan)
   }
-  const sendGym = plan => api('/api/admin/user/gym', { method: 'POST', body: JSON.stringify({ id: u.id, name: gymName, plan }) })
+  // the gym's colours for everyone in it; null goes back to Trainnery's own
+  const setBrand = brand => u.gym ? sendGym(u.gym.plan, brand) : toast('Primero elige un plan de gimnasio')
+  const sendGym = (plan, brand) => api('/api/admin/user/gym', { method: 'POST', body: JSON.stringify({ id: u.id, name: gymName, plan, brand }) })
     .then(r => { setD({ ...d, user: { ...u, gym: r.gym } }); toast(r.gym ? 'Gimnasio: ' + r.gym.name + ' · ' + r.gym.plan : 'Gimnasio cerrado'); onChanged() })
     .catch(e => toast(e.message))
   // Trainnery: a sample client (no passkey) linked to this trainer, to show a filled-in client file.
@@ -95,6 +97,19 @@ function UserDetail({ id, onChanged, close }) {
         <button key={v} type="button" role="radio" aria-checked={(u.gym?.plan || 'none') === v} className={'chip nocap' + ((u.gym?.plan || 'none') === v ? ' on' : '')}
           onClick={() => setGym(v)}>{label}</button>)}
     </div>
+    {u.gym && <>
+      <div className="small muted" style={{ margin: '12px 0 6px' }}>Colores del gimnasio (para el dueño, sus entrenadores y sus socios)</div>
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center' }} role="radiogroup" aria-label="Color del gimnasio">
+        <button type="button" role="radio" aria-checked={!u.gym.brand} className={'chip nocap' + (!u.gym.brand ? ' on' : '')} onClick={() => setBrand(null)}>Colores de Trainnery</button>
+        {Object.entries(ACCENTS).map(([k, c]) => <button key={k} type="button" role="radio" aria-checked={u.gym.brand?.accent === k} aria-label={'Acento ' + k}
+          className={'swatch' + (u.gym.brand?.accent === k ? ' on' : '')} style={{ background: c, width: 30, height: 30 }}
+          onClick={() => setBrand({ accent: k, theme: u.gym.brand?.theme || 'dark' })} />)}
+      </div>
+      {u.gym.brand && <div className="row" style={{ gap: 6, marginTop: 8 }} role="radiogroup" aria-label="Fondo del gimnasio">
+        {[['dark', 'Fondo negro, letras blancas'], ['light', 'Fondo claro']].map(([v, label]) => <button key={v} type="button" role="radio" aria-checked={u.gym.brand.theme === v}
+          className={'chip nocap' + (u.gym.brand.theme === v ? ' on' : '')} onClick={() => setBrand({ ...u.gym.brand, theme: v })}>{label}</button>)}
+      </div>}
+    </>}
     <div className="dim small" style={{ marginTop: 6 }}>El dueño ve su panel en Gimnasio: invita entrenadores, comparte el código de socios y asigna socios a entrenadores. Para cambiar el nombre, escríbelo y toca el plan actual.</div>
     <h4 className="sec">Historial de entrenos</h4>
     {d.workouts.length ? <div className="list" style={{ gap: 0 }}>

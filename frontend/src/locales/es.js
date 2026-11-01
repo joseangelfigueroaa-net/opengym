@@ -1264,6 +1264,8 @@ export default {
   "{0} members assigned": "{0} socios asignados",
   "1 member assigned": "1 socio asignado",
   "1 member without a trainer": "1 socio sin entrenador",
+  "Colors set by {0}": "Colores de {0}",
+  "Your gym chose the app’s colors. Your own choice comes back if you leave it.": "Tu gimnasio eligió los colores de la app. Tu elección vuelve si sales del gimnasio.",
   "{0} plan · {1} of {2} members · {3} of {4} trainers": "Plan {0} · {1} de {2} socios · {3} de {4} entrenadores",
   "Members": "Socios",
   "Trainers": "Entrenadores",

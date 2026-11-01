@@ -683,7 +683,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
       const body = await readBody(req);
       const u = userById(body.id);
       if (!u) return json(res, 404, { error: 'no such user' });
-      try { const g = G.setGym(db(), u, { name: body.name, plan: body.plan || null }); saveDb(); json(res, 200, { ok: true, gym: g ? { id: g.id, name: g.name, plan: g.plan } : null }); }
+      try { const g = G.setGym(db(), u, { name: body.name, plan: body.plan || null, brand: body.brand }); saveDb(); json(res, 200, { ok: true, gym: g ? { id: g.id, name: g.name, plan: g.plan, brand: g.brand || null } : null }); }
       catch (e) { fail(res, e); }
     },
 

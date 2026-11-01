@@ -2,7 +2,8 @@
  *
  * Pure functions over the db object, like logic.js. Shapes added to db.json:
  *
- *   gyms[]        { id, name, ownerId, plan: 'basic' | 'pro' | 'chain', created }     one gym per owner
+ *   gyms[]        { id, name, ownerId, plan: 'basic' | 'pro' | 'chain', created, brand? }     one gym per owner
+ *                 brand: { accent, theme } — the app's colours for everyone in the gym (owner, staff, members)
  *   gymStaff[]    { gymId, userId, shift, since }      trainers who work there
  *   gymMembers[]  { gymId, userId, shift, since }      people who train there; one gym per person
  *   gymInvites[]  { token, gymId, kind: 'trainer' | 'member', created, usedBy?, usedAt?, signupBy? }
@@ -24,6 +25,9 @@ export const GYM_PLANS = {
   chain: { members: 5000, trainers: 100 }
 };
 export const SHIFTS = ['morning', 'afternoon', 'evening'];
+// The app's own accent names (frontend/src/lib/format.js ACCENTS) and themes.
+export const BRAND_ACCENTS = ['lime', 'sky', 'orange', 'violet', 'pink', 'red', 'teal', 'gold'];
+export const BRAND_THEMES = ['dark', 'light'];
 // A member code is posted at the front desk and used by many people, so it lives longer than a
 // trainer's personal link; a trainer's staff link is single-use like a client invite.
 export const MEMBER_CODE_DAYS = 90;
@@ -48,6 +52,13 @@ const isPlan = p => typeof p === 'string' && Object.hasOwn(GYM_PLANS, p);
 const cleanShift = s => (SHIFTS.includes(s) ? s : '');
 const cleanName = n => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 60);
 const ms = iso => Date.parse(iso);
+/** A gym's colours, or null for the app's own. Unknown values are dropped, never stored. */
+export function cleanBrand(b) {
+  if (!b || typeof b !== 'object') return null;
+  const accent = BRAND_ACCENTS.includes(b.accent) ? b.accent : null;
+  const theme = BRAND_THEMES.includes(b.theme) ? b.theme : null;
+  return accent || theme ? { accent, theme } : null;
+}
 
 export const gymById = (db, id) => db.gyms.find(g => g.id === id) || null;
 export const ownedGym = (db, userId) => db.gyms.find(g => g.ownerId === userId) || null;
@@ -61,18 +72,19 @@ export const limitsOf = gym => GYM_PLANS[isPlan(gym?.plan) ? gym.plan : 'basic']
 export function roleOf(db, user) {
   if (!user) return null;
   const own = ownedGym(db, user.id);
-  if (own) return { id: own.id, name: own.name, role: 'owner' };
+  if (own) return { id: own.id, name: own.name, role: 'owner', brand: own.brand || null };
   const staff = db.gymStaff.find(s => s.userId === user.id);
-  if (staff) { const g = gymById(db, staff.gymId); if (g) return { id: g.id, name: g.name, role: 'trainer', shift: staff.shift }; }
+  if (staff) { const g = gymById(db, staff.gymId); if (g) return { id: g.id, name: g.name, role: 'trainer', shift: staff.shift, brand: g.brand || null }; }
   const m = memberRow(db, user.id);
-  if (m) { const g = gymById(db, m.gymId); if (g) return { id: g.id, name: g.name, role: 'member', shift: m.shift }; }
+  if (m) { const g = gymById(db, m.gymId); if (g) return { id: g.id, name: g.name, role: 'member', shift: m.shift, brand: g.brand || null }; }
   return null;
 }
 
 /* ---------------- set up (admin) ---------------- */
 
-/** Makes `owner` the owner of a gym, renames it, or changes its plan. plan null closes it. */
-export function setGym(db, owner, { name, plan }, now = Date.now()) {
+/** Makes `owner` the owner of a gym, renames it, changes its plan or colours. plan null closes it.
+ *  `brand` undefined keeps the current colours; null goes back to the app's own. */
+export function setGym(db, owner, { name, plan, brand }, now = Date.now()) {
   const cur = ownedGym(db, owner.id);
   if (!plan) {
     if (cur) closeGym(db, cur);
@@ -81,8 +93,8 @@ export function setGym(db, owner, { name, plan }, now = Date.now()) {
   if (!isPlan(plan)) throw new GymError('bad', 'unknown gym plan');
   const n = cleanName(name) || cur?.name;
   if (!n) throw new GymError('bad', 'the gym needs a name');
-  if (cur) { cur.name = n; cur.plan = plan; return cur; }
-  const gym = { id: 'g' + crypto.randomBytes(8).toString('hex'), name: n, ownerId: owner.id, plan, created: new Date(now).toISOString() };
+  if (cur) { cur.name = n; cur.plan = plan; if (brand !== undefined) cur.brand = cleanBrand(brand); return cur; }
+  const gym = { id: 'g' + crypto.randomBytes(8).toString('hex'), name: n, ownerId: owner.id, plan, created: new Date(now).toISOString(), brand: cleanBrand(brand) };
   db.gyms.push(gym);
   return gym;
 }
@@ -274,7 +286,7 @@ export function overview(db, gym, statusOf, now = Date.now()) {
     return { id: m.userId, name: u?.name || '?', shift: m.shift, since: m.since, trainerId: tid, trainerName: tid ? names[tid] : null, outside, status };
   });
   return {
-    gym: { id: gym.id, name: gym.name, plan: gym.plan, limits: limitsOf(gym) },
+    gym: { id: gym.id, name: gym.name, plan: gym.plan, limits: limitsOf(gym), brand: gym.brand || null },
     trainers, members,
     invites: openInvites(db, gym.id, now).map(i => ({ token: i.token, kind: i.kind, created: i.created, expires: new Date(ms(i.created) + daysFor(i.kind) * 86400000).toISOString() }))
   };

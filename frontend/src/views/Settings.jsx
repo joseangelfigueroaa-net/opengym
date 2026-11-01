@@ -209,14 +209,15 @@ export default function Settings() {
 
     {/* ---------- appearance ---------- */}
     <Section title={t('Appearance')} footer={DEMO || MOBILE ? undefined : t('synced with your profile')}>
-      <Row icon="moon" iconTint="var(--indigo)" title={t('Theme')}>
+      {user?.gym?.brand && <Row icon="dumbbell" iconTint="var(--acc)" title={t('Colors set by {0}', user.gym.name)} subtitle={t('Your gym chose the app’s colors. Your own choice comes back if you leave it.')} />}
+      {!user?.gym?.brand && <Row icon="moon" iconTint="var(--indigo)" title={t('Theme')}>
         <Segmented
           className="seg-inline"
           options={[{ value: 'dark', icon: 'moon', label: t('Dark') }, { value: 'light', icon: 'sun', label: t('Light') }]}
           value={S.theme === 'light' ? 'light' : 'dark'}
           onChange={v => update(s => { s.theme = v })}
         />
-      </Row>
+      </Row>}
       {/* Purely how the muscle map is drawn — nothing else in the app reads this. */}
       <Row icon="figureStrength" iconTint="var(--teal)" title={t('Body diagram')}>
         <Segmented
@@ -226,7 +227,7 @@ export default function Settings() {
           onChange={v => update(s => { s.body = v })}
         />
       </Row>
-      <div className="lrow" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12, paddingTop: 13, paddingBottom: 14 }}>
+      {!user?.gym?.brand && <div className="lrow" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12, paddingTop: 13, paddingBottom: 14 }}>
         <span className="lrow-t">{t('Accent color')}</span>
         <div className="swatches">
           {Object.entries(ACCENTS).map(([k, c]) => (
@@ -234,7 +235,7 @@ export default function Settings() {
               style={{ background: c }} onClick={() => update(s => { s.accent = k })} aria-label={k} />
           ))}
         </div>
-      </div>
+      </div>}
     </Section>
 
     {/* ---------- data: fill it, bring things over, back it up, wipe it ---------- */}

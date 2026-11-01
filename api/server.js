@@ -682,7 +682,7 @@ const routes = {
     json(res, 200, {
       user: { id: u.id, name: u.name, created: u.created || null, disabled: !!u.disabled, admin: isAdmin(u), invitedBy: u.invitedBy || null, demo: !!u.demo,
         trainer: trainer.isTrainer(u) ? trainer.planOf(u) : null, clients: trainer.clientIdsOf(db, u.id).length,
-        gym: (g => g ? { name: g.name, plan: g.plan } : null)(gym.ownedGym(db, u.id)), gymRole: gym.roleOf(db, u) },
+        gym: (g => g ? { name: g.name, plan: g.plan, brand: g.brand || null } : null)(gym.ownedGym(db, u.id)), gymRole: gym.roleOf(db, u) },
       unit: S.unit || 'kg',
       lastSync: S._ts || null,
       routines: S.routines.map(r => ({ id: r.id, name: r.name, emoji: r.emoji, count: (Array.isArray(r.ex) ? r.ex : []).length })),

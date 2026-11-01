@@ -98,6 +98,8 @@
    DEFAULT accent, so every primary button in light mode was failing. Black scores
    9.46 / 8.16 there. Blue, purple, pink and red keep white (3.5–4.1:1), which both
    passes and matches the platform convention. */
+/* a gym's own colours (App.jsx applyPrefs): the logo mark follows its accent */
+:root[data-brand] { --brand-mark: var(--acc); --brand-ink: var(--on-acc) }
 :root[data-theme="light"][data-accent="lime"],
 :root[data-theme="light"][data-accent="teal"]  { --on-acc:#000 }
 :root[data-theme="light"][data-accent="sky"],

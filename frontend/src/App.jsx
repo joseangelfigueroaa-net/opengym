@@ -49,8 +49,11 @@ import { todayISO } from './lib/format.js'
 
 bindUI(useUI)   // lets the shared controls open sheets without importing the store at module scope
 
-function applyPrefs(theme, accent) {
+// A gym's colours (user.gym.brand) win over the person's own: everyone in the gym, from the owner
+// to the members, sees the gym's app.
+function applyPrefs(theme, accent, branded) {
   const de = document.documentElement
+  if (branded) de.dataset.brand = '1'; else delete de.dataset.brand
   de.dataset.theme = theme === 'light' ? 'light' : 'dark'
   de.dataset.accent = ACCENTS[accent] ? accent : 'lime'
   const meta = document.querySelector('meta[name="theme-color"]')
@@ -106,7 +109,8 @@ function Shell() {
   const isGuest = useStore(s => s.isGuest())
   const langV = useLang()   // re-renders the whole shell when the language (pack) changes
   useEffect(() => { setNav(navigate) }, [navigate])
-  useEffect(() => { applyPrefs(S.theme, S.accent) }, [S.theme, S.accent])
+  const brand = user?.gym?.brand
+  useEffect(() => { applyPrefs(brand?.theme || S.theme, brand?.accent || S.accent, !!brand) }, [S.theme, S.accent, brand?.theme, brand?.accent])
   const lang = uiLang(S)
   useEffect(() => { setLang(lang) }, [lang])
   useEffect(() => { document.documentElement.lang = lang }, [langV, lang])

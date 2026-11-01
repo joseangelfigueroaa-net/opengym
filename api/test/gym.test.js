@@ -43,7 +43,7 @@ test('a staff link makes a non-trainer a trainer, paid by the gym, and works onc
   assert.equal(user(db, 'ana').trainer.plan, G.STAFF_PLAN);
   assert.equal(user(db, 'ana').trainer.viaGym, gym.id);
   assert.equal(code(() => G.join(db, user(db, 'm1'), inv.token, {}, NOW)), 'used');
-  assert.deepEqual(G.roleOf(db, user(db, 'ana')), { id: gym.id, name: 'G', role: 'trainer', shift: 'morning' });
+  assert.deepEqual(G.roleOf(db, user(db, 'ana')), { id: gym.id, name: 'G', role: 'trainer', shift: 'morning', brand: null });
 });
 
 test('the member code is reusable, but a person belongs to one gym', () => {
@@ -157,4 +157,15 @@ test('closing a gym lets everyone go', () => {
   assert.equal(db.gymMembers.length, 0);
   assert.equal(T.linkOf(db, 'm1'), null);
   assert.equal(user(db, 'ana').trainer, undefined);
+});
+
+test('a gym colour scheme reaches everyone in it, and only known colours are stored', () => {
+  const { db, gym } = setup();
+  G.setGym(db, user(db, 'owner'), { name: 'Humboldt Fitness Club (HFC)', plan: 'basic', brand: { accent: 'red', theme: 'dark' } });
+  assert.deepEqual(gym.brand, { accent: 'red', theme: 'dark' });
+  for (const id of ['owner', 'ana', 'm1']) assert.deepEqual(G.roleOf(db, user(db, id)).brand, { accent: 'red', theme: 'dark' }, id);
+  G.setGym(db, user(db, 'owner'), { plan: 'basic' });
+  assert.deepEqual(gym.brand, { accent: 'red', theme: 'dark' }, 'no brand given keeps it');
+  G.setGym(db, user(db, 'owner'), { plan: 'basic', brand: { accent: 'url(x)', theme: '__proto__' } });
+  assert.equal(gym.brand, null);
 });
