@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, MotionConfig } from 'motion/react'
-import { Barbell, Scales, ChatCircle, Target, ClipboardText, Camera, ForkKnife, Fingerprint, ShieldCheck, ChartLineUp, UserCircle, Sparkle, ArrowRight, Heartbeat, Users, Envelope, Buildings, Shuffle, Clock, Palette, Eye, UserPlus } from '@phosphor-icons/react'
+import { Barbell, Scales, ChatCircle, Target, ClipboardText, Camera, ForkKnife, Fingerprint, ShieldCheck, ChartLineUp, UserCircle, Sparkle, ArrowRight, Heartbeat, Users, Envelope, Buildings, Shuffle, Palette, Eye, UserPlus, Megaphone, ChatsCircle, CheckCircle, XCircle, CalendarCheck } from '@phosphor-icons/react'
 import { LogoMark, BRAND } from '../components/Logo.jsx'
 import PromoCharts from '../components/PromoCharts.jsx'
 
@@ -12,13 +12,29 @@ import PromoCharts from '../components/PromoCharts.jsx'
 const WEIGHT_WEEKS = [84.2, 83.6, 83.9, 82.8, 82.1, 81.7, 80.9, 80.4, 79.6, 79.2, 78.7, 78.4]
 
 const GYM = [
-  { icon: UserPlus, title: 'Entra con un enlace', text: 'Invita a cada entrenador con su enlace y comparte un código para tus socios: en la recepción o por WhatsApp.' },
-  { icon: Shuffle, title: 'Reparto automático', text: 'Un toque asigna a cada socio sin entrenador al que tiene más cupo, respetando su turno.' },
-  { icon: Clock, title: 'Por turnos', text: 'Cada entrenador y cada socio con su turno, para que nadie quede con quien no coincide.' },
-  { icon: Eye, title: 'Quién falta', text: 'Ve qué socios dejaron de venir y la carga de cada entrenador, sin entrar en los datos privados del socio.' },
-  { icon: Buildings, title: 'Si un entrenador se va', text: 'Sus socios vuelven a la lista para reasignarlos. Los clientes que trajo él siguen con él.' },
+  { icon: UserPlus, title: 'Invitaciones con permisos', text: 'Invita a cada entrenador con su enlace y a tus socios con un código. Al enviarlo eliges qué puede hacer cada uno: ver a todos los socios, asignarlos o publicar para todo el gimnasio.' },
+  { icon: Shuffle, title: 'Reparto por turno y cupo', text: 'Asigna cada socio a un entrenador, o deja que la app reparta a los que no tienen uno según su turno y el cupo libre de cada entrenador.' },
+  { icon: CalendarCheck, title: 'Quién tiene entreno y quién no', text: 'Ves si cada socio tiene entrenamiento asignado. El entreno lo diseña siempre su entrenador: el gimnasio organiza, el entrenador entrena.' },
+  { icon: Eye, title: 'Quién dejó de venir', text: 'Cada socio con su estado (al día o sin actividad) y la carga de cada entrenador, sin entrar en sus datos privados.' },
+  { icon: ChatsCircle, title: 'Mensajes con socios y entrenadores', text: 'Escribe a cualquier socio o entrenador desde su ficha. Ellos te responden desde la app.' },
+  { icon: Megaphone, title: 'Contenido del gimnasio', text: 'Publica horarios, avisos y guías. Tus socios lo ven junto al contenido de su entrenador, y cada publicación dice quién la subió.' },
+  { icon: Buildings, title: 'Socios del gimnasio y clientes propios', text: 'Los clientes que tus entrenadores atienden en el gimnasio son tus socios. Si un entrenador se va, sus socios vuelven a la lista para reasignarlos.' },
   { icon: Palette, title: 'Tus colores', text: 'Tu equipo y tus socios ven la app con los colores de tu marca.' },
 ]
+
+const GYM_PLANS = [
+  { name: 'Básico', seats: 'Hasta 100 socios', staff: '3 entrenadores' },
+  { name: 'Pro', seats: 'Hasta 400 socios', staff: '10 entrenadores' },
+  { name: 'Cadena', seats: 'Varias sedes', staff: 'Hasta 100 entrenadores' },
+]
+
+// What the gym panel shows, as an example: invented trainers, no real gym
+const GYM_LOAD = [
+  { who: 'Andrea', shift: 'Mañana', n: 38 },
+  { who: 'Luis', shift: 'Tarde', n: 44 },
+  { who: 'Carla', shift: 'Noche', n: 21 },
+]
+const GYM_MAIL = 'mailto:support@trainnery.com?subject=' + encodeURIComponent('Trainnery para mi gimnasio')
 
 const TRAINER = [
   { icon: Users, title: 'Tus clientes en una sola lista', text: 'Cada cliente con su estado: al día, sin actividad o estancado. Abres su ficha y ves peso, grasa, medidas, entrenos y comidas.' },
@@ -81,6 +97,30 @@ function HeroPanel() {
   </motion.figure>
 }
 
+function GymPanel() {
+  return <motion.figure className="lp-panel" aria-label="Ejemplo del panel de un gimnasio" variants={rise} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }}>
+    <figcaption className="lp-panel-top">
+      <span className="lp-panel-who"><Buildings size={30} weight="regular" aria-hidden="true" />Panel del gimnasio (ejemplo)</span>
+      <span className="lp-panel-tag">Plan Pro</span>
+    </figcaption>
+    <div className="lp-gtiles">
+      <div><span>Socios</span><b>186</b></div>
+      <div><span>Entrenadores</span><b>6</b></div>
+      <div><span>Sin entrenador</span><b className="lp-warn">4</b></div>
+    </div>
+    <div className="lp-panel-label lp-load-title">Carga de cada entrenador</div>
+    <motion.ul className="lp-load" variants={stagger}>
+      {GYM_LOAD.map(t => <li key={t.who}>
+        <span className="lp-load-who">{t.who}<small>{t.shift}</small></span>
+        <span className="lp-load-bar" role="img" aria-label={`${t.n} de 50 socios`}><motion.i style={{ width: `${t.n * 2}%` }}
+          variants={{ hidden: { scaleX: 0 }, show: { scaleX: 1, transition: { type: 'spring', stiffness: 90, damping: 20 } } }} /></span>
+        <span className="lp-load-n">{t.n}/50</span>
+      </li>)}
+    </motion.ul>
+    <div className="lp-gauto"><Shuffle size={18} weight="regular" aria-hidden="true" /> Asignar automáticamente a los 4 sin entrenador</div>
+  </motion.figure>
+}
+
 function Row({ icon: Icon, title, text }) {
   return <motion.li className="lp-row" variants={rise}>
     <div className="lp-row-head">
@@ -99,7 +139,10 @@ export default function Landing() {
 
     <header className="lp-top">
       <a href="#/" className="lp-brand" aria-label={BRAND}><LogoMark size={30} /><span className="lp-word">{BRAND}</span></a>
-      <button type="button" className="lp-link" onClick={start}>Iniciar sesión</button>
+      <nav className="lp-nav">
+        <button type="button" className="lp-link lp-link-dim" onClick={() => document.getElementById('gimnasios')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Gimnasios</button>
+        <button type="button" className="lp-link" onClick={start}>Iniciar sesión</button>
+      </nav>
     </header>
 
     <section className="lp-hero" aria-labelledby="lp-h1">
@@ -116,15 +159,48 @@ export default function Landing() {
       <HeroPanel />
     </section>
 
-    <section className="lp-sec" aria-labelledby="lp-gyms">
+    <section className="lp-sec" id="gimnasios" aria-labelledby="lp-gyms">
       <div className="lp-sec-head">
         <p className="lp-eyebrow">Para gimnasios</p>
-        <h2 id="lp-gyms">Tu gimnasio, tus entrenadores y tus socios, conectados</h2>
-        <p className="lp-sub">Planes Básico (100 socios), Pro (400) y Cadena. Escríbenos a <a href="mailto:support@trainnery.com">support@trainnery.com</a> y lo activamos para tu gimnasio.</p>
+        <h2 id="lp-gyms">Tu gimnasio, tus entrenadores y tus socios, en una sola app</h2>
+        <p className="lp-sub">Organiza a tus entrenadores por turno, reparte a tus socios entre ellos y ve quién entrena y quién no. Cada socio recibe el entreno de su entrenador en su teléfono.</p>
       </div>
-      <motion.ul className="lp-rows" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
+      <div className="lp-gym-grid">
+        <GymPanel />
+        <motion.div className="lp-privacy" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.3 }}>
+          <motion.h3 variants={rise}>Lo que ve el gimnasio de cada socio</motion.h3>
+          <motion.ul variants={rise} className="lp-check">
+            <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Su nombre, su turno y su entrenador</li>
+            <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Si tiene entrenamiento asignado</li>
+            <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Si está al día o dejó de entrenar</li>
+          </motion.ul>
+          <motion.h3 variants={rise}>Lo que no ve</motion.h3>
+          <motion.ul variants={rise} className="lp-check lp-no">
+            <li><XCircle size={20} weight="regular" aria-hidden="true" /> Su peso, medidas, comidas ni fotos</li>
+            <li><XCircle size={20} weight="regular" aria-hidden="true" /> Sus mensajes con su entrenador</li>
+            <li><XCircle size={20} weight="regular" aria-hidden="true" /> Los clientes que cada entrenador tiene por su cuenta</li>
+          </motion.ul>
+          <motion.p variants={rise} className="lp-fine lp-privacy-note">El socio lo sabe antes de unirse y puede salir del gimnasio cuando quiera.</motion.p>
+        </motion.div>
+      </div>
+      <motion.ul className="lp-rows" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.1 }}>
         {GYM.map(r => <Row key={r.title} {...r} />)}
       </motion.ul>
+      <div className="lp-sec-head lp-gym-plans-head">
+        <h3 className="lp-h3">Planes para gimnasios</h3>
+        <p className="lp-sub">Según cuántos socios y entrenadores tienes. Escríbenos y te damos el precio para tu gimnasio.</p>
+      </div>
+      <motion.ul className="lp-plans" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
+        {GYM_PLANS.map(p => <motion.li key={p.name} className="lp-plan lp-plan-gym" variants={rise}>
+          <div className="lp-plan-name">{p.name}</div>
+          <div className="lp-plan-seats">{p.seats}</div>
+          <div className="lp-plan-seats">{p.staff}</div>
+        </motion.li>)}
+      </motion.ul>
+      <div className="lp-gym-cta">
+        <a className="lp-btn" href={GYM_MAIL}>Quiero Trainnery en mi gimnasio <ArrowRight size={18} weight="regular" aria-hidden="true" /></a>
+        <span className="lp-fine">O escribe a <a href={GYM_MAIL}>support@trainnery.com</a>. Lo activamos para tu gimnasio y te ayudamos a invitar a tu equipo.</span>
+      </div>
     </section>
 
     <section className="lp-sec" aria-labelledby="lp-trainers">
@@ -242,6 +318,40 @@ const CSS = `
 .lp-sec h2,.lp-final h2{font-weight:800;font-size:clamp(1.55rem,3.6vw,2.2rem);line-height:1.15;margin:0 0 10px;letter-spacing:-.01em;text-wrap:balance}
 .lp-sub{color:var(--muted);margin:0}
 .lp-sub a{color:var(--accent)}
+.lp-nav{display:flex;align-items:center;gap:4px}
+.lp-link-dim{color:#ecebe6}
+.lp-h3{font-family:"Syne",system-ui,sans-serif;font-weight:800;font-size:1.35rem;margin:0 0 8px}
+.lp-gym-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-bottom:28px}
+@media (min-width:900px){.lp-gym-grid{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:24px}}
+.lp-gtiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.lp-gtiles div{background:#1d2024;border-radius:14px;padding:10px 12px;min-width:0}
+.lp-gtiles div{display:flex;flex-direction:column;justify-content:space-between}
+.lp-gtiles span{display:block;font-size:.75rem;line-height:1.25;color:var(--muted)}
+.lp-gtiles b{font-family:"Syne",system-ui,sans-serif;font-size:1.6rem;font-variant-numeric:tabular-nums}
+.lp-warn{color:#f0a73a}
+.lp-load-title{margin:16px 0 8px}
+.lp-load{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.lp-load li{display:grid;grid-template-columns:76px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:.9rem}
+.lp-load-who{display:flex;flex-direction:column;line-height:1.2;font-weight:600}
+.lp-load-who small{color:var(--muted);font-weight:400;font-size:.75rem}
+.lp-load-bar{height:8px;border-radius:99px;background:#24272b;overflow:hidden}
+.lp-load-bar i{display:block;height:100%;border-radius:99px;background:var(--accent);transform-origin:0 50%}
+.lp-load-n{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;font-size:.82rem}
+.lp-gauto{display:flex;align-items:center;gap:8px;margin-top:16px;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-weight:600;font-size:.9rem}
+.lp-privacy{background:var(--surface);border-radius:28px;padding:22px;box-shadow:inset 0 0 0 1px var(--line);min-width:0}
+.lp-privacy h3{font-size:1.05rem;margin:0 0 10px}
+.lp-check{list-style:none;margin:0 0 18px;padding:0;display:grid;gap:8px}
+.lp-check li{display:flex;gap:10px;align-items:flex-start;color:#d6d5cf;font-size:.95rem}
+.lp-check li svg{flex:none;margin-top:2px;color:var(--accent)}
+.lp-no{margin-bottom:0}
+.lp-no li svg{color:#8a8983}
+.lp-privacy-note{margin-top:14px}
+.lp-gym-plans-head{margin-top:44px}
+@media (min-width:760px){.lp-plan.lp-plan-gym{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.lp-gym-cta{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;margin-top:28px}
+.lp-gym-cta .lp-btn{text-decoration:none}
+.lp-gym-cta .lp-fine{margin:0}
+.lp-fine a{color:var(--accent)}
 .lp-rows{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
 .lp-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:6px 40px;padding:22px 0;border-bottom:1px solid var(--line)}
 .lp-row-head{display:flex;align-items:center;gap:14px;min-width:0}
