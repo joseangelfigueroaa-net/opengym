@@ -116,7 +116,7 @@ function Shell() {
   useEffect(() => { setLang(lang) }, [lang])
   useEffect(() => { document.documentElement.lang = lang }, [langV, lang])
   // every tab/route change starts at the top of the page
-  useEffect(() => { window.scrollTo(0, 0) }, [loc.pathname])
+  useEffect(() => { document.getElementById('scroll')?.scrollTo(0, 0) }, [loc.pathname])
   // bound to the workout, not to the route — checking Stats mid-session keeps the screen on
   useWakeLock(!!S.active && S.keepAwake !== false)
   // only once boot has pulled the server copy: writing into the empty local state of a fresh
@@ -143,6 +143,7 @@ function Shell() {
     <>
       {/* keyed on the route: a view that throws is contained, and switching tabs
           re-mounts the boundary, so the tab bar is always a way out */}
+      <div id="scroll">
       <div id="app" className="vfade" key={loc.pathname}>
         <ErrorBoundary>
           {!authed ? (loc.pathname === '/' ? <Landing /> : <Login />) : (
@@ -190,6 +191,7 @@ function Shell() {
             </Routes>
           )}
         </ErrorBoundary>
+      </div>
       </div>
       <TabBar onStart={startFlow} />
       <RestTimer />

@@ -67,16 +67,12 @@ function Sheet({ sheet }) {
 export default function Modals() {
   const sheets = useUI(s => s.sheets)
 
-  // lock the page behind any open sheet (iOS-safe)
+  // lock the views behind any open sheet; they scroll in #scroll, so its position is kept
   useEffect(() => {
-    if (!sheets.length) return
-    const y = window.scrollY || 0
-    const b = document.body.style
-    b.position = 'fixed'; b.top = -y + 'px'; b.left = '0'; b.right = '0'; b.width = '100%'
-    return () => {
-      b.position = b.top = b.left = b.right = b.width = ''
-      window.scrollTo(0, y)
-    }
+    const el = sheets.length && document.getElementById('scroll')
+    if (!el) return
+    el.style.overflowY = 'hidden'
+    return () => { el.style.overflowY = '' }
   }, [sheets.length > 0])
 
   if (!sheets.length) return null
