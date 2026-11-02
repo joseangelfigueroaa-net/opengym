@@ -173,6 +173,7 @@ export default function Landing() {
             <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Su nombre, su turno y su entrenador</li>
             <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Si tiene entrenamiento asignado</li>
             <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Si está al día o dejó de entrenar</li>
+            <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Si avanza hacia su meta y cumple su plan, en palabras y sin cifras</li>
           </motion.ul>
           <motion.h3 variants={rise}>Lo que no ve</motion.h3>
           <motion.ul variants={rise} className="lp-check lp-no">

@@ -516,6 +516,9 @@ test('gym: the gym and its people write to each other; outsiders cannot; the pan
   assert.equal((await get('/api/gym/chat?with=gm', { who: 'gt' })).json.other.name, 'Gym Centro', 'a trainer reads only their own thread with the gym');
   const row = (await get('/api/gym', { who: 'g1' })).json.members.find(m => m.id === 'gm');
   assert.equal(row.planned, false);
+  // the progress signal is words only: nothing that reveals a weight or a percentage
+  assert.deepEqual(Object.keys(row.status.progress).sort(), ['plan', 'trend']);
+  assert.ok(!/"(w|weight|weights|targetW|pct|adherence|bodyweight)"/.test(JSON.stringify(row)), 'no body figures in the gym panel');
 });
 
 test('admin: deleting an account removes it and its files; admins and gym owners are refused', async () => {

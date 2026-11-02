@@ -206,3 +206,24 @@ test("the day total adds up meals of that day only, macro by macro", () => {
   assert.equal(t.carbs, 20);
   assert.equal(RR.dayTotals(undefined, "2026-10-22").kcal, 0, "no records, zero");
 });
+
+test('progress signal: words for the gym, toward the target weight and on the weekly plan', () => {
+  const now = Date.parse('2026-11-01T12:00:00Z'), day = n => new Date(now - n * 86400000).toISOString().slice(0, 10)
+  const ok = { code: 'ok' }
+  const losing = { targetW: 68, bodyweight: [{ d: day(30), w: 74 }, { d: day(15), w: 73 }, { d: day(1), w: 72 }] }
+  assert.equal(T.progressSignal(losing, null, ok, now).trend, 'advancing')
+  const gaining = { targetW: 68, bodyweight: [{ d: day(30), w: 72 }, { d: day(1), w: 73 }] }
+  assert.equal(T.progressSignal(gaining, null, ok, now).trend, 'off_track')
+  assert.equal(T.progressSignal({ bodyweight: losing.bodyweight }, null, ok, now).trend, null, 'no target, nothing to say')
+  assert.equal(T.progressSignal(losing, null, { code: 'inactive' }, now).trend, 'inactive')
+  // three planned days a week: 11 of 12 sessions in four weeks is on plan, 3 of 12 is behind
+  const sessions = n => Array.from({ length: n }, (_, k) => ({ d: day(1 + k * 2) }))
+  const week = { 1: 'a', 3: 'b', 5: 'a' }
+  assert.equal(T.progressSignal({ week, workouts: sessions(11) }, null, ok, now).plan, 'on_plan')
+  assert.equal(T.progressSignal({ week, workouts: sessions(3) }, null, ok, now).plan, 'behind')
+  assert.equal(T.progressSignal({ workouts: sessions(3) }, null, ok, now).plan, null, 'no weekly plan')
+  // only words travel: no figure the gym could read a weight or a percentage from
+  const sig = T.progressSignal({ ...losing, week, workouts: sessions(11) }, null, ok, now)
+  assert.deepEqual(Object.keys(sig).sort(), ['plan', 'trend'])
+  assert.ok(Object.values(sig).every(v => typeof v === 'string'))
+})

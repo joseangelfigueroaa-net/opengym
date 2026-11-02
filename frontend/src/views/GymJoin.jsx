@@ -50,7 +50,7 @@ export default function GymJoin() {
         <h1 style={{ margin: '12px 0 6px' }}>{staff ? t('Join {0} as a trainer', inv.gym.name) : t('Join {0}', inv.gym.name)}</h1>
         <div className="muted" style={{ marginBottom: 20 }}>
           {staff ? t('The gym will assign you members and see how many clients you carry. Your clients’ data stays between you and them.')
-            : t('The gym will see your name, your shift, your trainer and when you last trained. It does not see your weights, meals, photos or messages. You can leave anytime in Settings.')}
+            : t('The gym will see your name, your shift, your trainer, when you last trained and, in words, whether you are moving toward your goal and keeping to your plan. It does not see your weights, meals, photos or messages. You can leave anytime in Settings.')}
         </div>
         <div className="small muted" style={{ marginBottom: 8, textAlign: 'left' }}>{staff ? t('When do you work?') : t('When do you usually train?')}</div>
         <Segmented options={SHIFTS.map(([value, label]) => ({ value, label: t(label) }))} value={shift} onChange={setShift} />

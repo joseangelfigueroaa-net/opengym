@@ -38,7 +38,7 @@ export default function Join() {
       </> : <>
         <h1 style={{ margin: '12px 0 6px' }}>{inv.gym ? t('{0} invited you to {1}', inv.trainer.name, inv.gym.name) : t('{0} invited you', inv.trainer.name)}</h1>
         <div className="muted" style={{ marginBottom: 24 }}>{t('As their client, they will see your workouts, body weight and plan. They cannot change anything, and you can leave anytime in Settings.')}
-          {inv.gym && <> {t('You also join {0} as a member: the gym sees your name, your trainer and when you last trained, not your weights, meals, photos or messages.', inv.gym.name)}</>}</div>
+          {inv.gym && <> {t('You also join {0} as a member: the gym sees your name, your trainer, when you last trained and, in words, whether you are moving toward your goal and keeping to your plan. Not your weights, meals, photos or messages.', inv.gym.name)}</>}</div>
         <Button variant="primary" onClick={accept} disabled={busy}>{busy ? t('Accepting…') : t('Accept invite')}</Button>
         <div style={{ height: 10 }} />
         <Button variant="ghost" className="dim" onClick={() => nav('/home', { replace: true })}>{t('Not now')}</Button>

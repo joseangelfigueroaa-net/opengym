@@ -217,6 +217,31 @@ export function cleanState(S) {
     customEx: list(S.customEx), week: plain(S.week), dayPlan: plain(S.dayPlan) };
 }
 
+export const ADVANCE_KG = 0.5;           // closer to the target weight by this much in six weeks
+export const ON_PLAN_PCT = 70;           // share of planned sessions done that counts as keeping to it
+
+/** What a gym sees of a member's progress: words, never figures (no weight, no percentage).
+ *  trend: toward the target weight the member set, over the last six weeks ('advancing',
+ *         'off_track' moving away, 'stalled'), or 'inactive'; null when there is nothing to say.
+ *  plan:  'on_plan' or 'behind' on their weekly plan over four weeks; null without a plan. */
+export function progressSignal(S, rec, status, now = Date.now()) {
+  S = cleanState(S);
+  let trend = null;
+  if (status?.code === 'inactive') trend = 'inactive';
+  else if (status?.code === 'stalled') trend = 'stalled';
+  else {
+    const target = Number(S.targetW);
+    const recent = R.weightSeries(S.bodyweight, rec?.entries || []).filter(w => daysAgo(w.d, now) <= 42);
+    if (target > 0 && recent.length >= 2) {
+      const gap = w => Math.abs(w - target);
+      const closer = gap(recent[0].w) - gap(recent[recent.length - 1].w);
+      trend = closer >= ADVANCE_KG ? 'advancing' : closer <= -ADVANCE_KG ? 'off_track' : 'stalled';
+    }
+  }
+  const pct = adherence(S, now).pct;
+  return { trend, plan: pct == null ? null : pct >= ON_PLAN_PCT ? 'on_plan' : 'behind' };
+}
+
 /** One row of the trainer's client list. `rec` is the client's records file (or null). */
 export function clientSummary(user, link, S, rec = null, now = Date.now()) {
   S = cleanState(S);

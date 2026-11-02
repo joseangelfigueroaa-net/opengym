@@ -16,11 +16,18 @@ import { Button, SearchField, Segmented, Switch } from '../components/ui.jsx'
 // A gym's panel: the trainers on staff and how loaded each one is, the members and who trains
 // them, the members nobody trains yet, and the links that bring people in. The owner sees all of
 // it; a trainer sees it if the gym gave them "members", and assigns if it gave them "assign".
-// Activity only, never body data: that stays between a member and their trainer (api/trainer/gym.js).
+// Activity and a progress signal in words, never body data: weights, measurements, meals and
+// photos stay between a member and their trainer (api/trainer/gym.js, progressSignal).
 
 const post = (url, body) => api(url, { method: 'POST', body: JSON.stringify(body || {}) })
 const FILTERS = [['all', 'All'], ['unassigned', 'No trainer'], ['attention', 'Need a look']]
 const needsLook = m => m.status?.code === 'inactive' || m.status?.code === 'stalled'
+  || m.status?.progress?.trend === 'off_track' || m.status?.progress?.plan === 'behind'
+// The progress signal as tags. Inactive and stalled already show as the status tag.
+const TRENDS = { advancing: ['ok', 'Moving toward their goal'], off_track: ['warn', 'Moving away from their goal'] }
+const PLANS = { on_plan: ['ok', 'Keeps to their plan'], behind: ['warn', 'Not keeping to their plan'] }
+// in the list, only what needs a look; someone inactive is already flagged, so their plan isn't repeated
+const progressTags = (p, all) => [p?.trend && TRENDS[p.trend], p?.plan && (all || (p.plan === 'behind' && p.trend !== 'inactive')) && PLANS[p.plan]].filter(Boolean)
 // What each permission lets a person do, as the invite and the settings sheet say it.
 const STAFF_PERMS = [
   ['members', 'See every member and their activity'],
@@ -112,6 +119,9 @@ function AssignSheet({ m, d, close, apply, navTo }) {
       {t('Trains: {0}', shiftLabel(shift))}{m.trainerName ? ' · ' + t('Trainer: {0}', m.trainerName) : ''}
       {' · '}{m.planned ? t('Has workouts from their trainer') : t('No workouts assigned')}
     </div>
+    {progressTags(m.status?.progress, true).length > 0 && <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+      {progressTags(m.status?.progress, true).map(([cls, label]) => <span key={label} className={'tag nocap ' + cls}>{t(label)}</span>)}
+    </div>}
     {d.me?.owner && <Button icon="chat" style={{ marginBottom: 12 }} onClick={() => { close(); navTo('/gym/chat/' + m.id) }}>{m.unread ? t('Messages ({0} new)', m.unread) : t('Send a message')}</Button>}
     {d.me?.owner && <>
       <h4 className="sec" style={{ marginTop: 0 }}>{t('Permissions')}</h4>
@@ -243,19 +253,23 @@ export default function Gym() {
           : <div className="card" style={{ padding: '4px 14px' }}>
             {shown.map((m, n) => {
               const st = statusTag(m.status)
+              const prog = progressTags(m.status?.progress)
+              // "on track" says nothing a trend tag doesn't: moving either way means they're active
+              const showSt = !(m.status?.code === 'ok' && TRENDS[m.status?.progress?.trend])
               return <button key={m.id} className="row between" onClick={() => openMember(m)}
                 style={{ width: '100%', padding: '11px 0', borderTop: n ? '1px solid var(--sep)' : 'none', background: 'none', textAlign: 'left', color: 'inherit', gap: 10 }}>
-                <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600 }} className="capitalize">{m.name}</div>
+                <div style={{ minWidth: 0, flex: '1 1 40%' }}><div style={{ fontWeight: 600 }} className="capitalize">{m.name}</div>
                   <div className="dim" style={{ fontSize: '.75rem' }}>
                     {m.trainerName ? t('Trainer: {0}', m.trainerName) : m.outside ? t('Outside trainer') : <span style={{ color: 'var(--orange)' }}>{t('No trainer')}</span>}
                     {' · ' + shiftLabel(m.shift)}
                   </div></div>
-                <div className="row" style={{ gap: 8, flexShrink: 0 }}>
+                <div className="row" style={{ gap: 6, flex: '0 1 auto', flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0 }}>
                   {m.unread > 0 && <span className="tag acc nocap" aria-label={t('{0} unread messages', m.unread)}><Icon name="chat" /> {m.unread}</span>}
                   {m.trainerId && !m.planned && <span className="tag warn nocap">{t('No workouts')}</span>}
-                  <span className={'tag nocap ' + st.cls}>{st.text}</span>
-                  <Icon name="chevronRight" className="dim" />
+                  {prog.map(([cls, label]) => <span key={label} className={'tag nocap ' + cls}>{t(label)}</span>)}
+                  {showSt && <span className={'tag nocap ' + st.cls}>{st.text}</span>}
                 </div>
+                <Icon name="chevronRight" className="dim" style={{ flexShrink: 0 }} />
               </button>
             })}
           </div>}

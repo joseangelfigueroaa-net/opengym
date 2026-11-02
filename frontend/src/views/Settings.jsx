@@ -52,7 +52,7 @@ function MyGymRow() {
     onConfirm: () => api('/api/me/gym/leave', { method: 'POST', body: '{}' })
       .then(() => api('/api/me')).then(r => { setUser(r.user); toast(t('You left {0}', g.name)) }).catch(e => toast(e.message))
   })
-  return <><Row icon="dumbbell" iconTint="var(--teal)" title={t('Your gym: {0}', g.name)} subtitle={t('Sees your name, shift, trainer and when you last trained. Tap to leave.')} onClick={leave} />{chat}</>
+  return <><Row icon="dumbbell" iconTint="var(--teal)" title={t('Your gym: {0}', g.name)} subtitle={t('Sees your name, shift, trainer, when you last trained and whether you are progressing. Tap to leave.')} onClick={leave} />{chat}</>
 }
 
 export default function Settings() {

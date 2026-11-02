@@ -111,7 +111,13 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     if (!gym) { json(res, 403, { error: 'this account does not own a gym' }); return null; }
     return { user, gym };
   };
-  const memberStatus = uid => { const u = userById(uid); return u ? T.clientSummary(u, { created: '' }, readState(uid), recordsOf(uid)).status : null; };
+  // the member's status plus the words-only progress signal (never their weight or a percentage)
+  const memberStatus = uid => {
+    const u = userById(uid); if (!u) return null;
+    const S = readState(uid), rec = recordsOf(uid);
+    const { status } = T.clientSummary(u, { created: '' }, S, rec);
+    return { ...status, progress: T.progressSignal(S, rec, status) };
+  };
   // The gym's conversation with one person (a member or a trainer). The gym writes as its owner.
   const gymChatName = (gym, uid) => 'gymchat-' + safe(gym.id) + '-' + safe(uid) + '.json';
   const gymChatOf = (gym, uid) => load(gymChatName(gym, uid));
