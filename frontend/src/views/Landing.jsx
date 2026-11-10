@@ -23,9 +23,9 @@ const GYM = [
 ]
 
 const GYM_PLANS = [
-  { name: 'Básico', seats: 'Hasta 100 socios', staff: '3 entrenadores' },
-  { name: 'Pro', seats: 'Hasta 400 socios', staff: '10 entrenadores' },
-  { name: 'Cadena', seats: 'Varias sedes', staff: 'Hasta 100 entrenadores' },
+  { name: 'Básico', seats: 'Hasta 100 socios', staff: '3 entrenadores', price: '29', per: 'USD/mes' },
+  { name: 'Pro', seats: 'Hasta 400 socios', staff: '10 entrenadores', price: '49', per: 'USD/mes' },
+  { name: 'Cadena', seats: 'Varias sedes', staff: 'Hasta 100 entrenadores', price: '39', per: 'USD/mes por sede' },
 ]
 
 // What the gym panel shows, as an example: invented trainers, no real gym
@@ -189,13 +189,14 @@ export default function Landing() {
       </motion.ul>
       <div className="lp-sec-head lp-gym-plans-head">
         <h3 className="lp-h3">Planes para gimnasios</h3>
-        <p className="lp-sub">Según cuántos socios y entrenadores tienes. Escríbenos y te damos el precio para tu gimnasio.</p>
+        <p className="lp-sub">Según cuántos socios y entrenadores tienes. Precios mensuales en dólares (USD), sin contrato. El primer mes es gratis y te lo dejamos montado: cargamos tus socios e invitamos a tus entrenadores.</p>
       </div>
       <motion.ul className="lp-plans" variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }}>
         {GYM_PLANS.map(p => <motion.li key={p.name} className="lp-plan lp-plan-gym" variants={rise}>
           <div className="lp-plan-name">{p.name}</div>
           <div className="lp-plan-seats">{p.seats}</div>
           <div className="lp-plan-seats">{p.staff}</div>
+          <div className="lp-plan-price">{p.price}<small> {p.per}</small></div>
         </motion.li>)}
       </motion.ul>
       <div className="lp-gym-cta">
@@ -348,7 +349,7 @@ const CSS = `
 .lp-no li svg{color:#8a8983}
 .lp-privacy-note{margin-top:14px}
 .lp-gym-plans-head{margin-top:44px}
-@media (min-width:760px){.lp-plan.lp-plan-gym{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:760px){.lp-plan.lp-plan-gym{grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.5fr)}}
 .lp-gym-cta{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;margin-top:28px}
 .lp-gym-cta .lp-btn{text-decoration:none}
 .lp-gym-cta .lp-fine{margin:0}

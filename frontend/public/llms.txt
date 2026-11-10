@@ -7,7 +7,7 @@
 - Asigna cada socio a un entrenador, o los reparte automáticamente según el turno (mañana, tarde, noche) y el cupo de cada entrenador.
 - Ve qué socios necesitan atención y la carga de cada entrenador. No ve el peso, las comidas, las fotos ni los mensajes de los socios.
 - La app puede usar los colores del gimnasio para su equipo y sus socios.
-- Planes: Básico (100 socios, 3 entrenadores), Pro (400 socios, 10 entrenadores) y Cadena. Contacto: support@trainnery.com
+- Planes: Básico 29 USD/mes (100 socios, 3 entrenadores), Pro 49 USD/mes (400 socios, 10 entrenadores) y Cadena 39 USD/mes por sede. Sin contrato; el primer mes es gratis e incluye la puesta en marcha. Contacto: support@trainnery.com
 
 ## Para entrenadores personales
 - Lista de clientes con su estado (al día, sin actividad, peso estancado) y el cumplimiento del plan.
