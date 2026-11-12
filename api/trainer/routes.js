@@ -16,6 +16,8 @@ import * as P from './profile.js';
 import * as SOC from './social.js';
 import * as PH from './photos.js';
 import * as G from './gym.js';
+import * as V from './visits.js';
+import * as RT from './retention.js';
 import { estimateMeal, prefetchMeal } from './nutrition.js';
 import { demoClient } from './demo.js';
 
@@ -111,13 +113,21 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     if (!gym) { json(res, 403, { error: 'this account does not own a gym' }); return null; }
     return { user, gym };
   };
+  // Attendance and retention history, one file each per gym (visits.js, retention.js).
+  const visitsName = gymId => 'visits-' + safe(gymId) + '.json';
+  const retentionName = gymId => 'retention-' + safe(gymId) + '.json';
+  // the days a member came in to their gym (none when they belong to no gym)
+  const visitsFor = uid => { const m = G.memberRow(db(), uid); return m ? V.visitsOf(load(visitsName(m.gymId)), uid) : []; };
   // the member's status plus the words-only progress signal (never their weight or a percentage)
   const memberStatus = uid => {
     const u = userById(uid); if (!u) return null;
     const S = readState(uid), rec = recordsOf(uid);
-    const { status } = T.clientSummary(u, { created: '' }, S, rec);
+    const { status } = T.clientSummary(u, { created: '' }, S, rec, Date.now(), visitsFor(uid));
     return { ...status, progress: T.progressSignal(S, rec, status) };
   };
+  // the same rule the panel's "Need a look" list uses
+  const needsLook = st => !!st && (st.code === 'inactive' || st.code === 'stalled' || st.progress?.trend === 'off_track' || st.progress?.plan === 'behind');
+  const dayAgo = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
   // The gym's conversation with one person (a member or a trainer). The gym writes as its owner.
   const gymChatName = (gym, uid) => 'gymchat-' + safe(gym.id) + '-' + safe(uid) + '.json';
   const gymChatOf = (gym, uid) => load(gymChatName(gym, uid));
@@ -129,7 +139,66 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
     members: view.members.map(m => ({ ...m, planned: A.upcoming(assignOf(m.id), today()).length > 0, unread: C.unreadFor(gymChatOf(gym, m.id), gym.ownerId) })),
     trainers: view.trainers.map(x => ({ ...x, unread: x.id === gym.ownerId ? 0 : C.unreadFor(gymChatOf(gym, x.id), gym.ownerId) }))
   });
-  const gymView = (gym, user) => ({ ...withFiles(G.overview(db(), gym, memberStatus), gym), me: { owner: gym.ownerId === user?.id, perms: gym.ownerId === user?.id ? G.STAFF_PERMS : G.staffRow(db(), gym.id, user?.id)?.perms || [] } });
+  // Every look at the panel also brings the retention history up to date (who turned inactive
+  // today, who came back), and adds attendance: visits in 30 days and whether they came in today.
+  // `day` is the viewer's own calendar day (within a day of the server's), so "today" at the
+  // reception desk in Caracas is the same day the member checked in on.
+  const gymView = (gym, user, day = today()) => {
+    const v = withFiles(G.overview(db(), gym, memberStatus), gym);
+    const rf = load(retentionName(gym.id));
+    if (RT.track(rf, v.members.map(m => ({ id: m.id, trainerId: m.trainerId, status: m.status })), day)) store(retentionName(gym.id), rf);
+    const vf = load(visitsName(gym.id)), since = dayAgo(30);
+    const names = Object.fromEntries([...v.members, ...v.trainers].map(x => [x.id, x.name]));
+    const rep = RT.report(rf, day.slice(0, 7));
+    return {
+      ...v,
+      members: v.members.map(m => ({ ...m, visits30: V.countSince(vf, m.id, since), inToday: V.visitsOf(vf, m.id).includes(day) })),
+      today: { day, present: V.presentOn(vf, day).filter(id => names[id]).length },
+      retention: { month: rep.month, flagged: rep.flagged, lost: rep.lost, open: rep.open.length,
+        recovered: rep.recovered.map(r => ({ ...r, name: names[r.userId] || null, trainerName: names[r.trainerId] || null })) },
+      me: { owner: gym.ownerId === user?.id, perms: gym.ownerId === user?.id ? G.STAFF_PERMS : G.staffRow(db(), gym.id, user?.id)?.perms || [] }
+    };
+  };
+
+  // The week's summary, as a notification: to the owner, the members who need a look and those
+  // recovered this month; to each trainer, their own members who need a look. Spanish unless the
+  // person set the app to English.
+  const inEnglish = uid => { try { return readState(uid)?.lang === 'en'; } catch { return false; } };
+  const firstNames = list => list.slice(0, 3).map(m => String(m.name || '').split(' ')[0]).join(', ') + (list.length > 3 ? '…' : '');
+  const gymDigest = (gym, ownerOnly = false) => {
+    const v = gymView(gym, null);
+    const look = v.members.filter(m => needsLook(m.status));
+    const rec = v.retention.recovered.length;
+    const en = inEnglish(gym.ownerId);
+    const ownerBody = (look.length
+      ? (en ? `${look.length} member${look.length === 1 ? '' : 's'} need a look this week: ${firstNames(look)}` : `${look.length} ${look.length === 1 ? 'socio necesita' : 'socios necesitan'} atención esta semana: ${firstNames(look)}`)
+      : (en ? 'Nobody needs a look this week' : 'Ningún socio por revisar esta semana'))
+      + (rec ? (en ? ` · ${rec} recovered this month` : ` · ${rec} recuperado${rec === 1 ? '' : 's'} este mes`) : '');
+    sendPush(gym.ownerId, { title: gym.name, body: ownerBody.slice(0, 160), tag: 'gym-digest', url: '#/gym' })?.catch?.(() => {});
+    let trainers = 0;
+    if (!ownerOnly) for (const t of v.trainers) {
+      if (t.id === gym.ownerId) continue;
+      const mine = look.filter(m => m.trainerId === t.id);
+      if (!mine.length) continue;
+      const te = inEnglish(t.id);
+      sendPush(t.id, { title: gym.name, body: (te ? `${mine.length} of your members need a look: ${firstNames(mine)}` : `${mine.length} de tus socios ${mine.length === 1 ? 'necesita' : 'necesitan'} atención: ${firstNames(mine)}`).slice(0, 160), tag: 'gym-digest', url: '#/trainer' })?.catch?.(() => {});
+      trainers++;
+    }
+    return { look: look.length, recovered: rec, trainers };
+  };
+  // Once a day per gym, the retention history moves on even if nobody opens the panel; on
+  // Mondays from 13:00 UTC (9:00 in Caracas) the week's summary goes out, once.
+  const gymSweep = () => {
+    const now = new Date(), day = now.toISOString().slice(0, 10);
+    for (const gym of db().gyms || []) {
+      try {
+        if (gym.retentionDay !== day) { gymView(gym, null); gym.retentionDay = day; saveDb(); }
+        if (now.getUTCDay() === 1 && now.getUTCHours() >= 13 && gym.digestDay !== day) { gym.digestDay = day; saveDb(); gymDigest(gym); }
+      } catch (e) { console.error('gym sweep skipped', gym.id, e.message); }
+    }
+  };
+  setTimeout(gymSweep, 60000).unref?.();
+  setInterval(gymSweep, 15 * 60000).unref?.();
   // A gym's posts live like a trainer's, filed under the gym's id; each one says who wrote it.
   const gymOf = user => { const r = G.roleOf(db(), user); return r ? G.gymById(db(), r.id) : null; };
   const canSeeGymContent = (user, gym) => {
@@ -171,7 +240,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
         if (!u) return null;
         // one client's data must never cost the trainer the whole list
         try {
-          return { ...T.clientSummary(u, l, readState(u.id), recordsOf(u.id), now), unread: C.unreadFor(chatSince(u.id, l), trainer.id) };
+          return { ...T.clientSummary(u, l, readState(u.id), recordsOf(u.id), now, visitsFor(u.id)), unread: C.unreadFor(chatSince(u.id, l), trainer.id) };
         } catch (e) {
           console.error('client summary failed', u.id, e.message);
           return { id: u.id, name: u.name, since: l.created, workouts: 0, status: { code: 'new', days: null, last: null }, unread: 0 };
@@ -645,7 +714,7 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
 
     'GET /api/gym': async (req, res) => {
       const o = asGym(req, res, 'members'); if (!o) return;
-      json(res, 200, gymView(o.gym, o.user));
+      json(res, 200, gymView(o.gym, o.user, V.visitDay(query(req, 'd'))));
     },
 
     'POST /api/gym/invite': async (req, res) => {
@@ -831,8 +900,80 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
 
     'POST /api/me/gym/leave': async (req, res) => {
       const user = signedIn(req, res); if (!user) return;
-      try { G.leave(db(), user.id); saveDb(); json(res, 200, { ok: true }); }
-      catch (e) { fail(res, e); }
+      const m = G.memberRow(db(), user.id);
+      try { G.leave(db(), user.id); saveDb(); }
+      catch (e) { return fail(res, e); }
+      // their attendance goes with them; an open retention episode closes as "left"
+      const vf = load(visitsName(m.gymId)); if (V.forget(vf, user.id)) store(visitsName(m.gymId), vf);
+      const rf = load(retentionName(m.gymId)); if (RT.forget(rf, user.id, today())) store(retentionName(m.gymId), rf);
+      json(res, 200, { ok: true });
+    },
+
+    /* ------------------------------ attendance ------------------------------ */
+
+    // A member says they are at the gym ("I'm here"). Once a day; their own calendar day.
+    'POST /api/gym/checkin': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const m = G.memberRow(db(), user.id);
+      const gym = m && G.gymById(db(), m.gymId);
+      if (!gym) return json(res, 404, { error: 'you are not a member of a gym' });
+      const body = await readBody(req);
+      const day = V.visitDay(body.d);
+      const vf = load(visitsName(gym.id));
+      const added = V.addVisit(vf, user.id, day);
+      if (added) store(visitsName(gym.id), vf);
+      json(res, 200, { ok: true, day, already: !added, gym: { name: gym.name } });
+    },
+
+    // The member's own view: are they at a gym, and did they already check in today.
+    'GET /api/me/gym/visit': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      const m = G.memberRow(db(), user.id);
+      const gym = m && G.gymById(db(), m.gymId);
+      if (!gym) return json(res, 200, { member: false });
+      const day = V.visitDay(query(req, 'd'));
+      const vf = load(visitsName(gym.id));
+      json(res, 200, { member: true, gym: { name: gym.name }, day, inToday: V.visitsOf(vf, user.id).includes(day), visits30: V.countSince(vf, user.id, dayAgo(30)) });
+    },
+
+    // Reception marks (or unmarks) that a member came in today. The owner, or staff who see members.
+    'POST /api/gym/visit': async (req, res) => {
+      const o = asGym(req, res, 'members'); if (!o) return;
+      const body = await readBody(req);
+      const id = String(body.id || '');
+      if (!G.membersOf(db(), o.gym.id).some(m => m.userId === id)) return json(res, 404, { error: 'not a member of this gym' });
+      const day = V.visitDay(body.d);
+      const vf = load(visitsName(o.gym.id));
+      if (body.present === false) { const l = V.visitsOf(vf, id); if (l.includes(day)) { vf.days[id] = l.filter(d => d !== day); store(visitsName(o.gym.id), vf); } }
+      else if (V.addVisit(vf, id, day)) store(visitsName(o.gym.id), vf);
+      json(res, 200, gymView(o.gym, o.user, day));
+    },
+
+    /* ------------------------------ owner tools ------------------------------ */
+
+    // Every member as a spreadsheet: names, trainers, status in words, attendance. No body data.
+    'GET /api/gym/export.csv': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      const v = gymView(o.gym, o.user);
+      const SHIFT = { morning: 'Mañana', afternoon: 'Tarde', evening: 'Noche' };
+      const STATUS = s => !s || s.code === 'new' ? 'Sin actividad aún' : s.code === 'inactive' ? `${s.days} días sin actividad` : s.code === 'stalled' ? 'Peso estancado' : 'Al día';
+      const TREND = { advancing: 'Avanza hacia su meta', off_track: 'Se aleja de su meta', stalled: 'Estancado', inactive: 'Sin actividad' };
+      const PLAN = { on_plan: 'Cumple su plan', behind: 'No cumple su plan' };
+      // a cell a spreadsheet would run as a formula starts with a quote instead
+      const cell = x => { let s = String(x ?? ''); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+      const rows = [['Nombre', 'Turno', 'Entrenador', 'Socio desde', 'Estado', 'Última actividad', 'Entradas en 30 días', 'Progreso', 'Plan', 'Entrenos asignados', 'Por revisar']]
+        .concat(v.members.map(m => [m.name, SHIFT[m.shift] || '', m.trainerName || (m.outside ? 'Entrenador externo' : 'Sin entrenador'), String(m.since || '').slice(0, 10),
+          STATUS(m.status), m.status?.last || '', m.visits30, TREND[m.status?.progress?.trend] || '', PLAN[m.status?.progress?.plan] || '', m.planned ? 'Sí' : 'No', needsLook(m.status) ? 'Sí' : 'No']));
+      const csv = '\ufeff' + rows.map(r => r.map(cell).join(';')).join('\r\n') + '\r\n';
+      const slug = String(o.gym.name).normalize('NFD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'gimnasio';
+      res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="socios-${slug}-${today()}.csv"`, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+      res.end(csv);
+    },
+
+    // Sends the week's summary to the owner now, to see what it looks like.
+    'POST /api/gym/digest/test': async (req, res) => {
+      const o = asOwner(req, res); if (!o) return;
+      json(res, 200, { ok: true, ...gymDigest(o.gym, true) });
     },
 
     // Makes an account a gym owner on a plan, renames the gym, or (plan: null) closes it.

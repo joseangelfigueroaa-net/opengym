@@ -521,6 +521,38 @@ test('gym: the gym and its people write to each other; outsiders cannot; the pan
   assert.ok(!/"(w|weight|weights|targetW|pct|adherence|bodyweight)"/.test(JSON.stringify(row)), 'no body figures in the gym panel');
 });
 
+test('gym: members check in, reception marks attendance, the owner exports and gets the weekly summary', async () => {
+  const c1 = await post('/api/gym/checkin', { d: new Date().toISOString().slice(0, 10) }, { who: 'gm' });
+  assert.equal(c1.status, 200);
+  assert.equal(c1.json.already, false);
+  assert.equal((await post('/api/gym/checkin', {}, { who: 'gm' })).json.already, true, 'once a day');
+  assert.equal((await post('/api/gym/checkin', {}, { who: 'x' })).status, 404, 'x belongs to no gym');
+  assert.equal((await get('/api/me/gym/visit', { who: 'gm' })).json.inToday, true);
+  let v = (await get('/api/gym', { who: 'g1' })).json;
+  let row = v.members.find(m => m.id === 'gm');
+  assert.equal(row.inToday, true);
+  assert.equal(row.visits30, 1);
+  assert.ok(v.today.present >= 1);
+  assert.ok(v.retention && typeof v.retention.flagged === 'number' && Array.isArray(v.retention.recovered));
+  // reception (staff with "members") can unmark and mark; someone outside the gym cannot
+  v = (await post('/api/gym/visit', { id: 'gm', present: false }, { who: 'gt' })).json;
+  assert.equal(v.members.find(m => m.id === 'gm').inToday, false);
+  assert.equal((await post('/api/gym/visit', { id: 'gm' }, { who: 'c1' })).status, 403);
+  assert.equal((await post('/api/gym/visit', { id: 'c1' }, { who: 'g1' })).status, 404, 'only members of this gym');
+  // the export is the owner's, words only, safe in a spreadsheet
+  const csv = await get('/api/gym/export.csv', { who: 'g1' });
+  assert.equal(csv.status, 200);
+  assert.match(csv.headers.get('content-type'), /text\/csv/);
+  assert.ok(csv.text.startsWith('Nombre;Turno;Entrenador'), 'header row first (fetch drops the BOM Excel needs)');
+  assert.ok(csv.text.includes('Gym Member'));
+  assert.ok(!/ kg|kg/.test(csv.text), 'no body figures');
+  assert.equal((await get('/api/gym/export.csv', { who: 'gt' })).status, 403, 'staff cannot export');
+  const dg = await post('/api/gym/digest/test', {}, { who: 'g1' });
+  assert.equal(dg.status, 200);
+  assert.equal(typeof dg.json.look, 'number');
+  assert.equal((await post('/api/gym/digest/test', {}, { who: 'gt' })).status, 403);
+});
+
 test('admin: deleting an account removes it and its files; admins and gym owners are refused', async () => {
   assert.equal((await post('/api/admin/user/delete', { id: 'gm' }, { who: 't1' })).status, 403);
   assert.equal((await post('/api/admin/user/delete', { id: 'admin' }, { who: 'admin' })).status, 400, 'not an admin');

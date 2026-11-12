@@ -15,7 +15,7 @@ const GYM = [
   { icon: UserPlus, title: 'Invitaciones con permisos', text: 'Invita a cada entrenador con su enlace y a tus socios con un código. Al enviarlo eliges qué puede hacer cada uno: ver a todos los socios, asignarlos o publicar para todo el gimnasio.' },
   { icon: Shuffle, title: 'Reparto por turno y cupo', text: 'Asigna cada socio a un entrenador, o deja que la app reparta a los que no tienen uno según su turno y el cupo libre de cada entrenador.' },
   { icon: CalendarCheck, title: 'Quién tiene entreno y quién no', text: 'Ves si cada socio tiene entrenamiento asignado. El entreno lo diseña siempre su entrenador: el gimnasio organiza, el entrenador entrena.' },
-  { icon: Eye, title: 'Quién dejó de venir', text: 'Cada socio con su estado (al día o sin actividad) y la carga de cada entrenador, sin entrar en sus datos privados.' },
+  { icon: Eye, title: 'Quién dejó de venir', text: 'Tus socios marcan su entrada al llegar, o la marca recepción. Si alguien pasa más días sin venir ni entrenar de lo que es normal para él, aparece en la lista, y a fin de mes ves a quiénes recuperaste.' },
   { icon: ChatsCircle, title: 'Mensajes con socios y entrenadores', text: 'Escribe a cualquier socio o entrenador desde su ficha. Ellos te responden desde la app.' },
   { icon: Megaphone, title: 'Contenido del gimnasio', text: 'Publica horarios, avisos y guías. Tus socios lo ven junto al contenido de su entrenador, y cada publicación dice quién la subió.' },
   { icon: Buildings, title: 'Socios del gimnasio y clientes propios', text: 'Los clientes que tus entrenadores atienden en el gimnasio son tus socios. Si un entrenador se va, sus socios vuelven a la lista para reasignarlos.' },
@@ -172,7 +172,7 @@ export default function Landing() {
           <motion.ul variants={rise} className="lp-check">
             <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Su nombre, su turno y su entrenador</li>
             <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Si tiene entrenamiento asignado</li>
-            <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Si está al día o dejó de entrenar</li>
+            <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Si está al día o dejó de venir, y sus entradas al gimnasio</li>
             <li><CheckCircle size={20} weight="regular" aria-hidden="true" /> Si avanza hacia su meta y cumple su plan, en palabras y sin cifras</li>
           </motion.ul>
           <motion.h3 variants={rise}>Lo que no ve</motion.h3>

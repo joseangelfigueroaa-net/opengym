@@ -78,7 +78,7 @@ export function prescription(x, unit = 'kg') {
 /* ---------- client status, as the server computes it ---------- */
 export function statusTag(status) {
   if (!status || status.code === 'new') return { cls: '', text: t('No activity yet') }
-  if (status.code === 'inactive') return { cls: 'bad', text: t('{0} days without logging', status.days) }
+  if (status.code === 'inactive') return { cls: 'bad', text: t('{0} days without activity', status.days) }
   if (status.code === 'stalled') return { cls: 'warn', text: t('Weight stalled') }
   return { cls: 'ok', text: t('On track') }
 }

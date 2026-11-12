@@ -13,6 +13,7 @@ import { glyphOf } from '../lib/glyphs.js'
 import { coachAvailable, hasConsent } from '../lib/coach.js'
 import { useCoachStatus } from '../lib/coach-api.js'
 import TrainerCard from '../components/TrainerCard.jsx'
+import GymCheckIn from '../components/GymCheckIn.jsx'
 import { trainerLed, assignedFor, useMyTrainer } from '../lib/trainer.js'
 import { DEMO } from '../lib/demo.js'
 import { MOBILE } from '../lib/mobile.js'
@@ -119,6 +120,7 @@ export default function Home() {
 
     {coachOn && <CoachCard nav={nav} />}
 
+    <GymCheckIn />
     <TrainerCard nav={nav} />
 
     {/* Plan and the exercise library lost their tabs to Log and Chat; they stay one tap away */}

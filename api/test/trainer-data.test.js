@@ -61,9 +61,18 @@ test('the week summary averages steps and sleep and counts meals', () => {
 
 /* ---------------- status ---------------- */
 
-test('status: inactive after three idle days, stalled on a flat weight, otherwise fine', () => {
-  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-16' }] }, NOW).code, 'inactive');
-  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-16' }] }, NOW).days, 4);
+test('status: inactive after their own rhythm, stalled on a flat weight, otherwise fine', () => {
+  // no weekly plan: a week without any sign of them
+  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-16' }] }, NOW).code, 'ok', '4 idle days is a normal gap');
+  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-13' }] }, NOW).code, 'inactive');
+  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-13' }] }, NOW).days, 7);
+  // three sessions a week: five days; five a week: three days; once a week: ten days
+  assert.equal(T.inactiveAfter(3), 5); assert.equal(T.inactiveAfter(5), 3); assert.equal(T.inactiveAfter(1), 10); assert.equal(T.inactiveAfter(0), 7);
+  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-15' }], plan: 3 }, NOW).code, 'inactive');
+  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-16' }], plan: 3 }, NOW).code, 'ok');
+  // a visit to the gym counts as activity even when nothing was logged in the app
+  assert.equal(T.clientStatus({ workouts: [{ d: '2026-10-01' }], visits: ['2026-10-19'] }, NOW).code, 'ok');
+  assert.equal(T.clientStatus({ visits: ['2026-10-19'] }, NOW).code, 'ok');
   const flat = [{ d: '2026-10-05', w: 70 }, { d: '2026-10-12', w: 70.1 }, { d: '2026-10-19', w: 70.2 }];
   assert.equal(T.clientStatus({ weights: flat }, NOW).code, 'stalled');
   assert.equal(T.clientStatus({ weights: [...flat.slice(0, 2), { d: '2026-10-19', w: 69 }] }, NOW).code, 'ok');

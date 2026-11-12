@@ -136,26 +136,35 @@ export function assertCanRead(db, trainer, clientId) {
 
 const daysAgo = (iso, now) => Math.floor((now - Date.parse(iso)) / 86400000);
 const isoDay = ms => new Date(ms).toISOString().slice(0, 10);
-export const INACTIVE_DAYS = 3;
+export const INACTIVE_DAYS = 3;            // never sooner than this, however often they train
+export const INACTIVE_NO_PLAN = 7;         // without a weekly plan: a week with no sign of them
+export const INACTIVE_MAX = 10;
+
+/** Days without any activity after which someone counts as inactive, from their own rhythm:
+ *  twice the usual gap between their planned sessions (3 a week -> 5 days), within 3 to 10.
+ *  Someone who trains Monday, Wednesday and Friday is not flagged every weekend. */
+export const inactiveAfter = plan => plan > 0 ? Math.min(INACTIVE_MAX, Math.max(INACTIVE_DAYS, Math.ceil(14 / plan))) : INACTIVE_NO_PLAN;
 
 /** How the client is doing, as the list shows it: inactive beats stalled beats fine.
- *  - inactive: nothing logged (workout, weigh-in, record) for INACTIVE_DAYS or more
+ *  - inactive: no activity (workout, weigh-in, record, or a visit to their gym) for
+ *              inactiveAfter(plan) days or more; `plan` is planned sessions a week
  *  - stalled:  the last three weigh-ins sit within 0.3 kg of each other */
-export function clientStatus({ workouts, weights, entries }, now = Date.now()) {
+export function clientStatus({ workouts, weights, entries, visits, plan }, now = Date.now()) {
   const days = [
-    ...(workouts || []).map(w => w.d), ...(weights || []).map(w => w.d), ...(entries || []).map(e => e.d)
-  ].filter(Boolean).sort();
+    ...(workouts || []).map(w => w.d), ...(weights || []).map(w => w.d), ...(entries || []).map(e => e.d), ...(visits || [])
+  ].filter(d => typeof d === 'string' && d).sort();
   const last = days[days.length - 1] || null;
-  if (!last) return { code: 'new', days: null, last: null };
+  const limit = inactiveAfter(plan);
+  if (!last) return { code: 'new', days: null, last: null, limit };
   const idle = daysAgo(last, Date.parse(isoDay(now)));
-  if (idle >= INACTIVE_DAYS) return { code: 'inactive', days: idle, last };
+  if (idle >= limit) return { code: 'inactive', days: idle, last, limit };
   const w = (weights || []).slice(-3).map(x => x.w);
-  if (w.length === 3 && Math.max(...w) - Math.min(...w) < 0.3) return { code: 'stalled', days: idle, last };
-  return { code: 'ok', days: idle, last };
+  if (w.length === 3 && Math.max(...w) - Math.min(...w) < 0.3) return { code: 'stalled', days: idle, last, limit };
+  return { code: 'ok', days: idle, last, limit };
 }
 
 /** Planned training days per week, from the client's weekly plan. */
-const plannedPerWeek = S => Object.values(S.week || {}).filter(Boolean).length;
+export const plannedPerWeek = S => Object.values(S.week || {}).filter(Boolean).length;
 
 /** Share of planned sessions done over the last four weeks, and full weeks in a row on plan. */
 export function adherence(S, now = Date.now()) {
@@ -243,7 +252,7 @@ export function progressSignal(S, rec, status, now = Date.now()) {
 }
 
 /** One row of the trainer's client list. `rec` is the client's records file (or null). */
-export function clientSummary(user, link, S, rec = null, now = Date.now()) {
+export function clientSummary(user, link, S, rec = null, now = Date.now(), visits = null) {
   S = cleanState(S);
   const entries = rec?.entries || [];
   const workouts = S.workouts;
@@ -258,7 +267,7 @@ export function clientSummary(user, link, S, rec = null, now = Date.now()) {
     lastWorkout: last ? last.d : null,
     weight: lastW ? lastW.w : null,
     weightDate: lastW ? lastW.d : null,
-    status: clientStatus({ workouts, weights, entries }, now),
+    status: clientStatus({ workouts, weights, entries, visits, plan: plannedPerWeek(S) }, now),
     // share of planned sessions done over four weeks (null without a weekly plan)
     adherence: adherence(S, now).pct,
     lastSync: S._ts || null

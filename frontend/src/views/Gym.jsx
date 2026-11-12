@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { api } from '../lib/api.js'
-import { fmtDate } from '../lib/format.js'
-import { t } from '../lib/i18n.js'
+import { fmtDate, todayISO } from '../lib/format.js'
+import { t, dateLocale } from '../lib/i18n.js'
 import { statusTag } from '../lib/trainer.js'
 import { SHIFTS, shiftLabel, shareGymLink, GYM_PLAN } from '../lib/gym.js'
 import { confirmSheet } from '../sheets.jsx'
 import SignOutButton from '../components/SignOutButton.jsx'
 import Icon from '../components/Icon.jsx'
 import { LogoMark } from '../components/Logo.jsx'
+import { MOBILE, shareExport } from '../lib/mobile.js'
 import { Button, SearchField, Segmented, Switch } from '../components/ui.jsx'
 
 // A gym's panel: the trainers on staff and how loaded each one is, the members and who trains
@@ -102,6 +103,58 @@ function LoadBar({ n, of }) {
   </div>
 }
 
+// Reception: who came in today. Tap a name to mark or unmark them; the member can also check
+// in from their own phone. Attendance is what tells "stopped coming" from "stopped logging".
+function ReceptionSheet({ d, apply }) {
+  const [q, setQ] = useState('')
+  const [list, setList] = useState(d.members)
+  const ql = q.trim().toLowerCase()
+  const shown = list.filter(m => !ql || m.name.toLowerCase().includes(ql)).sort((a, b) => a.inToday - b.inToday || a.name.localeCompare(b.name))
+  const mark = m => apply(post('/api/gym/visit', { id: m.id, present: !m.inToday, d: todayISO() }), null, v => v && setList(v.members))
+  const present = list.filter(m => m.inToday).length
+  return <>
+    <h3>{t('Who came in today')}</h3>
+    <div className="muted small" style={{ marginBottom: 10 }}>{present === 1 ? t('1 member checked in today') : t('{0} members checked in today', present)}. {t('Members can also check in from their phone.')}</div>
+    <SearchField value={q} onChange={e => setQ(e.target.value)} onClear={() => setQ('')} placeholder={t('Search members')} aria-label={t('Search members')} />
+    <div className="card" style={{ padding: '4px 14px', marginTop: 10 }}>
+      {shown.map((m, n) => <button key={m.id} className="row between" onClick={() => mark(m)} aria-pressed={!!m.inToday}
+        style={{ width: '100%', padding: '11px 0', borderTop: n ? '1px solid var(--sep)' : 'none', background: 'none', color: 'inherit', textAlign: 'left', gap: 10 }}>
+        <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600 }} className="capitalize">{m.name}</div>
+          <div className="dim" style={{ fontSize: '.75rem' }}>{m.visits30 === 1 ? t('1 visit in the last 30 days') : t('{0} visits in the last 30 days', m.visits30 || 0)}</div></div>
+        {m.inToday ? <span className="tag ok nocap"><Icon name="checkCircle" /> {t('Here today')}</span> : <span className="tag nocap">{t('Mark as here')}</span>}
+      </button>)}
+    </div>
+  </>
+}
+
+// The month in retention: who started slipping away, who came back (and with which trainer),
+// who was lost. A member is recovered when they show activity again within 30 days.
+function RetentionSheet({ d, toast }) {
+  const r = d.retention
+  const monthName = new Date(r.month + '-15').toLocaleDateString(dateLocale(), { month: 'long', year: 'numeric' })
+  const sendNow = () => post('/api/gym/digest/test').then(() => toast(t('Summary sent to your devices with notifications on'))).catch(e => toast(e.message))
+  return <>
+    <h3 className="capitalize">{t('Retention · {0}', monthName)}</h3>
+    <div className="tiles" style={{ margin: '8px 0 12px' }}>
+      <div className="tile"><div className="l">{t('Started slipping away')}</div><div className="v">{r.flagged}</div></div>
+      <div className="tile"><div className="l">{t('Recovered')}</div><div className="v" style={{ color: r.recovered.length ? 'var(--green)' : undefined }}>{r.recovered.length}</div></div>
+      <div className="tile"><div className="l">{t('Lost')}</div><div className="v">{r.lost}</div></div>
+      <div className="tile"><div className="l">{t('Still slipping away')}</div><div className="v" style={{ color: r.open ? 'var(--orange)' : undefined }}>{r.open}</div></div>
+    </div>
+    <div className="small muted" style={{ marginBottom: 8 }}>{t('A member slips away when they show no activity (workouts, records or visits) for longer than their usual rhythm. They count as recovered if they come back within 30 days.')}</div>
+    <h4 className="sec">{t('Recovered this month')}</h4>
+    {!r.recovered.length ? <div className="empty small">{t('Nobody yet this month.')}</div>
+      : <div className="card" style={{ padding: '4px 14px' }}>{r.recovered.map((x, n) => <div key={x.userId + x.end} className="row between" style={{ padding: '10px 0', borderTop: n ? '1px solid var(--sep)' : 'none', gap: 10 }}>
+        <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600 }} className="capitalize">{x.name || t('Former member')}</div>
+          <div className="dim" style={{ fontSize: '.75rem' }}>{x.trainerName ? t('Trainer: {0}', x.trainerName) : t('No trainer')} · {t('back after {0} days', x.days)}</div></div>
+        <span className="tag ok nocap">{t('Came back')}</span>
+      </div>)}</div>}
+    <h4 className="sec">{t('Weekly summary')}</h4>
+    <div className="small muted" style={{ marginBottom: 10 }}>{t('Every Monday morning you get a notification with the members who need a look, and each trainer gets their own list. It reaches the devices where notifications are on (Settings).')}</div>
+    <Button icon="bell" onClick={sendNow}>{t('Send me this week’s summary now')}</Button>
+  </>
+}
+
 // Who should train this member: every trainer with their load, the suggested one first.
 function AssignSheet({ m, d, close, apply, navTo }) {
   const [shift, setShift] = useState(m.shift || '')
@@ -118,6 +171,7 @@ function AssignSheet({ m, d, close, apply, navTo }) {
     <div className="muted small" style={{ marginBottom: 12 }}>
       {t('Trains: {0}', shiftLabel(shift))}{m.trainerName ? ' · ' + t('Trainer: {0}', m.trainerName) : ''}
       {' · '}{m.planned ? t('Has workouts from their trainer') : t('No workouts assigned')}
+      {' · '}{m.visits30 === 1 ? t('1 visit in the last 30 days') : t('{0} visits in the last 30 days', m.visits30 || 0)}
     </div>
     {progressTags(m.status?.progress, true).length > 0 && <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
       {progressTags(m.status?.progress, true).map(([cls, label]) => <span key={label} className={'tag nocap ' + cls}>{t(label)}</span>)}
@@ -169,12 +223,12 @@ export default function Gym() {
   const g = user?.gym
   const allowed = g?.role === 'owner' || (g?.role === 'trainer' && (g.perms || []).includes('members'))
 
-  const load = () => api('/api/gym').then(setD).catch(e => toast(e.message))
+  const load = () => api('/api/gym?d=' + todayISO()).then(setD).catch(e => toast(e.message))
   useEffect(() => { if (allowed) load() }, [allowed])
   if (!allowed) return null
 
   // Every change answers with the fresh overview, so the screen never shows a stale load.
-  const apply = (p, msg, after) => p.then(v => { if (v?.members) setD(v); else load(); if (msg) toast(msg); after?.() }).catch(e => toast(e.message))
+  const apply = (p, msg, after) => p.then(v => { if (v?.members) setD(v); else load(); if (msg) toast(msg); after?.(v) }).catch(e => toast(e.message))
   const openMember = m => useUI.getState().openSheet(close => <AssignSheet m={m} d={d} close={close} apply={apply} navTo={nav} />)
   const create = (opts, close) => post('/api/gym/invite', opts)
     .then(async ({ invite }) => { close(); load(); const msg = await shareGymLink(invite.token, invite.kind, d.gym.name); if (msg) toast(msg) })
@@ -214,6 +268,22 @@ export default function Gym() {
   const canAssign = isOwner || (d.me?.perms || []).includes('assign')
   const canPublish = isOwner || (d.me?.perms || []).includes('content')
   const staffInvites = d.invites.filter(i => i.kind === 'trainer')
+  const openReception = () => useUI.getState().openSheet(close => <ReceptionSheet d={d} apply={apply} close={close} />)
+  const openRetention = () => useUI.getState().openSheet(close => <RetentionSheet d={d} toast={toast} close={close} />)
+  // The member list as a spreadsheet (Excel opens it). The BOM keeps accents right in Excel.
+  const exportCsv = async () => {
+    try {
+      const r = await fetch('/api/gym/export.csv')
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'HTTP ' + r.status)
+      const name = (r.headers.get('content-disposition') || '').match(/filename="([^"]+)"/)?.[1] || 'socios.csv'
+      const blob = await r.blob()
+      if (MOBILE) { await shareExport('\ufeff' + (await blob.text()).replace(/^\ufeff/, ''), name); return }
+      const url = URL.createObjectURL(blob), a = document.createElement('a')
+      a.href = url; a.download = name; document.body.append(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 2000)
+      toast(t('Member list downloaded'))
+    } catch (e) { toast(e.message) }
+  }
   const trainerName = id => d.trainers.find(x => x.id === id)?.name
 
   return <div>
@@ -233,6 +303,8 @@ export default function Gym() {
       <div className="tile"><div className="l">{t('Trainers')}</div><div className="v">{d.trainers.length}</div></div>
       <button className="tile" style={{ textAlign: 'left' }} onClick={() => setFilter('unassigned')}><div className="l">{t('No trainer')}</div><div className="v" style={{ color: unassigned.length ? 'var(--orange)' : undefined }}>{unassigned.length}</div></button>
       <button className="tile" style={{ textAlign: 'left' }} onClick={() => setFilter('attention')}><div className="l">{t('Need a look')}</div><div className="v" style={{ color: attention.length ? 'var(--orange)' : undefined }}>{attention.length}</div></button>
+      <button className="tile" style={{ textAlign: 'left' }} onClick={openReception}><div className="l">{t('At the gym today')}</div><div className="v">{d.today?.present || 0}</div></button>
+      <button className="tile" style={{ textAlign: 'left' }} onClick={openRetention}><div className="l">{t('Recovered this month')}</div><div className="v" style={{ color: d.retention?.recovered.length ? 'var(--green)' : undefined }}>{d.retention?.recovered.length || 0}</div></button>
     </div>
 
     {canAssign && unassigned.length > 0 && d.trainers.length > 0 && <div className="card row between" style={{ gap: 12, marginBottom: 12, borderColor: 'var(--acc)' }}>
@@ -293,6 +365,7 @@ export default function Gym() {
 
         {isOwner && !d.trainers.some(x => x.id === user.id) && <Button icon="person" style={{ marginTop: 10 }} disabled={d.trainers.length >= d.gym.limits.trainers}
           onClick={() => apply(post('/api/gym/staff/self'), t('You now train at {0}', d.gym.name))}>{t('Train here too')}</Button>}
+        {isOwner && <Button icon="download" onClick={exportCsv}>{t('Download the member list (Excel)')}</Button>}
 
         {isOwner && <>
         <h4 className="sec">{t('Invite')}</h4>

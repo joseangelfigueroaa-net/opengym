@@ -736,7 +736,15 @@ const routes = {
     }
     const id = safeId(u.id);
     const names = ['state', 'records', 'assign', 'chat', 'social', 'photos', 'content'].map(k => k + '-' + id + '.json');
-    if (g) names.push('gymchat-' + safeId(g.id) + '-' + id + '.json');
+    if (g) {
+      names.push('gymchat-' + safeId(g.id) + '-' + id + '.json');
+      // their days at the gym go; an open retention episode closes as "left"
+      const vn = 'visits-' + safeId(g.id) + '.json', vf = files.read(vn, {});
+      if (vf.days && vf.days[u.id]) { delete vf.days[u.id]; files.write(vn, vf); }
+      const rn = 'retention-' + safeId(g.id) + '.json', rf = files.read(rn, {});
+      const open = (rf.episodes || []).find(e => e.userId === u.id && !e.end);
+      if (open) { open.end = new Date().toISOString().slice(0, 10); open.outcome = 'left'; files.write(rn, rf); }
+    }
     await Promise.all(names.map(n => files.remove(n)));
     for (const dir of ['content', 'photos']) await fs.promises.rm(path.join(DATA, dir, id), { recursive: true, force: true });
     coachJobs.clearUser(u.id);
