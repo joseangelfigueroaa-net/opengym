@@ -22,7 +22,11 @@ export const SOURCES = {
   b12: { title: 'Principios del entrenamiento deportivo para personas 60+', author: 'INAPAM, Gobierno de México (2017)' },
   b13: { title: 'Planificación y periodización del entrenamiento deportivo', author: 'David Carrillo Baranda' },
   b15: { title: 'Sports Training: Definitions, Aims, Functions and Characteristics', author: 'Sri Satya Sai University of Technology & Medical Sciences' },
-  b16: { title: 'Sports Training: An Introduction', author: 'Instituto de Educación Deportiva de Bangladesh' }
+  b16: { title: 'Sports Training: An Introduction', author: 'Instituto de Educación Deportiva de Bangladesh' },
+  a01: { title: 'Dynamic neuromuscular stabilization and sports rehabilitation', author: 'Frank, Kobesova y Kolář (2013), Int J Sports Phys Ther', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC3578435/' },
+  a02: { title: 'Revisión de alcance sobre la eficacia de la DNS', author: '2024', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC11609563/' },
+  a03: { title: 'Selective Functional Movement Assessment (SFMA) reliability and proposal of its use in sports', author: 'Aghi et al. (2023), Int J Environ Res Public Health', url: 'https://pubmed.ncbi.nlm.nih.gov/36767405/' },
+  a04: { title: 'Strength training versus stretching for improving range of motion', author: 'Afonso et al. (2021), Healthcare', url: 'https://pubmed.ncbi.nlm.nih.gov/33917036/' }
 }
 
 export const CATEGORIES = {
@@ -316,6 +320,19 @@ export const CONCEPTS = [
     ],
     practice: 'El modelo «Salud y autonomía (60+)» sigue estas pautas: 2 o 3 días por semana, ejercicios guiados y trabajo de piernas.',
     sources: ['b12', 'b04']
+  },
+  {
+    id: 'escuela-praga', cat: 'practica', title: 'La Escuela de Praga, la estabilización y el chequeo de movimiento',
+    summary: 'La Escuela de Praga de rehabilitación (Vojta, Janda, Lewit y, hoy, Pavel Kolář) estudia cómo el cuerpo se estabiliza siguiendo el desarrollo motor del bebé. De ahí sale la estabilización neuromuscular dinámica (DNS). Junto con el SFMA y el FRC, inspira el chequeo de movimiento, el calentamiento articular y el modelo de movilidad de Trainnery.',
+    points: [
+      'DNS: la estabilidad del tronco nace de que el diafragma, el abdomen, el suelo pélvico y los músculos profundos de la columna trabajen juntos. Se entrena con respiración «360°» (el abdomen se expande hacia delante, a los lados y atrás) y con posiciones del desarrollo: boca arriba con piernas a 90°, de lado, cuadrupedia y oso.',
+      'Presión abdominal: antes de cargar, inhalar por la nariz llenando el abdomen en todas las direcciones y mantener esa presión durante el esfuerzo, sin hundir el ombligo ni arquear la espalda.',
+      'SFMA (Cook y Kiesel): se observan movimientos básicos de todo el cuerpo y cada uno se marca como bien, limitado o con dolor. Lo que duele se deriva a un profesional de salud; lo que está limitado sin dolor es lo que se entrena.',
+      'FRC (Andreo Spina): rotaciones articulares lentas y controladas cada día, y contracciones al final del rango para ganar movilidad que se pueda usar.',
+      'Evidencia: el SFMA tiene una fiabilidad de moderada a buena con evaluadores entrenados. DNS y FRC se basan sobre todo en la práctica clínica y faltan ensayos controlados. Lo que sí está respaldado es que la fuerza en todo el recorrido mejora la movilidad tanto como estirar.'
+    ],
+    practice: 'En la ficha del cliente, «Chequeo de movimiento» registra los 7 patrones; si algo duele, la app avisa que hay que derivar y activa la limitación. En los modelos se puede añadir el calentamiento articular de 5 minutos a cada sesión, y el modelo «Movilidad y control articular» se recomienda a quien tiene patrones limitados sin dolor. Son nombres propios, inspirados en estos métodos: el SFMA, el FRC y la DNS son marcas y certificaciones de sus autores.',
+    sources: ['a01', 'a02', 'a03', 'a04']
   }
 ]
 

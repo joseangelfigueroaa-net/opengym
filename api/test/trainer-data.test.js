@@ -191,7 +191,23 @@ test('a month plan is checked whole: one bad day sends nothing', () => {
 
 test('the client profile keeps only known keys', () => {
   assert.deepEqual(A.cleanProfile({ goal: 'muscle', limits: ['knee', 'knee', 'evil'], focus: 'zzz', days: '4', notes: ' x ' }),
-    { macros: null, goal: 'muscle', limits: ['knee'], focus: null, days: 4, notes: 'x' });
+    { screens: [], macros: null, goal: 'muscle', limits: ['knee'], focus: null, days: 4, notes: 'x' });
+});
+
+test('movement checks keep known patterns and marks, newest first, one per day, at most six', () => {
+  const screens = [
+    { d: '2026-10-01', r: { squat: 'pain', bend: 'limited', evil: 'pain', neck: 'meh' } },
+    { d: '2026-11-22', r: { squat: 'ok' } },
+    { d: '2026-11-22', r: { squat: 'pain' } },
+    { d: 'yesterday', r: { squat: 'ok' } },
+    { d: '2026-09-01', r: { nothing: 'ok' } },
+    ...Array.from({ length: 8 }, (_, i) => ({ d: `2026-0${i + 1}-15`, r: { reach: 'ok' } }))
+  ];
+  const out = A.cleanProfile({ screens }).screens;
+  assert.equal(out.length, A.KEEP_SCREENS);
+  assert.deepEqual(out[0], { d: '2026-11-22', r: { squat: 'ok' } });
+  assert.deepEqual(out[1], { d: '2026-10-01', r: { squat: 'pain', bend: 'limited' } });
+  assert.deepEqual(A.cleanProfile({ screens: 'x' }).screens, []);
 });
 
 test('assigned exercises carry their mode: reps with weight, time, cardio, and rest', () => {

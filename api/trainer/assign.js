@@ -126,8 +126,28 @@ export function cleanMacros(m) {
   return Object.values(out).some(v => v != null) ? out : null;
 }
 
-export function cleanProfile({ goal, limits, focus, days, notes, macros }) {
+// The movement check's patterns and marks (frontend/src/lib/movement.js). A profile keeps the
+// last few checks, newest first, so the trainer can see what improved.
+export const SCREEN_PATTERNS = ['neck', 'reach', 'bend', 'extend', 'rotate', 'single_leg', 'squat'];
+const SCREEN_MARKS = ['ok', 'limited', 'pain'];
+export const KEEP_SCREENS = 6;
+
+function cleanScreens(screens) {
+  if (!Array.isArray(screens)) return [];
+  const seen = new Set();
+  return screens.flatMap(s => {
+    if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(String(s.d)) || !s.r || typeof s.r !== 'object' || seen.has(s.d)) return [];
+    const r = {};
+    for (const id of SCREEN_PATTERNS) if (SCREEN_MARKS.includes(s.r[id])) r[id] = s.r[id];
+    if (!Object.keys(r).length) return [];
+    seen.add(s.d);
+    return [{ d: String(s.d), r }];
+  }).sort((a, b) => b.d.localeCompare(a.d)).slice(0, KEEP_SCREENS);
+}
+
+export function cleanProfile({ goal, limits, focus, days, notes, macros, screens }) {
   return {
+    screens: cleanScreens(screens),
     macros: cleanMacros(macros),
     goal: GOALS.includes(goal) ? goal : null,
     limits: Array.isArray(limits) ? [...new Set(limits.filter(l => LIMITS.includes(l)))] : [],

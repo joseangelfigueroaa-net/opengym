@@ -49,7 +49,9 @@ export const METHODS = {
   terapeutico: { name: 'Ejercicio terapéutico', rest: 75, modes: ['reps', 'time'], reps: [8, 20],
     about: 'Fortalecimiento con rangos y cargas tolerables para una zona sensible, priorizando el control.' },
   hibrido: { name: 'Fuerza y resistencia concurrente (híbrido)', rest: 60, modes: ['reps', 'time', 'cardio'], reps: [5, 20],
-    about: 'Fuerza, estaciones funcionales y trabajo aeróbico en la misma semana, en días separados para que una cualidad no le reste a la otra.' }
+    about: 'Fuerza, estaciones funcionales y trabajo aeróbico en la misma semana, en días separados para que una cualidad no le reste a la otra.' },
+  movilidad: { name: 'Movilidad y control articular', rest: 45, modes: ['reps', 'time'], reps: [3, 15],
+    about: 'Rango de movimiento activo y controlado: rotaciones articulares lentas, contracciones al final del rango y fuerza en todo el recorrido. Inspirado en FRC y DNS; su evidencia es menor que la del entrenamiento de fuerza.' }
 }
 
 /* ---------- references (real, citable) ---------- */
@@ -78,6 +80,10 @@ const R = {
   liftmor2018: { text: 'Watson et al. (2018). High-intensity resistance and impact training improves bone mineral density and physical function in postmenopausal women with osteopenia and osteoporosis: the LIFTMOR randomized controlled trial. J Bone Miner Res 33(2):211-220.', url: 'https://pubmed.ncbi.nlm.nih.gov/28975661/' },
   refalo2023: { text: 'Refalo et al. (2023). Influence of resistance training proximity-to-failure on skeletal muscle hypertrophy: a systematic review with meta-analysis. Sports Med 53(3):649-665.', url: 'https://pubmed.ncbi.nlm.nih.gov/36334240/' },
   lesmillsGlp1: { text: 'Les Mills y ukactive (2026). GLP-1 report: exercise and weight-loss medication.', url: 'https://lesmills.com/articles/glp1-report' },
+  strVsStretch2021: { text: 'Afonso et al. (2021). Strength training versus stretching for improving range of motion: a systematic review and meta-analysis. Healthcare 9(4):427.', url: 'https://pubmed.ncbi.nlm.nih.gov/33917036/' },
+  dns2013: { text: 'Frank, Kobesova y Kolář (2013). Dynamic neuromuscular stabilization and sports rehabilitation. Int J Sports Phys Ther 8(1):62-73.', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC3578435/' },
+  dnsReview2024: { text: 'Revisión de alcance (2024) sobre la eficacia de la estabilización neuromuscular dinámica (DNS) como estrategia de estabilización de la columna.', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC11609563/' },
+  aceCars: { text: 'ACE (2024). Controlled articular rotations: shifting mobility into high gear (sobre las rotaciones articulares de Functional Range Conditioning).', url: 'https://www.acefitness.org/continuing-education/certified/october-2024/8725/controlled-articular-rotations-shifting-mobility-into-high-gear/' },
   acsmTrends2026: { text: 'ACSM (2026). Top fitness trends for 2026 (n.º 5: equilibrio, flujo y fuerza del core).', url: 'https://acsm.org/top-fitness-trends-2026' }
 }
 
@@ -139,6 +145,15 @@ export const EX_NOTES = {
   '0628': 'Paso de monstruo: caminar con las piernas separadas contra resistencia; glúteo medio, estabilidad de cadera y rodilla.',
   '0705': 'Plancha lateral: estabilidad lateral del tronco (oblicuos y cuadrado lumbar) con la columna neutra.',
   '1774': 'Plancha lateral con abducción de cadera: suma el glúteo medio a la plancha lateral; equilibrio de cadera y tronco.',
+  '1403': 'Cuello: inclinaciones y giros lentos, en todo el rango que no moleste; como rotación articular, la cabeza dibuja el círculo más grande posible sin mover los hombros.',
+  '2143': 'Círculo de hombros con mancuerna ligera: rotación articular del hombro en todo su rango, lenta y con el tronco quieto.',
+  '1358': 'Apertura de tórax de lado: rotación de la columna torácica con la cadera fija; mejora el giro sin forzar la zona lumbar.',
+  '1604': 'Estiramiento más grande del mundo: zancada con giro de tronco; cadera, aductores y columna torácica en un solo movimiento.',
+  '1368': 'Círculos de tobillo: rotación articular del tobillo; prepara la sentadilla y el apoyo a una pierna.',
+  '1428': 'Círculos de muñeca: rotación articular de la muñeca antes de apoyos y empujes.',
+  '0984': 'Rotación interna de cadera tumbado con banda: control activo de la cadera al final de su rango, la idea de las contracciones al final del rango (PAILs y RAILs).',
+  '2567': 'Estiramiento de piriforme sentado: postura tipo 90/90 para la rotación de cadera; se sostiene y se empuja suave contra el suelo al final del rango.',
+  '0864': 'Rotación externa de hombro de pie con mancuerna: manguito rotador y control del hombro en rotación.',
   '1757': 'Peso muerto a una pierna con mancuerna: bisagra de cadera sobre un pie; isquios, glúteo y sobre todo equilibrio.'
 }
 
@@ -423,7 +438,29 @@ export const PROGRAMS = [
       { name: 'Tronco y cadera', ex: [e('0276', 3, 8, 12), tm('0705', 3, 30), e('0979', 3, 10, 12), e('3013', 3, 12, 15), e('0628', 3, 12, 15)] },
       { name: 'Equilibrio y control', ex: [e('1757', 3, 8, 12), e('0431', 3, 8, 12), tm('2135', 3, 30), e('0993', 3, 12, 15), e('1774', 3, 10, 15)] }
     ]
+  },
+  {
+    id: 'movilidad', method: 'movilidad', books: [], forMobility: true,
+    evidence: 'Práctica clínica; evidencia limitada',
+    concepts: ['escuela-praga', 'calentamiento', 'individualidad'],
+    name: 'Movilidad y control articular',
+    summary: 'Dos sesiones para ganar rango de movimiento que se pueda controlar: rotaciones articulares, trabajo al final del rango, respiración y estabilidad del tronco, y fuerza en todo el recorrido.',
+    level: 'Todos', days: 2, weekdays: [2, 4],
+    goals: ['health'], suits: ['beginner', 'lower_back'], avoid: [], focus: 'full_body',
+    basis: 'Pensado para quien en el chequeo de movimiento tiene patrones limitados sin dolor. Junta tres ideas: las rotaciones articulares lentas y las contracciones al final del rango de Functional Range Conditioning (FRC, Andreo Spina); la respiración y la estabilización del tronco de la Escuela de Praga (DNS, Pavel Kolář), con posiciones como el dead bug y la plancha lateral; y la fuerza en todo el recorrido, que según un metaanálisis de 11 ensayos mejora la movilidad tanto como estirar (Afonso, 2021). Hay que ser honestos: FRC y DNS se basan sobre todo en la práctica clínica y en la opinión de expertos, y faltan ensayos controlados que muestren que funcionan mejor que el entrenamiento de fuerza bien hecho. Por eso este modelo complementa la fuerza; no la reemplaza.',
+    refs: [R.strVsStretch2021, R.dns2013, R.dnsReview2024, R.aceCars],
+    sessions: [
+      { name: 'Cadera y columna', ex: [e('1604', 2, 5, 5), e('0984', 2, 8, 12), tm('2567', 2, 45), e('0276', 3, 6, 10), e('1760', 3, 8, 12)] },
+      { name: 'Hombro, tobillo y tronco', ex: [e('1358', 2, 6, 10), e('2143', 2, 8, 12), e('0864', 2, 10, 15), e('1368', 2, 10, 15), tm('0705', 3, 30), e('1757', 2, 8, 10)] }
+    ]
   }
+]
+
+/** Joint warm-up (inspired by FRC's controlled articular rotations): about five minutes of slow
+ *  circles of every major joint, laid at the start of any session from the models screen. */
+export const JOINT_WARMUP = [
+  e('1403', 1, 3, 3, { rest: 0 }), e('2143', 1, 5, 5, { rest: 0 }), e('1358', 1, 5, 5, { rest: 0 }),
+  e('1604', 1, 5, 5, { rest: 0 }), e('1368', 1, 8, 8, { rest: 0 }), e('1428', 1, 8, 8, { rest: 0 })
 ]
 
 /** How well a model fits a client profile: goal match, focus match, and no clash with their
@@ -436,6 +473,8 @@ export function fitScore(p, profile) {
   if (profile.goal && p.goals.includes(profile.goal)) s += p.goals[0] === profile.goal ? 3 : 2
   if (profile.focus && p.focus === profile.focus) s += 2
   s += limits.filter(l => p.suits.includes(l)).length * 2
+  // a movement check with limited (painless) patterns points at mobility work
+  if (p.forMobility && Object.values(profile.screens?.[0]?.r || {}).includes('limited')) s += 3
   if (profile.days && Math.abs(profile.days - p.days) <= 1) s += 1
   return s
 }

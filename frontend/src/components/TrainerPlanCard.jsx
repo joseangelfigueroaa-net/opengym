@@ -7,6 +7,8 @@ import { GOALS, LIMITS, FOCUS } from '../lib/programs.js'
 import { confirmSheet } from '../sheets.jsx'
 import { assignSheet } from './AssignSheet.jsx'
 import { profileSheet } from './ProfileSheet.jsx'
+import { movementCheckSheet } from './MovementCheckSheet.jsx'
+import { latestCheck, readCheck, checkAge, improved, RECHECK_DAYS } from '../lib/movement.js'
 import Icon from './Icon.jsx'
 
 // The client file's training plan: what it is built around (profile), what is assigned from
@@ -24,6 +26,8 @@ export default function TrainerPlanCard({ client, nav }) {
   const ahead = list.filter(a => a.date >= today)
   const lastDay = ahead.length ? ahead[ahead.length - 1].date : null
   const p = d?.profile
+  const check = latestCheck(p), checkRead = readCheck(check), age = checkAge(p, today), better = improved(p)
+  const openCheck = () => movementCheckSheet({ client, profile: p, onSaved: profile => setD(o => ({ ...o, profile })) })
   const del = a => confirmSheet({
     title: t('Remove this workout?'), message: a.name + ' · ' + fmtDate(a.date, true),
     confirmText: t('Remove'), danger: true,
@@ -49,6 +53,23 @@ export default function TrainerPlanCard({ client, nav }) {
     </div> : d && <button className="linkbtn small" style={{ marginTop: 6 }} onClick={() => profileSheet({ client, profile: p, onSaved: profile => setD(o => ({ ...o, profile })) })}>
       {t('Set their goal and limitations to get model recommendations')}</button>}
     {p?.notes && <div className="dim small" style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>{p.notes}</div>}
+
+    {d && <button className="row between" onClick={openCheck} aria-label={t('Movement check')}
+      style={{ width: '100%', gap: 10, marginTop: 10, padding: '10px 0 0', borderTop: '1px solid var(--sep)', background: 'none', color: 'inherit', textAlign: 'left' }}>
+      <span style={{ minWidth: 0 }}>
+        <span className="small" style={{ fontWeight: 600, display: 'block' }}>{t('Movement check')}</span>
+        <span className="dim" style={{ fontSize: '.75rem' }}>{!check ? t('Seven movements to spot pain and limited mobility before training')
+          : [fmtDate(check.d, true),
+            checkRead.pain.length ? t('{0} with pain', checkRead.pain.length) : null,
+            checkRead.limited.length ? (checkRead.limited.length === 1 ? t('1 limited') : t('{0} limited', checkRead.limited.length)) : null,
+            !checkRead.pain.length && !checkRead.limited.length ? t('all fine') : null,
+            better.length ? (better.length === 1 ? t('1 improved') : t('{0} improved', better.length)) : null].filter(Boolean).join(' · ')}</span>
+      </span>
+      {!check ? <span className="tag acc nocap" style={{ flexShrink: 0 }}>{t('Do it')}</span>
+        : age >= RECHECK_DAYS ? <span className="tag warn nocap" style={{ flexShrink: 0 }}>{t('Repeat')}</span>
+          : checkRead.pain.length ? <span className="tag bad nocap" style={{ flexShrink: 0 }}>{t('Refer')}</span>
+            : <Icon name="chevronRight" className="dim" />}
+    </button>}
 
     <div className="row" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
       <button className="btn primary" style={{ margin: 0, flex: '1 1 180px' }} onClick={() => nav('/trainer/c/' + client.id + '/models')}>

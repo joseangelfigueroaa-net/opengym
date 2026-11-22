@@ -37,7 +37,7 @@ function Concept({ c, open, onToggle }) {
         {t('Models that apply it')}: {models.map(m => m.name).join(' · ')}</div>}
       <div className="lbl2" style={{ marginTop: 12 }}>{t('Sources')}</div>
       <ul className="dim" style={{ fontSize: '.75rem', margin: '4px 0 0', paddingLeft: 18, display: 'grid', gap: 3 }}>
-        {c.sources.map(s => <li key={s}><i>{SOURCES[s].title}</i>, {SOURCES[s].author}</li>)}
+        {c.sources.map(s => <li key={s}>{SOURCES[s].url ? <a href={SOURCES[s].url} target="_blank" rel="noopener noreferrer"><i>{SOURCES[s].title}</i></a> : <i>{SOURCES[s].title}</i>}, {SOURCES[s].author}</li>)}
       </ul>
     </>}
   </article>

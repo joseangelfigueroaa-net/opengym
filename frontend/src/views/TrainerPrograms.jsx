@@ -7,10 +7,10 @@ import { t } from '../lib/i18n.js'
 import { todayISO, fmtDate, DAYS } from '../lib/format.js'
 import { prescription } from '../lib/trainer.js'
 import { exOr } from '../lib/exercises.js'
-import { PROGRAMS, EX_NOTES, GOALS, LIMITS, FOCUS, METHODS, fitScore, layOut, withRest } from '../lib/programs.js'
+import { PROGRAMS, EX_NOTES, GOALS, LIMITS, FOCUS, METHODS, JOINT_WARMUP, fitScore, layOut, withRest } from '../lib/programs.js'
 import { conceptById, SOURCES } from '../lib/knowledge.js'
 import { profileSheet } from '../components/ProfileSheet.jsx'
-import ExerciseItemsEditor, { itemErrors } from '../components/ExerciseItemsEditor.jsx'
+import ExerciseItemsEditor, { itemErrors, MAX_ITEMS } from '../components/ExerciseItemsEditor.jsx'
 import Icon from '../components/Icon.jsx'
 import { Button, TextArea, TextField } from '../components/ui.jsx'
 
@@ -71,6 +71,12 @@ export default function TrainerPrograms() {
     setTimeout(() => document.getElementById('apply')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
   const setSession = (i, patch) => setCustom(list => list.map((s, j) => (j === i ? { ...s, ...patch } : s)))
+  // the joint warm-up goes first in every session, once; a second tap takes it out again
+  const isWarm = s => JOINT_WARMUP.every((w, i) => s.ex[i]?.id === w.id)
+  const warmed = custom.length > 0 && custom.every(isWarm)
+  const toggleWarmup = () => setCustom(list => list.map(s => warmed
+    ? { ...s, ex: s.ex.slice(JOINT_WARMUP.length) }
+    : isWarm(s) ? s : { ...s, ex: [...JOINT_WARMUP.map(x => ({ ...x })), ...s.ex].slice(0, MAX_ITEMS) }))
   const resetSessions = () => chosen && setCustom(chosen.sessions.map(s => ({ name: s.name, ex: s.ex.map(x => withRest(x, chosen)) })))
   const toggleDay = d => setPlan(o => ({ ...o, weekdays: o.weekdays.includes(d) ? o.weekdays.filter(x => x !== d) : [...o.weekdays, d] }))
   const send = async () => {
@@ -135,6 +141,7 @@ export default function TrainerPrograms() {
           <span className="tag nocap">{p.level}</span>
           <span className="tag nocap">{t('{0} days/week', p.days)}</span>
           <span className="tag nocap">{FOCUS[p.focus]}</span>
+          {p.evidence && <span className="tag warn nocap">{p.evidence}</span>}
         </div>
         <p className="small" style={{ margin: '10px 0 0' }}>{p.summary}</p>
         <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
@@ -181,6 +188,9 @@ export default function TrainerPrograms() {
           {s.name || t('Session {0}', i + 1)} · {s.ex.length}</button>)}
         <button type="button" className="chip nocap" onClick={resetSessions}><Icon name="reset" /> {t('Restore the model')}</button>
       </div>
+      <button type="button" className={'chip nocap' + (warmed ? ' on' : '')} aria-pressed={warmed} style={{ marginBottom: 10 }} onClick={toggleWarmup}>
+        <Icon name={warmed ? 'check' : 'plus'} /> {t('Joint warm-up at the start (5 min)')}</button>
+      {!warmed && <div className="dim" style={{ fontSize: '.72rem', margin: '-4px 0 10px' }}>{t('Slow circles of neck, shoulders, spine, hips, ankles and wrists before the session (inspired by FRC).')}</div>}
       {custom[editing] && <>
         <label className="small muted" style={{ display: 'grid', gap: 4, marginBottom: 10 }}>{t('Session name')}
           <TextField maxLength={40} value={custom[editing].name} onChange={e => setSession(editing, { name: e.target.value })} /></label>
