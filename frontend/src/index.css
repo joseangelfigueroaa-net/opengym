@@ -28,7 +28,7 @@
   /* text */
   --label:     #ffffff;
   --label-2:   rgba(235,235,245,.60);
-  --label-3:   rgba(235,235,245,.32);
+  --label-3:   rgba(235,235,245,.50);
   --label-4:   rgba(235,235,245,.18);
 
   /* lines */
@@ -69,8 +69,8 @@
   --surface-3: #e3e3e8;
 
   --label:     #000000;
-  --label-2:   rgba(60,60,67,.60);
-  --label-3:   rgba(60,60,67,.30);
+  --label-2:   rgba(60,60,67,.78);
+  --label-3:   rgba(60,60,67,.62);
   --label-4:   rgba(60,60,67,.16);
 
   --sep:       rgba(60,60,67,.29);

@@ -7,7 +7,6 @@ import { fmtDate, fmtNum } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import { shareInvite, statusTag } from '../lib/trainer.js'
 import { confirmSheet } from '../sheets.jsx'
-import SignOutButton from '../components/SignOutButton.jsx'
 import Icon from '../components/Icon.jsx'
 import { LogoMark } from '../components/Logo.jsx'
 import { Button, SearchField } from '../components/ui.jsx'
@@ -56,6 +55,8 @@ export default function Trainer() {
   const unread = clients.reduce((n, c) => n + (c.unread || 0), 0)
   const ql = q.trim().toLowerCase()
   const shown = clients.filter(MATCH[filter]).filter(c => !ql || c.name.toLowerCase().includes(ql))
+  // the gym tag only tells something apart when the trainer has both kinds of clients
+  const mixed = clients.some(c => c.gym) && clients.some(c => !c.gym)
 
   return <div>
     <div className="hdr">
@@ -63,8 +64,6 @@ export default function Trainer() {
       <div style={{ flex: 1, marginLeft: 10 }}><h1 style={{ margin: 0 }}>{t('Your clients')}</h1>
         <div className="sub">{d ? t('{0} of {1} seats · {2} plan', d.seats.clients + d.seats.open, d.seats.limit, PLAN[d.seats.plan]) + (d.gym ? ' · ' + t('{0} from {1}', d.seats.gym, d.gym.name) : '') : t('Loading…')}</div></div>
       <div className="row" style={{ gap: 8 }}>
-        <button className="iconbtn" onClick={load} aria-label={t('Refresh')}><Icon name="reset" /></button>
-        <SignOutButton />
       </div>
     </div>
 
@@ -96,9 +95,9 @@ export default function Trainer() {
                     {c.adherence != null && ' · ' + t('Plan {0}%', c.adherence)}
                   </div></div>
                 <div className="row" style={{ gap: 8, flexShrink: 0 }}>
-                  {c.gym && <span className="tag nocap">{t('Gym')}</span>}
+                  {mixed && c.gym && <span className="tag nocap">{t('Gym')}</span>}
                   {c.unread > 0 && <span className="tag acc nocap" aria-label={t('{0} unread messages', c.unread)}><Icon name="chat" /> {c.unread}</span>}
-                  <span className={'tag nocap ' + st.cls}>{st.text}</span>
+                  {c.status?.code !== 'ok' && <span className={'tag nocap ' + st.cls}>{st.text}</span>}
                   <Icon name="chevronRight" className="dim" />
                 </div>
               </button>

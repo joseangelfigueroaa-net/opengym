@@ -278,7 +278,7 @@ export default function Landing() {
 }
 
 const CSS = `
-.lp{min-height:100vh;background:#0e0f11;color:#ecebe6;font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden;padding-bottom:24px;--line:#26282c;--surface:#16181b;--muted:#9d9c96;--accent:#3fb97a}
+.lp{min-height:100vh;background:#0e0f11;color:#ecebe6;font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden;padding-bottom:24px;--line:#26282c;--surface:#16181b;--muted:#a4a39d;--accent:#30d158}
 .lp *{box-sizing:border-box}
 .lp a:focus-visible,.lp button:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:12px}
 .lp h1,.lp h2,.lp h3,.lp-word,.lp-plan-price{font-family:"Syne",system-ui,sans-serif}

@@ -5,10 +5,8 @@ import { useUI } from '../store/useUI.js'
 import { api } from '../lib/api.js'
 import { fmtDate, todayISO } from '../lib/format.js'
 import { t, dateLocale } from '../lib/i18n.js'
-import { statusTag } from '../lib/trainer.js'
 import { SHIFTS, shiftLabel, shareGymLink, GYM_PLAN } from '../lib/gym.js'
 import { confirmSheet } from '../sheets.jsx'
-import SignOutButton from '../components/SignOutButton.jsx'
 import Icon from '../components/Icon.jsx'
 import { LogoMark } from '../components/Logo.jsx'
 import { MOBILE, shareExport } from '../lib/mobile.js'
@@ -28,6 +26,18 @@ const needsLook = m => m.status?.code === 'inactive' || m.status?.code === 'stal
 const TRENDS = { advancing: ['ok', 'Moving toward their goal'], off_track: ['warn', 'Moving away from their goal'] }
 const PLANS = { on_plan: ['ok', 'Keeps to their plan'], behind: ['warn', 'Not keeping to their plan'] }
 // in the list, only what needs a look; someone inactive is already flagged, so their plan isn't repeated
+// The one thing to know about a member in the list: their most urgent problem, or nothing at
+// all when they are fine. The member sheet shows the rest.
+const issueOf = m => {
+  const s = m.status, p = s?.progress
+  if (s?.code === 'inactive') return ['bad', t('{0} days without activity', s.days)]
+  if (m.trainerId && !m.planned) return ['warn', t('No workouts')]
+  if (p?.trend === 'off_track') return ['warn', t('Moving away from their goal')]
+  if (p?.plan === 'behind') return ['warn', t('Not keeping to their plan')]
+  if (s?.code === 'stalled') return ['warn', t('Weight stalled')]
+  if (!s || s.code === 'new') return ['', t('No activity yet')]
+  return null
+}
 const progressTags = (p, all) => [p?.trend && TRENDS[p.trend], p?.plan && (all || (p.plan === 'behind' && p.trend !== 'inactive')) && PLANS[p.plan]].filter(Boolean)
 // What each permission lets a person do, as the invite and the settings sheet say it.
 const STAFF_PERMS = [
@@ -84,7 +94,7 @@ function TrainerSheet({ x, d, close, apply, onRemove, navTo }) {
   return <>
     <h3 className="capitalize">{x.name}</h3>
     <div className="muted small" style={{ marginBottom: 12 }}>{t('{0} of {1} gym members', x.clients, x.limit)}</div>
-    {!isOwner && <Button icon="chat" style={{ marginBottom: 12 }} onClick={() => { close(); navTo('/gym/chat/' + x.id) }}>{x.unread ? t('Messages ({0} new)', x.unread) : t('Send a message')}</Button>}
+    {!isOwner && <Button icon="chat" style={{ marginBottom: 12 }} onClick={() => { close(); navTo('/gym/chat/' + x.id) }}>{x.unread ? (x.unread === 1 ? t('1 new message') : t('{0} new messages', x.unread)) : t('Send a message')}</Button>}
     <div className="small muted" style={{ marginBottom: 6 }}>{t('Shift')}</div>
     <Segmented options={SHIFTS.map(([value, label]) => ({ value, label: t(label) }))} value={shift}
       onChange={v => { setShift(v); apply(post('/api/gym/shift', { kind: 'trainer', id: x.id, shift: v })) }} />
@@ -176,7 +186,7 @@ function AssignSheet({ m, d, close, apply, navTo }) {
     {progressTags(m.status?.progress, true).length > 0 && <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
       {progressTags(m.status?.progress, true).map(([cls, label]) => <span key={label} className={'tag nocap ' + cls}>{t(label)}</span>)}
     </div>}
-    {d.me?.owner && <Button icon="chat" style={{ marginBottom: 12 }} onClick={() => { close(); navTo('/gym/chat/' + m.id) }}>{m.unread ? t('Messages ({0} new)', m.unread) : t('Send a message')}</Button>}
+    {d.me?.owner && <Button icon="chat" style={{ marginBottom: 12 }} onClick={() => { close(); navTo('/gym/chat/' + m.id) }}>{m.unread ? (m.unread === 1 ? t('1 new message') : t('{0} new messages', m.unread)) : t('Send a message')}</Button>}
     {d.me?.owner && <>
       <h4 className="sec" style={{ marginTop: 0 }}>{t('Permissions')}</h4>
       <PermList kind="member" perms={perms} onChange={p => { setPerms(p); apply(post('/api/gym/perms', { kind: 'member', id: m.id, perms: p })) }} />
@@ -254,7 +264,7 @@ export default function Gym() {
     toast(left ? t('{0} assigned · {1} without room', assigned, left) : assigned === 1 ? t('1 member assigned') : t('{0} members assigned', assigned))
   }).catch(e => toast(e.message))
 
-  if (!d) return <div><div className="hdr"><LogoMark size={34} /><div style={{ flex: 1, marginLeft: 10 }}><h1 style={{ margin: 0 }}>{user.gym.name}</h1><div className="sub">{t('Loading…')}</div></div><SignOutButton /></div></div>
+  if (!d) return <div><div className="hdr"><LogoMark size={34} /><div style={{ flex: 1, marginLeft: 10 }}><h1 style={{ margin: 0 }}>{user.gym.name}</h1><div className="sub">{t('Loading…')}</div></div></div></div>
 
   const unassigned = d.members.filter(m => !m.trainerId && !m.outside)
   const attention = d.members.filter(needsLook)
@@ -290,11 +300,9 @@ export default function Gym() {
     <div className="hdr">
       <LogoMark size={34} />
       <div style={{ flex: 1, marginLeft: 10, minWidth: 0 }}><h1 style={{ margin: 0 }} className="capitalize">{d.gym.name}</h1>
-        <div className="sub">{t('{0} plan · {1} of {2} members · {3} of {4} trainers', t(GYM_PLAN[d.gym.plan] || d.gym.plan), d.members.length, d.gym.limits.members, d.trainers.length, d.gym.limits.trainers)}</div></div>
+        <div className="sub">{t('{0} plan · {1} members · {2} trainers', t(GYM_PLAN[d.gym.plan] || d.gym.plan), d.members.length, d.trainers.length)}</div></div>
       <div className="row" style={{ gap: 8 }}>
         {canPublish && <button className="iconbtn" onClick={() => nav('/trainer/content')} aria-label={t('Gym content')}><Icon name="library" /></button>}
-        <button className="iconbtn" onClick={load} aria-label={t('Refresh')}><Icon name="reset" /></button>
-        <SignOutButton />
       </div>
     </div>
 
@@ -324,10 +332,7 @@ export default function Gym() {
           : !shown.length ? <div className="empty small">{t('Nobody here.')}</div>
           : <div className="card" style={{ padding: '4px 14px' }}>
             {shown.map((m, n) => {
-              const st = statusTag(m.status)
-              const prog = progressTags(m.status?.progress)
-              // "on track" says nothing a trend tag doesn't: moving either way means they're active
-              const showSt = !(m.status?.code === 'ok' && TRENDS[m.status?.progress?.trend])
+              const issue = issueOf(m)
               return <button key={m.id} className="row between" onClick={() => openMember(m)}
                 style={{ width: '100%', padding: '11px 0', borderTop: n ? '1px solid var(--sep)' : 'none', background: 'none', textAlign: 'left', color: 'inherit', gap: 10 }}>
                 <div style={{ minWidth: 0, flex: '1 1 40%' }}><div style={{ fontWeight: 600 }} className="capitalize">{m.name}</div>
@@ -337,9 +342,7 @@ export default function Gym() {
                   </div></div>
                 <div className="row" style={{ gap: 6, flex: '0 1 auto', flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0 }}>
                   {m.unread > 0 && <span className="tag acc nocap" aria-label={t('{0} unread messages', m.unread)}><Icon name="chat" /> {m.unread}</span>}
-                  {m.trainerId && !m.planned && <span className="tag warn nocap">{t('No workouts')}</span>}
-                  {prog.map(([cls, label]) => <span key={label} className={'tag nocap ' + cls}>{t(label)}</span>)}
-                  {showSt && <span className={'tag nocap ' + st.cls}>{st.text}</span>}
+                  {issue && <span className={'tag nocap ' + issue[0]}>{issue[1]}</span>}
                 </div>
                 <Icon name="chevronRight" className="dim" style={{ flexShrink: 0 }} />
               </button>

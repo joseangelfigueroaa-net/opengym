@@ -1409,4 +1409,7 @@ export default {
   "Member list downloaded": "Lista de socios descargada",
   "Download the member list (Excel)": "Descargar la lista de socios (Excel)",
   "At the gym today": "En el gimnasio hoy",
+  "{0} plan · {1} members · {2} trainers": "Plan {0} · {1} socios · {2} entrenadores",
+  "1 new message": "1 mensaje nuevo",
+  "{0} new messages": "{0} mensajes nuevos",
 }

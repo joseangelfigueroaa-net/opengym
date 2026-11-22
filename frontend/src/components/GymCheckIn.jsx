@@ -36,6 +36,6 @@ export default function GymCheckIn() {
     </div>
     {v.inToday
       ? <span className="tag ok nocap" style={{ flexShrink: 0 }}><Icon name="checkCircle" /> {t('Checked in')}</span>
-      : <button className="btn primary" style={{ width: 'auto', flexShrink: 0, padding: '0 16px' }} disabled={busy} onClick={checkIn}><Icon name="check" /> {t("I'm here")}</button>}
+      : <button className="btn tinted" style={{ margin: 0, width: 'auto', flexShrink: 0, padding: '0 16px' }} disabled={busy} onClick={checkIn}><Icon name="check" /> {t("I'm here")}</button>}
   </div>
 }
