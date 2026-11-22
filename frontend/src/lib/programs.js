@@ -47,7 +47,9 @@ export const METHODS = {
   continuo: { name: 'Continuo y fartlek', rest: 0, modes: ['cardio'],
     about: 'Trabajo aeróbico sin pausas, a ritmo uniforme o con cambios de ritmo (fartlek).' },
   terapeutico: { name: 'Ejercicio terapéutico', rest: 75, modes: ['reps', 'time'], reps: [8, 20],
-    about: 'Fortalecimiento con rangos y cargas tolerables para una zona sensible, priorizando el control.' }
+    about: 'Fortalecimiento con rangos y cargas tolerables para una zona sensible, priorizando el control.' },
+  hibrido: { name: 'Fuerza y resistencia concurrente (híbrido)', rest: 60, modes: ['reps', 'time', 'cardio'], reps: [5, 20],
+    about: 'Fuerza, estaciones funcionales y trabajo aeróbico en la misma semana, en días separados para que una cualidad no le reste a la otra.' }
 }
 
 /* ---------- references (real, citable) ---------- */
@@ -63,7 +65,12 @@ const R = {
   crossley2016: { text: 'Crossley et al. (2016). 2016 Patellofemoral pain consensus statement. Br J Sports Med 50(14):839-843.', url: 'https://pubmed.ncbi.nlm.nih.gov/27343241/' },
   nice2016: { text: 'NICE (2016, act. 2020). Low back pain and sciatica in over 16s: assessment and management (NG59).', url: 'https://www.nice.org.uk/guidance/ng59' },
   mcgill: { text: 'McGill, S. (2016). Low Back Disorders: Evidence-Based Prevention and Rehabilitation, 3.ª ed. Human Kinetics.', url: 'https://us.humankinetics.com/products/low-back-disorders-3rd-edition' },
-  fragala2019: { text: 'Fragala et al. (2019). Resistance training for older adults: position statement from the NSCA. J Strength Cond Res 33(8):2019-2052.', url: 'https://pubmed.ncbi.nlm.nih.gov/31343601/' }
+  fragala2019: { text: 'Fragala et al. (2019). Resistance training for older adults: position statement from the NSCA. J Strength Cond Res 33(8):2019-2052.', url: 'https://pubmed.ncbi.nlm.nih.gov/31343601/' },
+  schumann2022: { text: 'Schumann et al. (2022). Compatibility of concurrent aerobic and strength training for skeletal muscle size and function: an updated systematic review and meta-analysis. Sports Med 52(3):601-612.', url: 'https://pubmed.ncbi.nlm.nih.gov/34757594/' },
+  liftmor2018: { text: 'Watson et al. (2018). High-intensity resistance and impact training improves bone mineral density and physical function in postmenopausal women with osteopenia and osteoporosis: the LIFTMOR randomized controlled trial. J Bone Miner Res 33(2):211-220.', url: 'https://pubmed.ncbi.nlm.nih.gov/28975661/' },
+  refalo2023: { text: 'Refalo et al. (2023). Influence of resistance training proximity-to-failure on skeletal muscle hypertrophy: a systematic review with meta-analysis. Sports Med 53(3):649-665.', url: 'https://pubmed.ncbi.nlm.nih.gov/36334240/' },
+  lesmillsGlp1: { text: 'Les Mills y ukactive (2026). GLP-1 report: exercise and weight-loss medication.', url: 'https://lesmills.com/articles/glp1-report' },
+  acsm2026: { text: 'ACSM (2026). Top fitness trends for 2026 (n.º 5: equilibrio, flujo y fuerza del core).', url: 'https://acsm.org/top-fitness-trends-2026' }
 }
 
 /* ---------- why each exercise is in the library ---------- */
@@ -117,7 +124,14 @@ export const EX_NOTES = {
   '2135': 'Plancha con carga: estabilidad del tronco en tiempo; resiste la extensión de la columna.',
   '0514': 'Salto con sentadilla: potencia de piernas; aterrizar suave y detenerse antes de perder calidad.',
   '1312': 'Lanzamiento de balón medicinal al pecho: potencia de empuje sin frenar el movimiento al final.',
-  '1700': 'Push press con mancuernas: empuje vertical explosivo que transfiere la fuerza de las piernas a los brazos.'
+  '1700': 'Push press con mancuernas: empuje vertical explosivo que transfiere la fuerza de las piernas a los brazos.',
+  '2133': 'Paseo del granjero: caminar con peso en las manos; agarre, tronco y piernas a la vez. Es una de las estaciones típicas de las carreras híbridas.',
+  '0550': 'Thruster con kettlebell: sentadilla frontal que termina en press; todo el cuerpo y mucha demanda cardiovascular. Sustituye al lanzamiento de balón a la pared.',
+  '1160': 'Burpee: bajar al suelo, subir y saltar; trabajo de todo el cuerpo que dispara la frecuencia cardíaca, sin equipo.',
+  '0628': 'Paso de monstruo: caminar con las piernas separadas contra resistencia; glúteo medio, estabilidad de cadera y rodilla.',
+  '0705': 'Plancha lateral: estabilidad lateral del tronco (oblicuos y cuadrado lumbar) con la columna neutra.',
+  '1774': 'Plancha lateral con abducción de cadera: suma el glúteo medio a la plancha lateral; equilibrio de cadera y tronco.',
+  '1757': 'Peso muerto a una pierna con mancuerna: bisagra de cadera sobre un pie; isquios, glúteo y sobre todo equilibrio.'
 }
 
 /* ---------- helpers to keep the sessions readable ---------- */
@@ -329,6 +343,77 @@ export const PROGRAMS = [
     sessions: [
       { name: 'Potencia de piernas y cadera', ex: [e('0514', 4, 3, 5), e('0549', 4, 8, 10), e('0043', 3, 4, 6, { rest: 180 })] },
       { name: 'Potencia de torso', ex: [e('1312', 4, 4, 6), e('1700', 4, 4, 6), e('0652', 3, 3, 6)] }
+    ]
+  },
+  {
+    id: 'hibrido', method: 'hibrido', books: [],
+    concepts: ['metodos', 'energia', 'especificidad', 'fatiga'],
+    name: 'Híbrido: fuerza y resistencia (estilo HYROX)',
+    summary: 'Tres días: uno de fuerza con básicos, uno de estaciones funcionales con carrera entre ellas y uno largo y suave en zona 2.',
+    level: 'Intermedio', days: 3, weekdays: [1, 3, 5],
+    goals: ['endurance', 'strength', 'fat_loss'], suits: [], avoid: ['beginner', 'knee'], focus: 'conditioning',
+    basis: 'El entrenamiento híbrido combina fuerza y resistencia, como piden las carreras tipo HYROX (correr entre estaciones de trineo, remo, zancadas y lanzamientos). La revisión de Schumann (2022, 43 estudios) muestra que hacer las dos cosas no frena la ganancia de músculo ni de fuerza máxima, aunque la fuerza explosiva puede verse afectada si se entrenan en la misma sesión; por eso la fuerza va en su propio día. La mayor parte del trabajo aeróbico es suave (zona 2, se puede hablar mientras se corre): construye la base sin acumular fatiga para los días duros.',
+    refs: [R.schumann2022, R.acsm2011],
+    sessions: [
+      { name: 'Fuerza base', ex: [e('0043', 4, 5, 8, { rest: 150 }), e('0027', 4, 6, 10, { rest: 120 }), e('0336', 3, 8, 12), tm('2133', 3, 40), tm('2135', 3, 40)] },
+      { name: 'Estaciones y carrera', ex: [cd('0685', 4, 4, { rest: 60 }), e('0550', 4, 15, 20), e('1460', 4, 12, 20), cd('1160', 4, 1, { rest: 60 }), tm('2133', 4, 45)] },
+      { name: 'Zona 2', ex: [cd('0685', 1, 40)] }
+    ]
+  },
+  {
+    id: 'glp1-musculo', method: 'salud', books: [],
+    concepts: ['fuerza', 'sobrecarga', 'progresion', 'continuidad'],
+    name: 'Conservar músculo al bajar de peso (GLP-1)',
+    summary: 'Tres días de fuerza de cuerpo completo, con máquinas y cargas que suben poco a poco, para quien baja de peso con medicación o dieta.',
+    level: 'Principiante a intermedio', days: 3, weekdays: [1, 3, 5],
+    goals: ['fat_loss', 'health', 'muscle'], suits: ['beginner'], avoid: [], focus: 'full_body',
+    basis: 'Con los medicamentos GLP-1 (como la semaglutida) una parte importante del peso que se pierde puede ser músculo, no solo grasa. La recomendación de consenso es entrenar fuerza 2 o 3 veces por semana, acumular unos 150 minutos de actividad moderada (caminar sirve) y comer suficiente proteína. Las máquinas permiten cargar con seguridad aunque haya poca energía, y la carga sube en pasos pequeños cuando todas las series llegan al tope de repeticiones. Si aparecen náuseas o mareo, se baja el volumen ese día en lugar de saltarse la sesión.',
+    refs: [R.lesmillsGlp1, R.acsm2009, R.who2020],
+    sessions: [
+      { name: 'Cuerpo completo A', ex: [e('2287', 3, 10, 12), e('0577', 3, 10, 12), e('2330', 3, 10, 12), e('0196', 3, 12, 15), e('1373', 2, 12, 15)] },
+      { name: 'Cuerpo completo B', ex: [e('1760', 3, 8, 12), e('1350', 3, 10, 12), e('0405', 3, 10, 12), e('1409', 3, 10, 12), tm('2135', 3, 30)] }
+    ]
+  },
+  {
+    id: 'menopausia', method: 'fuerza_maxima', books: [],
+    concepts: ['fuerza', 'mayores', 'progresion', 'individualidad'],
+    name: 'Fuerza e impacto en perimenopausia y menopausia',
+    summary: 'Dos días por semana de básicos pesados (peso muerto, sentadilla, press y dominadas) más saltos de bajo impacto, con supervisión del entrenador.',
+    level: 'Principiante a intermedio, con supervisión', days: 2, weekdays: [2, 5],
+    goals: ['health', 'strength'], suits: [], avoid: ['knee', 'lower_back'], focus: 'full_body',
+    basis: 'En la perimenopausia y después de la menopausia se pierde músculo y hueso más rápido. El ensayo LIFTMOR (Watson, 2018) mostró que dos sesiones semanales de 30 minutos con básicos pesados (5 series de 5 repeticiones a carga alta) y saltos supervisados aumentaron la densidad ósea de columna y cadera, y la función física, en mujeres con hueso bajo, sin lesiones relevantes. Las primeras 2 a 4 semanas se aprende la técnica con cargas cómodas; después la carga sube hasta que 5 repeticiones cuesten de verdad. Los saltos son bajos y con aterrizaje suave.',
+    refs: [R.liftmor2018, R.fragala2019],
+    sessions: [
+      { name: 'Fuerza A', ex: [e('0032', 4, 4, 6), e('0426', 4, 4, 6), e('1326', 3, 3, 6), e('0514', 3, 5, 6)] },
+      { name: 'Fuerza B', ex: [e('0043', 4, 4, 6), e('0027', 4, 4, 6), e('0289', 3, 4, 6), e('0514', 3, 5, 6)] }
+    ]
+  },
+  {
+    id: 'hipertrofia-eficiente', method: 'hipertrofia', books: [],
+    concepts: ['fuerza', 'carga', 'fatiga', 'recuperacion'],
+    name: 'Hipertrofia eficiente (pocas series, cerca del fallo)',
+    summary: 'Tres sesiones cortas de cuerpo completo: 2 series por ejercicio, llevadas a 0 a 2 repeticiones del fallo. Para quien tiene poco tiempo.',
+    level: 'Intermedio', days: 3, weekdays: [1, 3, 5],
+    goals: ['muscle', 'strength'], suits: [], avoid: ['beginner'], focus: 'full_body',
+    basis: 'La tendencia del culturismo actual es entrenar menos series pero más cerca del fallo. El metaanálisis de Refalo (2023) no encontró ventaja en llegar al fallo frente a quedarse cerca: dejar 0 a 2 repeticiones en reserva da resultados similares con menos fatiga. Ojo: el volumen sigue importando (Schoenfeld, 2017), así que este modelo es un mínimo eficaz, no el máximo. Si hay tiempo, añadir una tercera serie a los ejercicios grandes. En los ejercicios de aislamiento la última serie puede hacerse en mini-series (myo-reps): tras la serie, 3 a 5 repeticiones más con 15 segundos de pausa.',
+    refs: [R.refalo2023, R.volume2017, R.freq2016],
+    sessions: [
+      { name: 'Cuerpo completo A', ex: [e('0043', 2, 6, 10), e('0025', 2, 6, 10), e('2330', 2, 8, 12), e('0085', 2, 8, 12), e('0334', 2, 12, 20)] },
+      { name: 'Cuerpo completo B', ex: [e('2287', 2, 8, 12), e('0314', 2, 8, 12), e('1350', 2, 8, 12), e('0586', 2, 10, 15), e('0201', 2, 12, 20)] }
+    ]
+  },
+  {
+    id: 'core-equilibrio', method: 'salud', books: [],
+    concepts: ['multilateralidad', 'progresion', 'calentamiento'],
+    name: 'Core, equilibrio y movilidad (estilo Pilates)',
+    summary: 'Dos sesiones de control del tronco, equilibrio a una pierna y glúteo medio, con peso corporal, banda y una mancuerna.',
+    level: 'Todos', days: 2, weekdays: [2, 4],
+    goals: ['health'], suits: ['beginner', 'lower_back'], avoid: [], focus: 'full_body',
+    basis: 'Equilibrio, flujo y fuerza del core está entre las cinco tendencias del ACSM para 2026, y el Pilates con máquina es la clase más reservada del mundo. Este modelo lleva esa idea al piso del gimnasio: trabajo del tronco con la columna neutra (sin abdominales que la flexionen, como recomienda McGill), equilibrio a una pierna y glúteo medio, que estabiliza cadera y rodilla. Sirve sola o como complemento de dos días de fuerza, y cumple con las recomendaciones de la OMS de trabajar el equilibrio y la fuerza varias veces por semana.',
+    refs: [R.acsm2026, R.mcgill, R.who2020],
+    sessions: [
+      { name: 'Tronco y cadera', ex: [e('0276', 3, 8, 12), tm('0705', 3, 30), e('0979', 3, 10, 12), e('3013', 3, 12, 15), e('0628', 3, 12, 15)] },
+      { name: 'Equilibrio y control', ex: [e('1757', 3, 8, 12), e('0431', 3, 8, 12), tm('2135', 3, 30), e('0993', 3, 12, 15), e('1774', 3, 10, 15)] }
     ]
   }
 ]
