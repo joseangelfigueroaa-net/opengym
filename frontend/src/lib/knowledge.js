@@ -26,7 +26,17 @@ export const SOURCES = {
   a01: { title: 'Dynamic neuromuscular stabilization and sports rehabilitation', author: 'Frank, Kobesova y Kolář (2013), Int J Sports Phys Ther', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC3578435/' },
   a02: { title: 'Revisión de alcance sobre la eficacia de la DNS', author: '2024', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC11609563/' },
   a03: { title: 'Selective Functional Movement Assessment (SFMA) reliability and proposal of its use in sports', author: 'Aghi et al. (2023), Int J Environ Res Public Health', url: 'https://pubmed.ncbi.nlm.nih.gov/36767405/' },
-  a04: { title: 'Strength training versus stretching for improving range of motion', author: 'Afonso et al. (2021), Healthcare', url: 'https://pubmed.ncbi.nlm.nih.gov/33917036/' }
+  a04: { title: 'Strength training versus stretching for improving range of motion', author: 'Afonso et al. (2021), Healthcare', url: 'https://pubmed.ncbi.nlm.nih.gov/33917036/' },
+  s01: { title: 'The mechanisms of muscle hypertrophy and their application to resistance training', author: 'Schoenfeld (2010), J Strength Cond Res', url: 'https://pubmed.ncbi.nlm.nih.gov/20847704/' },
+  s02: { title: 'Dose-response relationship between weekly resistance training volume and increases in muscle mass', author: 'Schoenfeld, Ogborn y Krieger (2017), J Sports Sci', url: 'https://pubmed.ncbi.nlm.nih.gov/27433992/' },
+  s03: { title: 'Resistance training volume enhances muscle hypertrophy but not strength in trained men', author: 'Schoenfeld et al. (2019), Med Sci Sports Exerc', url: 'https://pubmed.ncbi.nlm.nih.gov/30153194/' },
+  s04: { title: 'Effects of resistance training frequency on measures of muscle hypertrophy', author: 'Schoenfeld, Ogborn y Krieger (2016), Sports Med', url: 'https://pubmed.ncbi.nlm.nih.gov/27102172/' },
+  s05: { title: 'Loading recommendations for muscle strength, hypertrophy, and local endurance: a re-examination of the repetition continuum', author: 'Schoenfeld, Grgic, Van Every y Plotkin (2021), Sports', url: 'https://doi.org/10.3390/sports9020032' },
+  s06: { title: 'Effects of resistance training performed to repetition failure or non-failure', author: 'Grgic, Schoenfeld, Orazem y Sabol (2022), J Sport Health Sci', url: 'https://doaj.org/article/dc36ba7ccd994798964f66b93bd8f662' },
+  s07: { title: 'Longer interset rest periods enhance muscle strength and hypertrophy in resistance-trained men', author: 'Schoenfeld et al. (2016), J Strength Cond Res', url: 'https://pubmed.ncbi.nlm.nih.gov/26605807/' },
+  s08: { title: 'Effect of repetition duration during resistance training on muscle hypertrophy', author: 'Schoenfeld, Ogborn y Krieger (2015), Sports Med', url: 'https://pubmed.ncbi.nlm.nih.gov/25601394/' },
+  s09: { title: 'Partial vs full range of motion resistance training: a systematic review and meta-analysis', author: 'Wolf et al. (2023), Int J Strength Cond', url: 'https://doaj.org/article/99e86b317bec40f5abc2f0008358737e' },
+  s10: { title: 'How much protein can the body use in a single meal for muscle-building? Implications for daily protein distribution', author: 'Schoenfeld y Aragon (2018), J Int Soc Sports Nutr', url: 'https://pubmed.ncbi.nlm.nih.gov/29497353/' }
 }
 
 export const CATEGORIES = {
@@ -333,6 +343,23 @@ export const CONCEPTS = [
     ],
     practice: 'En la ficha del cliente, «Chequeo de movimiento» registra los 7 patrones; si algo duele, la app avisa que hay que derivar y activa la limitación. En los modelos se puede añadir el calentamiento articular de 5 minutos a cada sesión, y el modelo «Movilidad y control articular» se recomienda a quien tiene patrones limitados sin dolor. Son nombres propios, inspirados en estos métodos: el SFMA, el FRC y la DNS son marcas y certificaciones de sus autores.',
     sources: ['a01', 'a02', 'a03', 'a04']
+  },
+  {
+    id: 'hipertrofia-evidencia', cat: 'capacidades', title: 'Hipertrofia según la evidencia (Brad Schoenfeld)',
+    summary: 'Brad Schoenfeld es uno de los investigadores más citados sobre crecimiento muscular. Sus metaanálisis y ensayos, muchos con Grgic y Krieger, convirtieron las reglas de gimnasio en números: cuántas series, cuántas veces por semana, con qué carga, cuánto descanso y cuánta proteína.',
+    points: [
+      'El motor principal es la tensión mecánica: el músculo crece cuando trabaja contra una carga exigente. El estrés metabólico y el daño muscular, que Schoenfeld propuso en 2010 como otros dos mecanismos, hoy se ven como secundarios.',
+      'Volumen: más series semanales por músculo dan más hipertrofia. 10 o más series a la semana rinden más que menos de 5 (2017), y en personas entrenadas el volumen alto siguió sumando músculo, aunque no más fuerza (2019). Por debajo de 5 series también se crece, sobre todo al empezar.',
+      'Frecuencia: entrenar cada músculo al menos 2 veces por semana es mejor que 1 (2016). Con el mismo volumen total, pasar de 2 a 3 o más veces apenas cambia el resultado: la frecuencia sirve sobre todo para repartir el volumen.',
+      'Carga: el músculo crece con casi cualquier carga, de unas 6 a 30 repeticiones, si la serie termina cerca del fallo. Para la fuerza máxima rinden más las cargas altas (1 a 5 repeticiones), y para la resistencia muscular las series de 15 o más (2021).',
+      'Fallo: llegar al fallo no da más músculo que quedarse cerca, a 1 a 3 repeticiones (2022). Solo en personas muy entrenadas aparece una ventaja pequeña.',
+      'Descanso: 2 a 3 minutos en los ejercicios grandes dieron más fuerza y más músculo que 1 minuto (2016), porque permiten mover más carga en las series siguientes.',
+      'Velocidad: repeticiones de 0,5 a 8 segundos dan una hipertrofia similar; las muy lentas, de más de 10 segundos, rinden menos (2015).',
+      'Rango de movimiento: el recorrido completo es al menos tan bueno como el parcial, y las parciales con el músculo estirado podrían sumar algo (2023, evidencia todavía imprecisa).',
+      'Proteína: al menos 1,6 g por kg de peso al día, y hasta 2,2 g/kg, repartida en 4 o más comidas de unos 0,4 g/kg cada una (Schoenfeld y Aragon, 2018).'
+    ],
+    practice: 'En los modelos, «Fundamento y sesiones» muestra las series semanales por músculo con su rango (10 a 20 es el óptimo para hipertrofia), y el editor recalcula ese volumen con los días elegidos. En el perfil del cliente, la meta de proteína se puede sugerir a partir de su último peso: 1,6 g/kg al día.',
+    sources: ['s01', 's02', 's03', 's04', 's05', 's06', 's07', 's08', 's09', 's10']
   }
 ]
 

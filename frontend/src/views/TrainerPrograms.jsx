@@ -7,6 +7,7 @@ import { t } from '../lib/i18n.js'
 import { todayISO, fmtDate, DAYS } from '../lib/format.js'
 import { prescription } from '../lib/trainer.js'
 import { exOr } from '../lib/exercises.js'
+import { weeklySets, volumeBand } from '../lib/volume.js'
 import { PROGRAMS, EX_NOTES, GOALS, LIMITS, FOCUS, METHODS, JOINT_WARMUP, fitScore, layOut, withRest } from '../lib/programs.js'
 import { conceptById, SOURCES } from '../lib/knowledge.js'
 import { profileSheet } from '../components/ProfileSheet.jsx'
@@ -21,6 +22,19 @@ import { Button, TextArea, TextField } from '../components/ui.jsx'
 // and the edited sessions are what get laid over up to a month of the client's calendar.
 
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]
+
+// Weekly sets per muscle group, each coloured by where it sits for growth (lib/volume.js).
+function VolumeChips({ sessions, days, edited }) {
+  const v = weeklySets(sessions, days)
+  if (!v.length) return null
+  return <div style={{ marginTop: 12 }}>
+    <div className="lbl2">{edited ? t('Weekly sets per muscle with these days') : t('Weekly sets per muscle')}</div>
+    <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '6px 0 4px' }}>
+      {v.map(([g, n]) => { const b = volumeBand(n); return <span key={g} className={'tag nocap ' + b.cls} title={b.label}>{g} {String(n).replace('.', ',')}</span> })}
+    </div>
+    <div className="dim" style={{ fontSize: '.72rem' }}>{t('10 to 20 sets a week is the range with the best returns for muscle growth (Schoenfeld, 2017; ACSM, 2026); under 5 mostly maintains. A set counts in full for the main muscle and as half for the second one.')}</div>
+  </div>
+}
 
 export default function TrainerPrograms() {
   const nav = useNavigate()
@@ -163,6 +177,7 @@ export default function TrainerPrograms() {
           <div className="row" style={{ gap: 6, flexWrap: 'wrap', margin: '6px 0 4px' }}>
             {p.concepts.map(cid => <button key={cid} type="button" className="chip nocap" onClick={() => nav('/knowledge/' + cid)}>{conceptById[cid].title}</button>)}
           </div>
+          {p.method !== 'interval' && p.method !== 'continuo' && <VolumeChips sessions={p.sessions} days={p.days} />}
           {p.sessions.map(s => <div key={s.name} style={{ marginTop: 10 }}>
             <div style={{ fontWeight: 600 }}>{s.name}</div>
             {s.ex.map((x, i) => <div key={i} style={{ padding: '7px 0', borderTop: '1px solid var(--sep)' }}>
@@ -197,6 +212,7 @@ export default function TrainerPrograms() {
         <ExerciseItemsEditor items={custom[editing].ex} onChange={ex => setSession(editing, { ex })} nameOf={nameOf} loads={loads} unit={unit} customEx={c?.customEx || []} />
       </>}
 
+      <VolumeChips sessions={custom} days={plan.weekdays.length} edited />
       <h2 style={{ margin: '20px 0 4px' }}>{t('2. Lay it over the calendar')}</h2>
       <div className="dim small">{t('sessions rotate in order on the days you pick')}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>

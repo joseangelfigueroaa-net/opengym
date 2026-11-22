@@ -16,6 +16,10 @@ function ProfileSheet({ client, profile, onSaved, close }) {
   const [busy, setBusy] = useState(false)
   const features = useFeatures()
   const setMacro = (k, n) => setP(o => ({ ...o, macros: { ...(o.macros || {}), [k]: n } }))
+  // protein from the latest weigh-in: 1.6 g/kg a day, up to 2.2 (Schoenfeld and Aragon, 2018)
+  const lastW = client.weights?.length ? client.weights[client.weights.length - 1].w : null
+  const kg = lastW ? (client.unit === 'lb' ? lastW * 0.4536 : lastW) : null
+  const protein = kg ? { lo: Math.round(kg * 1.6), hi: Math.round(kg * 2.2), meal: Math.round(kg * 0.4) } : null
   const toggle = k => setP(o => ({ ...o, limits: o.limits.includes(k) ? o.limits.filter(x => x !== k) : [...o.limits, k] }))
   const chips = (dict, isOn, onPick, label) => <div className="row" style={{ gap: 6, flexWrap: 'wrap' }} role="group" aria-label={label}>
     {Object.entries(dict).map(([k, v]) => <button key={k} type="button" className={'chip nocap' + (isOn(k) ? ' on' : '')} aria-pressed={isOn(k)} onClick={() => onPick(k)}>{v}</button>)}
@@ -47,6 +51,10 @@ function ProfileSheet({ client, profile, onSaved, close }) {
           <NumberField className="field" value={p.macros?.[k] ?? null} nullable decimal={false} onChange={n => setMacro(k, n)} aria-label={t(label)} />
         </label>)}
       </div>
+      {protein && <div className="row between" style={{ gap: 10, marginTop: 8 }}>
+        <span className="dim" style={{ fontSize: '.75rem' }}>{t('Protein for muscle: {0}–{1} g a day, in 4 or more meals of about {2} g (Schoenfeld and Aragon, 2018).', protein.lo, protein.hi, protein.meal)}</span>
+        <button type="button" className="chip nocap" style={{ flexShrink: 0 }} onClick={() => setMacro('protein', protein.lo)}>{t('Use {0} g', protein.lo)}</button>
+      </div>}
     </>}
     <label className="small muted" style={{ display: 'grid', gap: 4, marginTop: 14 }}>{t('Notes (injuries, preferences, schedule…)')}
       <TextArea rows={3} maxLength={500} value={p.notes} onChange={e => setP(o => ({ ...o, notes: e.target.value }))} /></label>

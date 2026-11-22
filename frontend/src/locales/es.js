@@ -1437,4 +1437,9 @@ export default {
   "Slow circles of neck, shoulders, spine, hips, ankles and wrists before the session (inspired by FRC).": "Círculos lentos de cuello, hombros, columna, cadera, tobillos y muñecas antes de la sesión (inspirado en FRC).",
   "1 limited": "1 limitado",
   "1 improved": "1 mejoró",
+  "Weekly sets per muscle": "Series semanales por músculo",
+  "Weekly sets per muscle with these days": "Series semanales por músculo con estos días",
+  "10 to 20 sets a week is the range with the best returns for muscle growth (Schoenfeld, 2017; ACSM, 2026); under 5 mostly maintains. A set counts in full for the main muscle and as half for the second one.": "De 10 a 20 series a la semana es el rango que más hace crecer el músculo (Schoenfeld, 2017; ACSM, 2026); menos de 5 sobre todo mantiene. Cada serie cuenta entera para el músculo principal y como media para el secundario.",
+  "Protein for muscle: {0}–{1} g a day, in 4 or more meals of about {2} g (Schoenfeld and Aragon, 2018).": "Proteína para el músculo: {0} a {1} g al día, en 4 o más comidas de unos {2} g (Schoenfeld y Aragon, 2018).",
+  "Use {0} g": "Usar {0} g",
 }
