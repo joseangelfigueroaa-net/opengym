@@ -35,13 +35,13 @@ export const METHODS = {
   salud: { name: 'Acondicionamiento general', rest: 75, modes: ['reps', 'time'], reps: [8, 25],
     about: 'Desarrollo multilateral de todas las capacidades con cargas moderadas; la base sobre la que luego se especializa.' },
   hipertrofia: { name: 'Hipertrofia', rest: 90, modes: ['reps'], reps: [6, 20],
-    about: 'Series de 6 a 12 repeticiones (hasta 20 cerca del fallo) con volumen semanal suficiente por grupo muscular.' },
+    about: 'Casi cualquier rango de 6 a 30 repeticiones hace crecer el músculo si la serie termina cerca del fallo; 6 a 12 es el más eficiente en tiempo. Lo que más pesa es el volumen semanal por músculo (unas 10 series o más) y descansar al menos 60 a 90 segundos entre series.' },
   fuerza_maxima: { name: 'Fuerza máxima', rest: 180, modes: ['reps'], reps: [1, 6],
     about: 'Cargas altas, pocas repeticiones y recuperación completa entre series (método de repeticiones).' },
   fuerza_resistencia: { name: 'Fuerza resistencia en circuito', rest: 30, modes: ['reps', 'time'], reps: [10, 25],
     about: 'Muchas repeticiones con poca pausa entre ejercicios: alta densidad y demanda cardiovascular.' },
   potencia: { name: 'Fuerza velocidad (potencia)', rest: 120, modes: ['reps'], reps: [3, 10],
-    about: 'Movimientos rápidos y explosivos con cargas ligeras o medias, siempre sin llegar a la fatiga.' },
+    about: 'Movimientos rápidos y explosivos con cargas moderadas (30 a 70 % de 1RM), poco volumen y siempre sin llegar a la fatiga.' },
   interval: { name: 'Interválico', rest: 90, modes: ['cardio'],
     about: 'Bloques de trabajo intenso con pausas fijas e incompletas: cortos (menos de 1,5 min), medios (1,5 a 6) o largos (6 a 20).' },
   continuo: { name: 'Continuo y fartlek', rest: 0, modes: ['cardio'],
@@ -66,11 +66,19 @@ const R = {
   nice2016: { text: 'NICE (2016, act. 2020). Low back pain and sciatica in over 16s: assessment and management (NG59).', url: 'https://www.nice.org.uk/guidance/ng59' },
   mcgill: { text: 'McGill, S. (2016). Low Back Disorders: Evidence-Based Prevention and Rehabilitation, 3.ª ed. Human Kinetics.', url: 'https://us.humankinetics.com/products/low-back-disorders-3rd-edition' },
   fragala2019: { text: 'Fragala et al. (2019). Resistance training for older adults: position statement from the NSCA. J Strength Cond Res 33(8):2019-2052.', url: 'https://pubmed.ncbi.nlm.nih.gov/31343601/' },
+  acsm2026: { text: 'Phillips et al. / ACSM (2026). Resistance training prescription for muscle function, hypertrophy, and physical performance in healthy adults: an overview of reviews. Med Sci Sports Exerc (abril 2026). Actualiza la postura de 2009.', url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC12965823/' },
+  continuum2021: { text: 'Schoenfeld, Grgic, Van Every y Plotkin (2021). Loading recommendations for muscle strength, hypertrophy, and local endurance: a re-examination of the repetition continuum. Sports 9(2):32.', url: 'https://doi.org/10.3390/sports9020032' },
+  rest2024: { text: 'Singer et al. (2024). Give it a rest: a systematic review with Bayesian meta-analysis on the effect of inter-set rest interval duration on muscle hypertrophy. Front Sports Act Living 6:1429789.', url: 'https://pubmed.ncbi.nlm.nih.gov/39205815/' },
+  pfp2018: { text: 'Collins et al. (2018). 2018 Consensus statement on exercise therapy and physical interventions to treat patellofemoral pain. Br J Sports Med 52(18):1170-1178.', url: 'https://doi.org/10.1136/bjsports-2018-099397' },
+  pfp2024: { text: 'Neal, Lack, Bartholomew y Morrissey (2024). Best practice guide for patellofemoral pain based on synthesis of a systematic review, the patient voice and expert clinical reasoning. Br J Sports Med 58(24):1486-1495.', url: 'https://doi.org/10.1136/bjsports-2024-108110' },
+  whoLbp2023: { text: 'OMS (2023). WHO guideline for non-surgical management of chronic primary low back pain in adults in primary and community care settings.', url: 'https://www.who.int/publications/i/item/9789240081789' },
+  hiitVo2: { text: 'Milanović, Sporiš y Weston (2015). Effectiveness of high-intensity interval training (HIT) and continuous endurance training for VO2max improvements: a systematic review and meta-analysis of controlled trials. Sports Med 45(10):1469-1481.', url: 'https://doi.org/10.1007/s40279-015-0365-0' },
+  hiitFat: { text: 'Wewege et al. (2017). The effects of high-intensity interval training vs. moderate-intensity continuous training on body composition in overweight and obese adults: a systematic review and meta-analysis. Obes Rev 18(6):635-646.', url: 'https://pubmed.ncbi.nlm.nih.gov/28401638/' },
   schumann2022: { text: 'Schumann et al. (2022). Compatibility of concurrent aerobic and strength training for skeletal muscle size and function: an updated systematic review and meta-analysis. Sports Med 52(3):601-612.', url: 'https://pubmed.ncbi.nlm.nih.gov/34757594/' },
   liftmor2018: { text: 'Watson et al. (2018). High-intensity resistance and impact training improves bone mineral density and physical function in postmenopausal women with osteopenia and osteoporosis: the LIFTMOR randomized controlled trial. J Bone Miner Res 33(2):211-220.', url: 'https://pubmed.ncbi.nlm.nih.gov/28975661/' },
   refalo2023: { text: 'Refalo et al. (2023). Influence of resistance training proximity-to-failure on skeletal muscle hypertrophy: a systematic review with meta-analysis. Sports Med 53(3):649-665.', url: 'https://pubmed.ncbi.nlm.nih.gov/36334240/' },
   lesmillsGlp1: { text: 'Les Mills y ukactive (2026). GLP-1 report: exercise and weight-loss medication.', url: 'https://lesmills.com/articles/glp1-report' },
-  acsm2026: { text: 'ACSM (2026). Top fitness trends for 2026 (n.º 5: equilibrio, flujo y fuerza del core).', url: 'https://acsm.org/top-fitness-trends-2026' }
+  acsmTrends2026: { text: 'ACSM (2026). Top fitness trends for 2026 (n.º 5: equilibrio, flujo y fuerza del core).', url: 'https://acsm.org/top-fitness-trends-2026' }
 }
 
 /* ---------- why each exercise is in the library ---------- */
@@ -148,8 +156,8 @@ export const PROGRAMS = [
     summary: 'Dos sesiones (A y B) alternadas, 3 días por semana, con los patrones básicos: sentadilla, bisagra, empuje y tracción.',
     level: 'Principiante', days: 3, weekdays: [1, 3, 5],
     goals: ['health', 'strength', 'muscle'], suits: ['beginner'], avoid: [], focus: 'full_body',
-    basis: 'Para quien empieza, el ACSM recomienda entrenar todo el cuerpo 2 o 3 días por semana, con 1 a 3 series de 8 a 12 repeticiones y sobrecarga progresiva. Repetir los mismos patrones varias veces por semana acelera el aprendizaje técnico, y alternar A y B reparte la fatiga.',
-    refs: [R.acsm2009, R.acsm2011],
+    basis: 'Para quien empieza, la postura del ACSM de 2026 (que revisó 137 revisiones sistemáticas) resume lo esencial: cualquier entrenamiento de fuerza es mejor que ninguno, y lo importante es trabajar todos los grandes grupos musculares al menos 2 veces por semana. Para principiantes funcionan 1 a 3 series de 8 a 12 repeticiones con sobrecarga progresiva. Repetir los mismos patrones varias veces por semana acelera el aprendizaje técnico, y alternar A y B reparte la fatiga.',
+    refs: [R.acsm2026, R.acsm2009, R.acsm2011],
     sessions: [
       { name: 'Cuerpo completo A', ex: [e('1760', 3, 8, 12), e('0289', 3, 8, 12), e('0861', 3, 8, 12), e('1459', 2, 8, 12), e('0276', 2, 8, 12)] },
       { name: 'Cuerpo completo B', ex: [e('2287', 3, 10, 12), e('2330', 3, 8, 12), e('0405', 3, 8, 12), e('3013', 2, 10, 15), e('0979', 2, 10, 12)] }
@@ -162,8 +170,8 @@ export const PROGRAMS = [
     summary: 'Cuatro días: dos de torso y dos de pierna. Cada músculo se entrena dos veces por semana con 6 a 12 repeticiones.',
     level: 'Intermedio', days: 4, weekdays: [1, 2, 4, 5],
     goals: ['muscle', 'strength'], suits: [], avoid: ['beginner'], focus: 'upper_lower',
-    basis: 'Entrenar cada grupo muscular al menos dos veces por semana produce más hipertrofia que hacerlo una sola vez. Además, la ganancia muscular aumenta con el volumen semanal: unas 10 series o más por músculo rinden más que menos de 5. Repartido en torso y pierna se alcanza ese volumen sin sesiones eternas.',
-    refs: [R.freq2016, R.volume2017, R.acsm2009],
+    basis: 'Entrenar cada grupo muscular al menos dos veces por semana produce más hipertrofia que hacerlo una sola vez, y la ganancia muscular crece con el volumen semanal: la postura del ACSM de 2026 apunta a unas 10 series o más por músculo. No hace falta llegar al fallo en cada serie: quedarse a 1 a 3 repeticiones da resultados parecidos con menos fatiga. Repartido en torso y pierna se alcanza ese volumen sin sesiones eternas, con 1,5 a 3 minutos de descanso en los ejercicios grandes.',
+    refs: [R.acsm2026, R.freq2016, R.volume2017, R.rest2024],
     sessions: [
       { name: 'Torso: fuerza', ex: [e('0025', 4, 6, 8), e('0027', 4, 6, 8), e('0405', 3, 8, 10), e('2330', 3, 8, 10), e('0201', 2, 10, 12)] },
       { name: 'Pierna: cuádriceps', ex: [e('0043', 4, 6, 8), e('2287', 3, 10, 12), e('0336', 3, 8, 10), e('0585', 3, 12, 15), e('1373', 3, 12, 15)] },
@@ -178,8 +186,8 @@ export const PROGRAMS = [
     summary: 'Tres sesiones especializadas que se repiten dos veces por semana (6 días) o una vez (3 días) según el tiempo del cliente.',
     level: 'Intermedio a avanzado', days: 6, weekdays: [1, 2, 3, 4, 5, 6],
     goals: ['muscle'], suits: [], avoid: ['beginner'], focus: 'push_pull_legs',
-    basis: 'Agrupar los músculos por función (empuje, jalón, pierna) permite mucho volumen por sesión con buena recuperación entre días. Hecho 6 días, cada músculo recibe dos estímulos por semana; con 3 días sigue funcionando, pero conviene subir las series por sesión para mantener el volumen semanal.',
-    refs: [R.volume2017, R.freq2016],
+    basis: 'Agrupar los músculos por función (empuje, jalón, pierna) permite mucho volumen por sesión con buena recuperación entre días. Hecho 6 días, cada músculo recibe dos estímulos por semana, que es lo que recomienda la postura del ACSM de 2026; con 3 días sigue funcionando, pero conviene subir las series por sesión para mantener unas 10 o más por músculo a la semana.',
+    refs: [R.acsm2026, R.volume2017, R.freq2016],
     sessions: [
       { name: 'Empuje', ex: [e('0025', 4, 6, 10), e('0405', 3, 8, 10), e('0314', 3, 8, 12), e('0334', 3, 12, 15), e('0201', 3, 10, 12)] },
       { name: 'Jalón', ex: [e('0652', 3, 6, 10), e('0027', 4, 6, 10), e('0861', 3, 10, 12), e('0993', 3, 12, 15), e('1648', 3, 10, 12)] },
@@ -193,8 +201,8 @@ export const PROGRAMS = [
     summary: 'Tres días de cuerpo completo con los grandes levantamientos en rangos bajos (3 a 6 repeticiones), pocos ejercicios y descansos largos.',
     level: 'Intermedio', days: 3, weekdays: [1, 3, 5],
     goals: ['strength'], suits: [], avoid: ['beginner', 'lower_back', 'knee'], focus: 'full_body',
-    basis: 'La fuerza máxima responde mejor a cargas altas (aprox. 80 a 90 % de 1RM, 1 a 6 repeticiones) con 2 a 5 minutos de descanso. Por el principio de especificidad, mejora más lo que se entrena: practicar los mismos levantamientos con frecuencia. Con el mismo volumen, la frecuencia semanal importa menos para la fuerza, así que 3 días bastan.',
-    refs: [R.acsm2009, R.loads2017, R.freqStr2018],
+    basis: 'La fuerza máxima responde mejor a cargas altas (aproximadamente 80 % de 1RM o más, 1 a 6 repeticiones) con 2 a 5 minutos de descanso. Para la mayoría de los adultos bastan 2 o 3 series por ejercicio (ACSM, 2026); las 4 o 5 series de este modelo son para quien ya entrena y quiere progresar más. Por el principio de especificidad, mejora más lo que se entrena: practicar los mismos levantamientos con frecuencia. Con el mismo volumen, la frecuencia semanal importa menos para la fuerza, así que 3 días bastan.',
+    refs: [R.acsm2026, R.loads2017, R.freqStr2018, R.acsm2009],
     sessions: [
       { name: 'Fuerza A', ex: [e('0043', 5, 3, 5), e('0025', 5, 3, 5), e('0027', 3, 5, 6)] },
       { name: 'Fuerza B', ex: [e('0043', 3, 3, 5), e('0426', 5, 3, 5), e('0032', 3, 3, 5)] }
@@ -207,8 +215,8 @@ export const PROGRAMS = [
     summary: 'Tres días de fuerza en formato de circuito, con poco descanso y repeticiones moderadas. Se complementa con 150 a 300 minutos de actividad aeróbica a la semana.',
     level: 'Todos', days: 3, weekdays: [1, 3, 5],
     goals: ['fat_loss', 'health', 'endurance'], suits: ['beginner'], avoid: [], focus: 'conditioning',
-    basis: 'El aeróbico es lo que más reduce peso y grasa, pero el entrenamiento de fuerza preserva y aumenta la masa magra mientras se pierde peso. Combinar ambos da la mejor recomposición corporal. La OMS recomienda 150 a 300 minutos semanales de actividad moderada más fuerza al menos 2 días. El formato en circuito mantiene alta la demanda cardiovascular.',
-    refs: [R.willis2012, R.who2020],
+    basis: 'El aeróbico es lo que más reduce peso y grasa, pero el entrenamiento de fuerza preserva y aumenta la masa magra mientras se pierde peso; combinar ambos da la mejor recomposición corporal. La OMS recomienda 150 a 300 minutos semanales de actividad moderada más fuerza al menos 2 días. El formato en circuito mantiene alta la demanda cardiovascular, y caminar los demás días completa los minutos de actividad.',
+    refs: [R.willis2012, R.who2020, R.acsm2026],
     sessions: [
       { name: 'Circuito A', ex: [e('1760', 3, 12, 15), e('0662', 3, 10, 15), e('0293', 3, 12, 15), e('0549', 3, 15, 20), e('0276', 3, 10, 12)] },
       { name: 'Circuito B', ex: [e('1460', 3, 10, 12), e('0405', 3, 12, 15), e('0861', 3, 12, 15), e('1409', 3, 12, 15), e('0979', 3, 10, 12)] }
@@ -221,8 +229,8 @@ export const PROGRAMS = [
     summary: 'Cuatro días: dos de pierna con énfasis en glúteos (extensión de cadera y trabajo a una pierna) y dos de torso para mantener el equilibrio.',
     level: 'Principiante a intermedio', days: 4, weekdays: [1, 2, 4, 5],
     goals: ['muscle', 'health'], suits: [], avoid: [], focus: 'glutes_legs',
-    basis: 'Para priorizar un grupo muscular conviene darle más volumen y frecuencia: el glúteo se entrena dos veces por semana con unas 10 a 20 series, combinando extensión de cadera (puente, bisagra) con trabajo de rodilla y cadera (sentadilla, zancada, subida al cajón). El torso se mantiene con volumen moderado.',
-    refs: [R.volume2017, R.freq2016],
+    basis: 'Para priorizar un grupo muscular conviene darle más volumen y frecuencia: el glúteo se entrena dos veces por semana con unas 10 a 20 series, combinando extensión de cadera (puente, bisagra) con trabajo de rodilla y cadera (sentadilla, zancada, subida al cajón). El torso se mantiene con volumen moderado, unas 10 series por músculo a la semana, como pide el ACSM (2026).',
+    refs: [R.volume2017, R.freq2016, R.acsm2026],
     sessions: [
       { name: 'Glúteo y cadena posterior', ex: [e('1409', 4, 8, 12), e('0085', 3, 8, 10), e('0431', 3, 10, 12), e('0586', 3, 10, 12), e('0196', 3, 12, 15)] },
       { name: 'Torso A', ex: [e('0289', 3, 8, 12), e('0861', 3, 10, 12), e('0405', 3, 10, 12), e('2330', 3, 10, 12)] },
@@ -237,8 +245,8 @@ export const PROGRAMS = [
     summary: 'Tres días que fortalecen cadera y rodilla con ejercicios de bajo impacto, en rangos tolerables y sin saltos.',
     level: 'Todos', days: 3, weekdays: [1, 3, 5],
     goals: ['health', 'strength', 'muscle'], suits: ['knee', 'beginner'], avoid: [], focus: 'full_body',
-    basis: 'En el dolor patelofemoral, el consenso internacional recomienda ejercicio terapéutico que combine fortalecimiento de cadera y de rodilla, porque reduce el dolor y mejora la función a corto, medio y largo plazo. Se priorizan la extensión de cadera, la subida a un cajón bajo y la sentadilla goblet hasta donde no haya dolor, y se evitan los saltos.',
-    refs: [R.crossley2016, R.acsm2009],
+    basis: 'En el dolor patelofemoral (dolor alrededor de la rótula), el consenso internacional de 2018 y la guía de buena práctica de 2024 coinciden: el tratamiento principal es el ejercicio, combinando fortalecimiento de cadera y de rodilla, acompañado de educación sobre cómo dosificar la carga. Reduce el dolor y mejora la función. Se priorizan la extensión de cadera, la subida a un cajón bajo y la sentadilla goblet hasta donde no haya dolor, y se evitan los saltos al principio. Un dolor leve (hasta 3 de 10) que se calma al día siguiente es aceptable.',
+    refs: [R.pfp2018, R.pfp2024, R.acsm2026],
     sessions: [
       { name: 'Cadera y rodilla A', ex: [e('3013', 3, 12, 15), e('0431', 3, 8, 12), e('1760', 3, 8, 12), e('0586', 3, 10, 12), e('0861', 3, 10, 12), e('0405', 3, 10, 12)] },
       { name: 'Cadera y rodilla B', ex: [e('1409', 3, 10, 12), e('2287', 3, 10, 12), e('1459', 3, 8, 12), e('0585', 2, 12, 15), e('2330', 3, 10, 12), e('0289', 3, 8, 12)] }
@@ -251,8 +259,8 @@ export const PROGRAMS = [
     summary: 'Tres días de fuerza general con columna neutra: estabilidad del tronco, bisagra ligera aprendida con control y tracciones con el pecho apoyado.',
     level: 'Todos', days: 3, weekdays: [1, 3, 5],
     goals: ['health', 'strength'], suits: ['lower_back', 'beginner'], avoid: [], focus: 'full_body',
-    basis: 'Las guías clínicas recomiendan el ejercicio como parte del manejo del dolor lumbar. El trabajo de estabilidad con columna neutra (dead bug, anti-rotación) y aprender la bisagra con poca carga reducen el estrés sobre la columna y mejoran su tolerancia, mientras los apoyos (remo en máquina, prensa) permiten entrenar fuerte sin cargarla.',
-    refs: [R.nice2016, R.mcgill],
+    basis: 'Las guías clínicas (NICE y la guía de la OMS de 2023 para el dolor lumbar crónico) recomiendan el ejercicio estructurado como parte del tratamiento. El trabajo de estabilidad con columna neutra (dead bug, anti-rotación) y aprender la bisagra con poca carga reducen el estrés sobre la columna y mejoran su tolerancia, mientras los apoyos (remo en máquina, prensa) permiten entrenar fuerte sin cargarla. Ante dolor que baja por la pierna, hormigueo o pérdida de fuerza, primero lo debe ver un médico.',
+    refs: [R.whoLbp2023, R.nice2016, R.mcgill],
     sessions: [
       { name: 'Tronco y fuerza A', ex: [e('0276', 3, 8, 10), e('0979', 3, 10, 12), e('0196', 3, 12, 15), e('2287', 3, 10, 12), e('1350', 3, 10, 12), e('0577', 3, 10, 12)] },
       { name: 'Tronco y fuerza B', ex: [e('3013', 3, 12, 15), e('0276', 3, 8, 10), e('1459', 2, 10, 12), e('0431', 3, 8, 12), e('0292', 3, 10, 12), e('0405', 3, 10, 12)] }
@@ -265,8 +273,8 @@ export const PROGRAMS = [
     summary: 'Tres días con peso corporal y una banda elástica. La progresión se logra con más repeticiones y variantes más difíciles.',
     level: 'Principiante a intermedio', days: 3, weekdays: [1, 3, 5],
     goals: ['health', 'muscle', 'fat_loss'], suits: ['no_gym', 'beginner'], avoid: [], focus: 'full_body',
-    basis: 'Entrenando cerca del fallo, las cargas bajas con muchas repeticiones producen una hipertrofia similar a la de las cargas altas; la fuerza máxima, en cambio, mejora más con cargas altas. Por eso, sin pesas se puede ganar músculo si cada serie se acerca al fallo y se progresa en repeticiones o en la dificultad de la variante.',
-    refs: [R.loads2017, R.acsm2009],
+    basis: 'Entrenando cerca del fallo, las cargas bajas con muchas repeticiones producen una hipertrofia similar a la de las cargas altas; la fuerza máxima, en cambio, mejora más con cargas altas. La postura del ACSM de 2026 confirma que el peso corporal y las bandas dan ganancias reales de fuerza, músculo y función. Por eso, sin pesas se puede ganar músculo si cada serie se acerca al fallo y se progresa en repeticiones o en la dificultad de la variante.',
+    refs: [R.loads2017, R.continuum2021, R.acsm2026],
     sessions: [
       { name: 'Casa A', ex: [e('1004', 3, 12, 20), e('0662', 3, 6, 15), e('0499', 3, 6, 12), e('3013', 3, 15, 20), e('0276', 3, 8, 12)] },
       { name: 'Casa B', ex: [e('1460', 3, 10, 16), e('0493', 3, 10, 20), e('0988', 3, 12, 15), e('0431', 3, 10, 12), e('0979', 3, 10, 12)] }
@@ -279,8 +287,8 @@ export const PROGRAMS = [
     summary: 'Dos o tres días de fuerza para todo el cuerpo, con ejercicios estables, carga moderada y trabajo de piernas para la marcha y el equilibrio.',
     level: 'Principiante', days: 2, weekdays: [2, 5],
     goals: ['health'], suits: ['beginner', 'knee', 'lower_back'], avoid: [], focus: 'full_body',
-    basis: 'En personas mayores, la NSCA recomienda fuerza 2 o 3 días por semana para todos los grandes grupos musculares, con progresión individualizada, porque mejora la fuerza, la masa muscular, la funcionalidad y reduce el riesgo de caídas. La OMS añade fuerza al menos 2 días y ejercicios de equilibrio para mayores de 65 años.',
-    refs: [R.fragala2019, R.who2020],
+    basis: 'En personas mayores, la NSCA recomienda fuerza 2 o 3 días por semana para todos los grandes grupos musculares, con progresión individualizada, porque mejora la fuerza, la masa muscular, la funcionalidad y reduce el riesgo de caídas. La OMS añade, para mayores de 65 años, ejercicios de equilibrio varias veces por semana: la subida al cajón y los ejercicios de pie cumplen esa función, y se puede sumar estar de pie sobre una pierna con apoyo cerca.',
+    refs: [R.fragala2019, R.who2020, R.acsm2026],
     sessions: [
       { name: 'Autonomía A', ex: [e('1760', 2, 8, 12), e('0577', 2, 10, 12), e('1350', 2, 10, 12), e('0431', 2, 8, 10), e('1373', 2, 10, 15)] },
       { name: 'Autonomía B', ex: [e('2287', 2, 10, 12), e('2330', 2, 10, 12), e('0405', 2, 10, 12), e('3013', 2, 10, 15), e('0979', 2, 10, 12)] }
@@ -294,8 +302,8 @@ export const PROGRAMS = [
     summary: 'Tres días de resistencia con bloques de trabajo intenso y pausas fijas: intervalos cortos, medios y largos, en bicicleta, carrera o cuerda.',
     level: 'Intermedio', days: 3, weekdays: [2, 4, 6],
     goals: ['endurance', 'fat_loss'], suits: ['no_gym'], avoid: ['beginner', 'knee'], focus: 'conditioning',
-    basis: 'Los libros clasifican el método interválico por la duración del trabajo: corto (menos de 1,5 minutos, intensidad máxima o alta), medio (1,5 a 6 minutos) y largo (6 a 20 minutos), siempre con pausas predeterminadas e incompletas. La pausa incompleta es la clave: el siguiente bloque empieza sin recuperar del todo y eso estimula la resistencia. Cada sesión cambia la duración para trabajar distintas vías energéticas.',
-    refs: [],
+    basis: 'Los libros clasifican el método interválico por la duración del trabajo: corto (menos de 1,5 minutos, intensidad máxima o alta), medio (1,5 a 6 minutos) y largo (6 a 20 minutos), siempre con pausas predeterminadas e incompletas. Los metaanálisis respaldan su uso: mejora el consumo máximo de oxígeno algo más que el trabajo continuo (Milanović, 2015) y reduce la grasa igual que el continuo con unos 40 % menos de tiempo (Wewege, 2017). Cada sesión cambia la duración para trabajar distintas vías energéticas; no se hacen más de 2 o 3 sesiones intensas por semana.',
+    refs: [R.hiitVo2, R.hiitFat],
     sessions: [
       { name: 'Intervalos cortos', ex: [cd('2138', 8, 1, { rest: 90 }), cd('2612', 4, 1, { rest: 60 })] },
       { name: 'Intervalos medios', ex: [cd('0685', 5, 3, { rest: 120 })] },
@@ -309,8 +317,8 @@ export const PROGRAMS = [
     summary: 'Tres días de trabajo aeróbico sin pausas: dos a ritmo uniforme y uno con cambios de ritmo (fartlek), aumentando la duración semana a semana.',
     level: 'Todos', days: 3, weekdays: [1, 3, 5],
     goals: ['endurance', 'fat_loss', 'health'], suits: ['beginner', 'no_gym'], avoid: [], focus: 'conditioning',
-    basis: 'El método continuo trabaja sin pausas: uniforme cuando se mantiene el mismo ritmo, y variable o fartlek («juego de velocidad») cuando se alternan ritmos sin detenerse. Es la base de la resistencia aeróbica y se progresa primero en volumen (más minutos) y después en intensidad, como se hace en el periodo preparatorio.',
-    refs: [],
+    basis: 'El método continuo trabaja sin pausas: uniforme cuando se mantiene el mismo ritmo (hoy se le llama zona 2 cuando el ritmo permite hablar), y variable o fartlek («juego de velocidad») cuando se alternan ritmos sin detenerse. Es la base de la resistencia aeróbica, cumple los 150 a 300 minutos semanales de la OMS y reduce la grasa tanto como el interválico (Wewege, 2017). Se progresa primero en volumen (más minutos) y después en intensidad.',
+    refs: [R.who2020, R.hiitFat, R.acsm2011],
     sessions: [
       { name: 'Continuo uniforme', ex: [cd('0685', 1, 30)] },
       { name: 'Fartlek', ex: [cd('0685', 1, 25)] },
@@ -324,8 +332,8 @@ export const PROGRAMS = [
     summary: 'Tres días de circuito con muchas repeticiones y pausas cortas entre ejercicios; se dan 3 vueltas al circuito.',
     level: 'Principiante a intermedio', days: 3, weekdays: [1, 3, 5],
     goals: ['endurance', 'fat_loss', 'health'], suits: ['beginner', 'no_gym'], avoid: [], focus: 'conditioning',
-    basis: 'La fuerza resistencia es la capacidad de mantener un esfuerzo muscular durante mucho tiempo. Se entrena con cargas ligeras o moderadas, muchas repeticiones y una densidad alta (poco descanso respecto al trabajo). El formato en circuito alterna grupos musculares, así uno descansa mientras trabaja el siguiente.',
-    refs: [],
+    basis: 'La fuerza resistencia es la capacidad de mantener un esfuerzo muscular durante mucho tiempo. Se entrena con cargas ligeras (menos del 60 % de 1RM), muchas repeticiones (15 o más) y una densidad alta, es decir, poco descanso respecto al trabajo (Schoenfeld, 2021). El formato en circuito alterna grupos musculares, así uno descansa mientras trabaja el siguiente.',
+    refs: [R.continuum2021, R.who2020],
     sessions: [
       { name: 'Circuito A', ex: [e('1760', 3, 15, 20), e('0662', 3, 10, 20), e('0499', 3, 10, 15), e('0431', 3, 12, 15), tm('2135', 3, 30)] },
       { name: 'Circuito B', ex: [e('1460', 3, 12, 20), e('0405', 3, 15, 20), e('0861', 3, 15, 20), e('3013', 3, 15, 25), e('0276', 3, 10, 15)] }
@@ -338,8 +346,8 @@ export const PROGRAMS = [
     summary: 'Dos días de movimientos explosivos con pocas repeticiones y pausas largas, combinados con un ejercicio de fuerza para sostener la técnica.',
     level: 'Intermedio a avanzado', days: 2, weekdays: [2, 5],
     goals: ['strength'], suits: [], avoid: ['beginner', 'knee', 'lower_back'], focus: 'full_body',
-    basis: 'La fuerza velocidad es producir mucha fuerza en el menor tiempo; su máxima expresión es la potencia. Se entrena con movimientos rápidos, pocas repeticiones y recuperación completa, porque depende del sistema de fosfágenos, que se agota en segundos. Entrenarla fatigado enseña a moverse lento, justo lo contrario de lo que se busca.',
-    refs: [],
+    basis: 'La fuerza velocidad es producir mucha fuerza en el menor tiempo; su máxima expresión es la potencia. La postura del ACSM de 2026 recomienda cargas moderadas (30 a 70 % de 1RM), poco volumen y mover la carga lo más rápido posible en la fase de subida. Se entrena con pocas repeticiones y recuperación completa, porque depende del sistema de fosfágenos, que se agota en segundos: entrenarla fatigado enseña a moverse lento, justo lo contrario de lo que se busca.',
+    refs: [R.acsm2026],
     sessions: [
       { name: 'Potencia de piernas y cadera', ex: [e('0514', 4, 3, 5), e('0549', 4, 8, 10), e('0043', 3, 4, 6, { rest: 180 })] },
       { name: 'Potencia de torso', ex: [e('1312', 4, 4, 6), e('1700', 4, 4, 6), e('0652', 3, 3, 6)] }
@@ -410,7 +418,7 @@ export const PROGRAMS = [
     level: 'Todos', days: 2, weekdays: [2, 4],
     goals: ['health'], suits: ['beginner', 'lower_back'], avoid: [], focus: 'full_body',
     basis: 'Equilibrio, flujo y fuerza del core está entre las cinco tendencias del ACSM para 2026, y el Pilates con máquina es la clase más reservada del mundo. Este modelo lleva esa idea al piso del gimnasio: trabajo del tronco con la columna neutra (sin abdominales que la flexionen, como recomienda McGill), equilibrio a una pierna y glúteo medio, que estabiliza cadera y rodilla. Sirve sola o como complemento de dos días de fuerza, y cumple con las recomendaciones de la OMS de trabajar el equilibrio y la fuerza varias veces por semana.',
-    refs: [R.acsm2026, R.mcgill, R.who2020],
+    refs: [R.acsmTrends2026, R.mcgill, R.who2020],
     sessions: [
       { name: 'Tronco y cadera', ex: [e('0276', 3, 8, 12), tm('0705', 3, 30), e('0979', 3, 10, 12), e('3013', 3, 12, 15), e('0628', 3, 12, 15)] },
       { name: 'Equilibrio y control', ex: [e('1757', 3, 8, 12), e('0431', 3, 8, 12), tm('2135', 3, 30), e('0993', 3, 12, 15), e('1774', 3, 10, 15)] }
