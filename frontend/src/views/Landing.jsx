@@ -301,8 +301,7 @@ const CSS = `
 .lp-panel-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
 .lp-panel-who{display:inline-flex;align-items:center;gap:10px;font-weight:600;font-size:.95rem;color:#ecebe6;min-width:0}
 .lp-panel-tag{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font-size:.82rem;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);padding:6px 10px;border-radius:999px}
-.lp-live{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:lp-pulse 2.2s ease-in-out infinite}
-@keyframes lp-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+.lp-live{width:8px;height:8px;border-radius:50%;background:var(--accent)}
 .lp-panel-stat{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:14px}
 .lp-panel-label{font-size:.8rem;color:var(--muted)}
 .lp-panel-value{font-family:"Syne",system-ui,sans-serif;font-weight:800;font-size:2.4rem;line-height:1.05;font-variant-numeric:tabular-nums}

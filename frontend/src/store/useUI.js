@@ -29,7 +29,17 @@ export const useUI = create((set, get) => ({
     const close = () => get().closeSheet(id)
     return { id, close, lock: v => set(s => ({ sheets: s.sheets.map(x => x.id === id ? { ...x, locked: v } : x) })) }
   },
-  closeSheet(id) { set(s => ({ sheets: s.sheets.filter(x => x.id !== id) })) },
+  // A sheet slides away (a dialog fades) before it unmounts; the exit is shorter than the enter.
+  // With reduced motion it goes at once.
+  closeSheet(id) {
+    const sh = get().sheets.find(x => x.id === id)
+    if (!sh || sh.closing) return
+    const drop = () => set(s => ({ sheets: s.sheets.filter(x => x.id !== id) }))
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduce) { drop(); return }
+    set(s => ({ sheets: s.sheets.map(x => x.id === id ? { ...x, closing: true } : x) }))
+    setTimeout(drop, sh.kind === 'center' ? 160 : 240)
+  },
   closeAll() { set({ sheets: [] }) },
 
   toast(msg) {

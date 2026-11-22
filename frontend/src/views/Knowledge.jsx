@@ -28,7 +28,7 @@ function Concept({ c, open, onToggle }) {
       <Icon name={open ? 'chevronUp' : 'chevronDown'} className="dim" />
     </button>
     <p className="small" style={{ margin: '8px 0 0' }}>{c.summary}</p>
-    {open && <>
+    {open && <div className="reveal">
       <ul className="small" style={{ margin: '10px 0 0', paddingLeft: 18, display: 'grid', gap: 6 }}>
         {c.points.map((p, i) => <li key={i}>{p}</li>)}
       </ul>
@@ -42,7 +42,7 @@ function Concept({ c, open, onToggle }) {
       <ul className="dim" style={{ fontSize: '.75rem', margin: '4px 0 0', paddingLeft: 18, display: 'grid', gap: 3 }}>
         {c.sources.map(s => <li key={s}>{SOURCES[s].url ? <a href={SOURCES[s].url} target="_blank" rel="noopener noreferrer"><i>{SOURCES[s].title}</i></a> : <i>{SOURCES[s].title}</i>}, {SOURCES[s].author}</li>)}
       </ul>
-    </>}
+    </div>}
   </article>
 }
 

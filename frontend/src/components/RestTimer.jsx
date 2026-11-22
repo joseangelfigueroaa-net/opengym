@@ -28,7 +28,7 @@ export default function RestTimer() {
       <div className="t">{clock(work.left)}</div>
       <div className="grow">
         {work.label && <div className="lbl">{work.label}</div>}
-        <div className="bar"><i style={{ width: pct + '%' }} /></div>
+        <div className="bar"><i style={{ transform: `scaleX(${pct / 100})` }} /></div>
       </div>
       <Button size="sm" onClick={stopWork}>{t('Cancel')}</Button>
       <Button size="sm" variant="primary" icon="check" onClick={finishWorkEarly}>{t('Done')}</Button>
@@ -42,7 +42,7 @@ export default function RestTimer() {
     <div id="timer" className="rest">
       <div className="head">
         <div className="t">{clock(timer.left)}</div>
-        <div className="bar"><i style={{ width: pct + '%' }} /></div>
+        <div className="bar"><i style={{ transform: `scaleX(${pct / 100})` }} /></div>
       </div>
       <div className="acts">
         <Button size="sm" icon="minus" onClick={() => addRest(-15)}>15s</Button>

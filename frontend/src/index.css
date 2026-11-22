@@ -182,8 +182,9 @@ button,.chip,.tile,.item,.wday,.cal-d,.swatch,.hm-c,.lrow,.seg button,.stp butto
 /* while the rest timer floats above the tab bar, keep its height scrollable-past
    (the rest variant is two rows tall — ~44px more than the single-row work timer) */
 body.resting #app{padding-bottom:calc(250px + var(--sab))}
-@keyframes viewfade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-#app.vfade{animation:viewfade var(--med) var(--ease)}
+/* a view change only cross-fades, fast: tabs are switched many times a day */
+@keyframes viewfade{from{opacity:0}to{opacity:1}}
+#app.vfade{animation:viewfade var(--fast) linear}
 
 /* large title, the way a nav bar does it */
 .hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:8px 0 18px}
@@ -329,7 +330,7 @@ h4.sec{
 #tabbar button.start.rec span{color:var(--orange)}
 #tabbar button.start.rec .cir::after{
   content:'';position:absolute;inset:0;border-radius:50%;
-  border:2px solid var(--orange);animation:ping 1.9s var(--ease) infinite;
+  border:2px solid var(--orange);animation:ping .9s var(--ease) 2;   /* says "started" twice, then stays as a still ring */
 }
 @keyframes ping{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.45);opacity:0}}
 
@@ -551,7 +552,7 @@ h4.sec{
 
 /* ------------------------------------------------------------- workout --- */
 .wprog{height:4px;background:var(--surface-2);border-radius:99px;overflow:hidden;margin-bottom:16px}
-.wprog i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width var(--med) var(--ease)}
+.wprog i{display:block;height:100%;width:100%;background:var(--acc);transform-origin:left center;transition:transform var(--med) var(--ease)}
 .exmedia{position:relative;border-radius:var(--r-lg);overflow:hidden;background:#fff;margin-bottom:12px}
 .exmedia img{width:100%;height:320px;object-fit:contain;display:block}
 .exmedia .gifhint,.exmedia .giftoggle{
@@ -642,7 +643,7 @@ h4.sec{
 @keyframes slideup{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
 #timer .t{font-size:26px;font-weight:600;letter-spacing:-.026em;font-variant-numeric:tabular-nums;min-width:66px}
 #timer .bar{flex:1;height:4px;background:var(--surface-3);border-radius:99px;overflow:hidden}
-#timer .bar i{display:block;height:100%;background:var(--acc);transition:width 1s linear}
+#timer .bar i{display:block;height:100%;width:100%;background:var(--acc);transform-origin:left center;transition:transform 1s linear}
 /* rest variant: −15/+15/Skip and the clock won't share one line on a phone, so the clock and
    bar take the top row and the controls take their own. The work timer keeps a single row —
    it only ever has two buttons. */
@@ -689,6 +690,17 @@ h4.sec{
 }
 :root[data-theme="light"] .center{background:#fff}
 @keyframes pop{from{transform:translate(-50%,-50%) scale(.94);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+/* the backdrop fades with the sheet instead of snapping dark; on close the sheet slides away and
+   a dialog fades, both shorter than their enter (store/useUI.js unmounts them afterwards) */
+.mback{animation:mbackin var(--med) ease-out}
+@keyframes mbackin{from{opacity:0}to{opacity:1}}
+.closing{pointer-events:none}
+.closing .mback{opacity:0;transition:opacity .24s ease-out}
+.closing .sheet{transform:translateY(100%);transition:transform .24s var(--ease)}
+.closing .center{opacity:0;transform:translate(-50%,-50%) scale(.97);transition:opacity .16s ease-out,transform .16s var(--ease)}
+/* details that open in place (model rationale, knowledge cards, paper conclusions) come into focus */
+.reveal{animation:reveal 200ms var(--ease) both}
+@keyframes reveal{from{opacity:0;transform:translateY(-4px);filter:blur(2px)}to{opacity:1;transform:none;filter:none}}
 
 /* --- RIR/RPE conversion table (effort help sheet) ---
    The two scales only click when you see them side by side, so the numbers get fixed-width

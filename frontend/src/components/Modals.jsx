@@ -5,17 +5,17 @@ import { useUI } from '../store/useUI.js'
 function Sheet({ sheet }) {
   const { closeSheet } = useUI()
   const ref = useRef(null)
-  const drag = useRef({ startY: null, delta: 0 })
+  const drag = useRef({ startY: null, delta: 0, t0: 0 })
 
   const onTouchStart = e => {
     const el = ref.current
     // a gesture that begins on a slider (or opted-out control) belongs to that control,
     // not to the sheet's swipe-to-dismiss — so it keeps working while you drag
     if (e.target.closest && e.target.closest('input[type=range], [data-nodrag]')) {
-      drag.current = { startY: null, delta: 0 }
+      drag.current = { startY: null, delta: 0, t0: 0 }
       return
     }
-    drag.current = { startY: el.scrollTop <= 0 ? e.touches[0].clientY : null, delta: 0 }
+    drag.current = { startY: el.scrollTop <= 0 ? e.touches[0].clientY : null, delta: 0, t0: performance.now() }
   }
   const onTouchMove = e => {
     const el = ref.current, d = drag.current
@@ -30,8 +30,10 @@ function Sheet({ sheet }) {
   const onTouchEnd = () => {
     const el = ref.current, d = drag.current
     if (d.startY === null) return
-    el.style.transition = 'transform .2s'
-    if (d.delta > 90 && !sheet.locked) { el.style.transform = 'translateY(110%)'; setTimeout(() => closeSheet(sheet.id), 180) }
+    // a quick flick closes as surely as a long drag: velocity in px/ms, or distance
+    const velocity = d.delta / Math.max(1, performance.now() - d.t0)
+    el.style.transition = 'transform .24s cubic-bezier(.32,.72,0,1)'
+    if (!sheet.locked && (d.delta > 90 || (d.delta > 24 && velocity > 0.11))) { el.style.transform = 'translateY(110%)'; setTimeout(() => closeSheet(sheet.id), 200) }
     else el.style.transform = ''
     d.startY = null
   }
@@ -47,14 +49,14 @@ function Sheet({ sheet }) {
   const close = () => closeSheet(sheet.id)
   if (sheet.kind === 'center') {
     return (
-      <div>
+      <div className={sheet.closing ? 'closing' : undefined}>
         <div className="mback" onClick={() => { if (!sheet.locked) close() }} />
         <div className="center">{sheet.render(close)}</div>
       </div>
     )
   }
   return (
-    <div>
+    <div className={sheet.closing ? 'closing' : undefined}>
       <div className="mback" onClick={() => { if (!sheet.locked) close() }} />
       <div className="sheet" ref={ref} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="grab" />

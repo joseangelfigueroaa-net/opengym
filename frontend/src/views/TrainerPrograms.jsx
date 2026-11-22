@@ -164,7 +164,7 @@ export default function TrainerPrograms() {
           <button className="btn primary" style={{ margin: 0, flex: '1 1 160px' }} disabled={!c} onClick={() => choose(p)}>
             <Icon name="calendar" /> {t('Use with {0}', first || '…')}</button>
         </div>
-        {isOpen && <div style={{ marginTop: 12 }}>
+        {isOpen && <div className="reveal" style={{ marginTop: 12 }}>
           <div className="lbl2">{t('Method')}</div>
           <p className="small" style={{ margin: '4px 0 8px' }}><b>{METHODS[p.method].name}.</b> {METHODS[p.method].about}</p>
           <div className="lbl2">{t('Rationale')}</div>

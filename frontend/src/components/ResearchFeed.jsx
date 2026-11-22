@@ -34,7 +34,7 @@ function Paper({ it, isNew }) {
     {it.conclusion && <>
       <button className="linkbtn small" style={{ marginTop: 8 }} aria-expanded={open} onClick={() => setOpen(o => !o)}>
         <Icon name={open ? 'chevronUp' : 'chevronDown'} /> {t("Authors' conclusion")}</button>
-      {open && <p className="small" lang="en" style={{ margin: '6px 0 0', padding: '8px 10px', borderRadius: 10, background: 'var(--acc-soft)' }}>{it.conclusion}</p>}
+      {open && <p className="small reveal" lang="en" style={{ margin: '6px 0 0', padding: '8px 10px', borderRadius: 10, background: 'var(--acc-soft)' }}>{it.conclusion}</p>}
     </>}
     <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
       <a className="chip nocap" href={it.url} target="_blank" rel="noopener noreferrer"><Icon name="link" /> PubMed {it.pmid}</a>
