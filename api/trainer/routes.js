@@ -18,6 +18,7 @@ import * as PH from './photos.js';
 import * as G from './gym.js';
 import * as V from './visits.js';
 import * as RT from './retention.js';
+import { createResearch } from './research.js';
 import { estimateMeal, prefetchMeal } from './nutrition.js';
 import { demoClient } from './demo.js';
 
@@ -199,6 +200,12 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   };
   setTimeout(gymSweep, 60000).unref?.();
   setInterval(gymSweep, 15 * 60000).unref?.();
+  // Science news from PubMed: checked every hour, each topic refreshed at most every 12 hours.
+  const research = createResearch({ read: () => load('research.json'), write: st => store('research.json', st) });
+  if (process.env.NODE_ENV !== 'test' && !process.env.NO_RESEARCH_FETCH) {
+    setTimeout(() => research.refresh(), 2 * 60000).unref?.();
+    setInterval(() => research.refresh(), 3600000).unref?.();
+  }
   // A gym's posts live like a trainer's, filed under the gym's id; each one says who wrote it.
   const gymOf = user => { const r = G.roleOf(db(), user); return r ? G.gymById(db(), r.id) : null; };
   const canSeeGymContent = (user, gym) => {
@@ -212,6 +219,15 @@ export function trainerRoutes({ json, readBody, readSession, requireAdmin, getDb
   const withAuthor = (post, owner) => ({ ...K.publicPost(post), source: owner, author: authorOf(post, owner), by: post.by || owner });
 
   return {
+    /* ------------------------------ science news ------------------------------ */
+
+    // New peer-reviewed papers by topic, for trainers and gym owners (trainer/research.js).
+    'GET /api/research': async (req, res) => {
+      const user = signedIn(req, res); if (!user) return;
+      if (!T.isTrainer(user) && G.roleOf(db(), user)?.role !== 'owner') { json(res, 403, { error: 'for trainers' }); return; }
+      json(res, 200, research.feed(query(req, 'topic')));
+    },
+
     /* ------------------------------ trainer ------------------------------ */
 
     /* ------------------------------ profile ------------------------------ */

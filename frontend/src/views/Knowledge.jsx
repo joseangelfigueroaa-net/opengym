@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { t } from '../lib/i18n.js'
 import { CONCEPTS, CATEGORIES, SOURCES, conceptById } from '../lib/knowledge.js'
 import { PROGRAMS } from '../lib/programs.js'
 import Icon from '../components/Icon.jsx'
-import { TextField } from '../components/ui.jsx'
+import { TextField, Segmented } from '../components/ui.jsx'
+import ResearchFeed from '../components/ResearchFeed.jsx'
+import ReferenceLibrary from '../components/ReferenceLibrary.jsx'
 
 // The knowledge area: training theory in short, searchable concepts, each with how Trainnery
 // applies it and the books it comes from. /knowledge/:id opens straight on one concept (the
-// training models link here). Open to trainers and clients alike.
+// training models link here). Open to trainers and clients alike; trainers and gym owners also
+// get the science news (PubMed) and the library of every source the app cites (?tab=news|library).
 
 const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
@@ -50,6 +53,10 @@ export default function Knowledge() {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState(null)
   const [open, setOpen] = useState(() => new Set(id ? [id] : []))
+  const [params, setParams] = useSearchParams()
+  const pro = !!user?.trainer || user?.gym?.role === 'owner'
+  const tab = pro && ['news', 'library'].includes(params.get('tab')) ? params.get('tab') : 'cards'
+  const setTab = v => setParams(v === 'cards' ? {} : { tab: v }, { replace: true })
 
   useEffect(() => {
     if (!id || !conceptById[id]) return
@@ -68,8 +75,14 @@ export default function Knowledge() {
     <div className="hdr">
       {!user?.trainer && <button className="iconbtn" onClick={() => nav('/home')} aria-label={t('Back')}><Icon name="chevronLeft" /></button>}
       <div style={{ flex: 1, marginLeft: user?.trainer ? 0 : 8 }}><h1 style={{ margin: 0 }}>{t('Knowledge')}</h1>
-        <div className="sub">{t('Training theory, in short, with its sources')}</div></div>
+        <div className="sub">{tab === 'news' ? t('New peer-reviewed research') : tab === 'library' ? t('Every source the app cites') : t('Training theory, in short, with its sources')}</div></div>
     </div>
+    {pro && <Segmented className="seg-inline" value={tab} onChange={setTab}
+      options={[{ value: 'cards', label: t('Cards') }, { value: 'news', label: t('News') }, { value: 'library', label: t('Library') }]} />}
+    {pro && <div style={{ height: 12 }} />}
+    {tab === 'news' && <ResearchFeed />}
+    {tab === 'library' && <ReferenceLibrary />}
+    {tab === 'cards' && <>
 
     <TextField type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={t('Search a concept, e.g. supercompensación')} aria-label={t('Search a concept')} />
     <div className="chips edge" style={{ margin: '10px 0 12px' }} role="group" aria-label={t('Category')}>
@@ -83,9 +96,10 @@ export default function Knowledge() {
     <h4 className="sec">{t('Reference books')}</h4>
     <div className="card">
       <ul className="small dim" style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 5 }}>
-        {Object.values(SOURCES).map(s => <li key={s.title}><i>{s.title}</i> — {s.author}</li>)}
+        {Object.values(SOURCES).filter(s => !s.url).map(s => <li key={s.title}><i>{s.title}</i> — {s.author}</li>)}
       </ul>
       <div className="dim" style={{ fontSize: '.72rem', marginTop: 10 }}>{t('The concepts are summaries in our own words; read the books for the full development.')}</div>
     </div>
+    </>}
   </div>
 }

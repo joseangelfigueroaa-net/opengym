@@ -31,6 +31,8 @@ export default function TrainerProfile() {
     <div className="hdr">
       <div style={{ flex: 1 }}><h1 style={{ margin: 0 }}>{t('My profile')}</h1>
         <div className="sub">{t('What your clients see about you')}</div></div>
+      {/* trainers whose tab bar shows the gym instead of Knowledge reach the science news here too */}
+      <button className="iconbtn" onClick={() => nav('/knowledge?tab=news')} aria-label={t('Science: news and library')}><Icon name="lightbulb" /></button>
       <button className="iconbtn" onClick={() => nav('/settings')} aria-label={t('Settings')}><Icon name="gear" /></button>
     </div>
 

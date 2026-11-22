@@ -161,6 +161,9 @@ export const EX_NOTES = {
   '1757': 'Peso muerto a una pierna con mancuerna: bisagra de cadera sobre un pie; isquios, glúteo y sobre todo equilibrio.'
 }
 
+// Every reference the models cite, for the trainers' library (components/ReferenceLibrary.jsx).
+export const REFS = R
+
 /* ---------- helpers to keep the sessions readable ---------- */
 const e = (id, sets, repsMin, reps, more) => ({ id, mode: 'reps', sets, repsMin, reps, ...more })
 const tm = (id, sets, sec, more) => ({ id, mode: 'time', sets, sec, ...more })          // timed hold
