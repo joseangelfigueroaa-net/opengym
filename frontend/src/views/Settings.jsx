@@ -15,6 +15,7 @@ import { coachAvailable, hasConsent } from '../lib/coach.js'
 import { forgetCoach } from '../lib/coach-api.js'
 import Icon from '../components/Icon.jsx'
 import { askSignOut } from '../components/SignOutButton.jsx'
+import { deleteAccountSheet } from '../components/DeleteAccountSheet.jsx'
 import { trainerLed } from '../lib/trainer.js'
 import { useFeatures } from '../lib/features.js'
 import { Section, Row, SelectRow, Switch, Segmented, Button, TextField } from '../components/ui.jsx'
@@ -147,6 +148,8 @@ export default function Settings() {
         {user.admin && <Row icon="wrench" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin')} />}
         <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={() => askSignOut(signOut, nav)} />
         <Row icon="shield" iconTint="var(--red)" title={t('Sign out everywhere')} subtitle={t('Ends this profile’s sessions on all your devices.')} danger onClick={signOutEverywhere} />
+        {!user.admin && <Row icon="trash" iconTint="var(--red)" title={t('Delete my account')} subtitle={t('Deletes your account and all its data for good.')} danger
+          onClick={() => deleteAccountSheet({ onDeleted: () => { nav('/', { replace: true }); toast(t('Your account was deleted')) } })} />}
       </> : webauthnOK() ? <>
         <Row icon="sparkles" iconTint="var(--acc)" title={t('Create passkey profile')} subtitle={t('Keeps your data safe and separate per person.')} accessory="chevron" onClick={registerHere} />
         <Row icon="person" iconTint="var(--blue)" title={t('Sign in with passkey')} accessory="chevron" onClick={signInHere} />

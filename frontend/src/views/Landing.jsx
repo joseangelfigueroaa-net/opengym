@@ -273,6 +273,7 @@ export default function Landing() {
     <footer className="lp-foot">
       <span>© {new Date().getFullYear()} {BRAND}</span>
       <span>Hecho para entrenadores de Venezuela y Latinoamérica</span>
+      <a href="/borrar-cuenta.html" style={{ color: 'inherit' }}>Borrar tu cuenta</a>
     </footer>
   </div></MotionConfig>
 }

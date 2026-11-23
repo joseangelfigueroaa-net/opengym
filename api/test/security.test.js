@@ -570,3 +570,19 @@ test('admin: deleting an account removes it and its files; admins and gym owners
   assert.ok(!(await get('/api/gym', { who: 'g1' })).json.trainers.some(t => t.id === 'gt'));
   assert.equal((await post('/api/admin/user/delete', { id: 'gt' }, { who: 'admin' })).status, 404, 'already gone');
 });
+
+test('anyone can delete their own account, after confirming; admins and gym owners cannot', async () => {
+  assert.equal((await post('/api/me/delete', { confirm: 'delete my account' })).status, 401, 'signed in only');
+  assert.equal((await post('/api/me/delete', {}, { who: 'c1' })).status, 400, 'needs the explicit confirmation');
+  assert.equal((await post('/api/me/delete', { confirm: 'delete my account' }, { who: 'admin' })).status, 400, 'an admin keeps the platform');
+  const owner = await post('/api/me/delete', { confirm: 'delete my account' }, { who: 'g1' });
+  assert.equal(owner.status, 409);
+  assert.equal(owner.json.code, 'owns_gym');
+  assert.ok(fs.existsSync(path.join(DATA, 'records-c1.json')));
+  const r = await post('/api/me/delete', { confirm: 'delete my account' }, { who: 'c1' });
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('set-cookie') || '', /gymsid=;|Max-Age=0|Expires=Thu, 01 Jan 1970/i, 'the session cookie is cleared');
+  assert.equal((await get('/api/me', { who: 'c1' })).status, 401, 'the old session no longer works');
+  assert.equal((await get('/api/admin/user?id=c1', { who: 'admin' })).status, 404);
+  assert.ok(!fs.readdirSync(DATA).some(f => /(^|-)c1\.json$/.test(f)), 'no file of theirs is left');
+});

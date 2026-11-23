@@ -167,6 +167,14 @@ export const useStore = create((set, get) => {
       clearLocalSession()
     },
 
+    // Deletes this account for good on the server, then leaves the device as a sign-out does.
+    // Nothing is pushed first: the data is about to be deleted. Errors reach the caller.
+    async deleteAccount() {
+      await api('/api/me/delete', { method: 'POST', body: JSON.stringify({ confirm: 'delete my account' }) })
+      localStorage.removeItem('gym_dirty')
+      clearLocalSession()
+    },
+
     // Demo build only: drop the seeded example profile back in (Settings → "Reset demo data").
     // Dynamic import so the generator never ships in a self-hosted bundle.
     async resetDemo() {

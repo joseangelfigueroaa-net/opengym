@@ -371,6 +371,39 @@ function livePresence(uid) {
 setInterval(() => { for (const [k, v] of presence) if (Date.now() - v.updatedAt > PRESENCE_TTL) presence.delete(k); }, 30000).unref();
 
 /* ---------- routes ---------- */
+// Deletes an account for good, with everything filed under it: the account, its passkeys, its
+// workouts, records, photos, messages and content, its gym seat and its links. Its clients stay,
+// without a trainer, and the notes it kept on them go. Throws gym.GymError for a gym owner (the
+// gym has to be closed or handed over first). Returns how many clients were left without it.
+async function deleteAccount(u) {
+  const g = gym.forgetUser(gym.ensureShape(db), u.id);
+  const clients = trainer.forgetUser(db, u.id);
+  db.users = db.users.filter(x => x.id !== u.id);
+  db.creds = db.creds.filter(c => c.userId !== u.id);
+  db.subs = db.subs.filter(s => s.userId !== u.id);
+  presence.delete(u.id); cancelRestTimer(u.id); reminders.delete(u.id);
+  saveDb();
+  for (const cid of clients) {
+    const name = 'assign-' + safeId(cid) + '.json', f = files.read(name, {});
+    if (f.profile && (!f.profile.by || f.profile.by === u.id)) files.write(name, { ...f, profile: null });
+  }
+  const id = safeId(u.id);
+  const names = ['state', 'records', 'assign', 'chat', 'social', 'photos', 'content'].map(k => k + '-' + id + '.json');
+  if (g) {
+    names.push('gymchat-' + safeId(g.id) + '-' + id + '.json');
+    // their days at the gym go; an open retention episode closes as "left"
+    const vn = 'visits-' + safeId(g.id) + '.json', vf = files.read(vn, {});
+    if (vf.days && vf.days[u.id]) { delete vf.days[u.id]; files.write(vn, vf); }
+    const rn = 'retention-' + safeId(g.id) + '.json', rf = files.read(rn, {});
+    const open = (rf.episodes || []).find(e => e.userId === u.id && !e.end);
+    if (open) { open.end = new Date().toISOString().slice(0, 10); open.outcome = 'left'; files.write(rn, rf); }
+  }
+  await Promise.all(names.map(n => files.remove(n)));
+  for (const dir of ['content', 'photos']) await fs.promises.rm(path.join(DATA, dir, id), { recursive: true, force: true });
+  coachJobs.clearUser(u.id);
+  return clients.length;
+}
+
 const routes = {
   // public, for uptime monitors: up or not, and nothing about who uses the instance
   'GET /api/health': async (req, res) => json(res, 200, { ok: true }),
@@ -548,6 +581,20 @@ const routes = {
   // ever issued for the account, on every device, including a copy someone else walked off with.
   // The caller's own cookie is cleared here too, so the browser doing it doesn't sit on a token
   // it no longer accepts. Passkeys are untouched: signing back in works immediately.
+  // Deleting your own account (App Store 5.1.1(v), Google Play's account-deletion policy): the same
+  // deletion an admin can run, started by the person, who confirms it explicitly. The session
+  // cookie is cleared with it. Admins can't do it to themselves; a gym owner closes the gym first.
+  'POST /api/me/delete': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    const body = await readBody(req);
+    if (body.confirm !== 'delete my account') return json(res, 400, { error: 'confirmation missing' });
+    if (isAdmin(user)) return json(res, 400, { error: 'an admin account cannot delete itself' });
+    try { await deleteAccount(user); }
+    catch (e) { if (e instanceof gym.GymError) return json(res, 409, { error: e.message, code: 'owns_gym' }); throw e; }
+    json(res, 200, { ok: true }, { 'Set-Cookie': clearCookie });
+  },
+
   'POST /api/logout/all': async (req, res) => {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
@@ -720,35 +767,10 @@ const routes = {
     const u = userById(body.id);
     if (!u) return json(res, 404, { error: 'no such user' });
     if (u.id === admin.id || isAdmin(u)) return json(res, 400, { error: 'cannot delete an admin' });
-    let g, clients;
-    try { g = gym.forgetUser(gym.ensureShape(db), u.id); }
-    catch (e) { if (e instanceof gym.GymError) return json(res, 409, { error: e.message }); throw e; }
-    clients = trainer.forgetUser(db, u.id);
-    db.users = db.users.filter(x => x.id !== u.id);
-    db.creds = db.creds.filter(c => c.userId !== u.id);
-    db.subs = db.subs.filter(s => s.userId !== u.id);
-    presence.delete(u.id); cancelRestTimer(u.id); reminders.delete(u.id);
-    saveDb();
-    // the notes this trainer kept on each client are theirs, and go with them
-    for (const cid of clients) {
-      const name = 'assign-' + safeId(cid) + '.json', f = files.read(name, {});
-      if (f.profile && (!f.profile.by || f.profile.by === u.id)) files.write(name, { ...f, profile: null });
-    }
-    const id = safeId(u.id);
-    const names = ['state', 'records', 'assign', 'chat', 'social', 'photos', 'content'].map(k => k + '-' + id + '.json');
-    if (g) {
-      names.push('gymchat-' + safeId(g.id) + '-' + id + '.json');
-      // their days at the gym go; an open retention episode closes as "left"
-      const vn = 'visits-' + safeId(g.id) + '.json', vf = files.read(vn, {});
-      if (vf.days && vf.days[u.id]) { delete vf.days[u.id]; files.write(vn, vf); }
-      const rn = 'retention-' + safeId(g.id) + '.json', rf = files.read(rn, {});
-      const open = (rf.episodes || []).find(e => e.userId === u.id && !e.end);
-      if (open) { open.end = new Date().toISOString().slice(0, 10); open.outcome = 'left'; files.write(rn, rf); }
-    }
-    await Promise.all(names.map(n => files.remove(n)));
-    for (const dir of ['content', 'photos']) await fs.promises.rm(path.join(DATA, dir, id), { recursive: true, force: true });
-    coachJobs.clearUser(u.id);
-    json(res, 200, { ok: true, id: u.id, clients: clients.length });
+    let clients;
+    try { clients = await deleteAccount(u); }
+    catch (e) { if (e instanceof gym.GymError) return json(res, 409, { error: e.message, code: 'owns_gym' }); throw e; }
+    json(res, 200, { ok: true, id: u.id, clients });
   },
 
   'GET /api/admin/invites': async (req, res) => {
