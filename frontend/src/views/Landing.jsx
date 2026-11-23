@@ -12,10 +12,10 @@ import PromoCharts from '../components/PromoCharts.jsx'
 const WEIGHT_WEEKS = [84.2, 83.6, 83.9, 82.8, 82.1, 81.7, 80.9, 80.4, 79.6, 79.2, 78.7, 78.4]
 
 const GYM = [
+  { icon: Eye, title: 'Quién dejó de venir', text: 'Tus socios marcan su entrada al llegar, o la marca recepción. Si alguien pasa más días sin venir ni entrenar de lo que es normal para él, aparece en la lista, cada lunes te llega la lista y a fin de mes ves a quiénes recuperaste.' },
   { icon: UserPlus, title: 'Invitaciones con permisos', text: 'Invita a cada entrenador con su enlace y a tus socios con un código. Al enviarlo eliges qué puede hacer cada uno: ver a todos los socios, asignarlos o publicar para todo el gimnasio.' },
   { icon: Shuffle, title: 'Reparto por turno y cupo', text: 'Asigna cada socio a un entrenador, o deja que la app reparta a los que no tienen uno según su turno y el cupo libre de cada entrenador.' },
   { icon: CalendarCheck, title: 'Quién tiene entreno y quién no', text: 'Ves si cada socio tiene entrenamiento asignado. El entreno lo diseña siempre su entrenador: el gimnasio organiza, el entrenador entrena.' },
-  { icon: Eye, title: 'Quién dejó de venir', text: 'Tus socios marcan su entrada al llegar, o la marca recepción. Si alguien pasa más días sin venir ni entrenar de lo que es normal para él, aparece en la lista, y a fin de mes ves a quiénes recuperaste.' },
   { icon: ChatsCircle, title: 'Mensajes con socios y entrenadores', text: 'Escribe a cualquier socio o entrenador desde su ficha. Ellos te responden desde la app.' },
   { icon: Megaphone, title: 'Contenido del gimnasio', text: 'Publica horarios, avisos y guías. Tus socios lo ven junto al contenido de su entrenador, y cada publicación dice quién la subió.' },
   { icon: Buildings, title: 'Socios del gimnasio y clientes propios', text: 'Los clientes que tus entrenadores atienden en el gimnasio son tus socios. Si un entrenador se va, sus socios vuelven a la lista para reasignarlos.' },
@@ -34,6 +34,15 @@ const GYM_LOAD = [
   { who: 'Luis', shift: 'Tarde', n: 44 },
   { who: 'Carla', shift: 'Noche', n: 21 },
 ]
+// What gym owners ask before saying yes; every answer is how the app works today.
+const FAQ = [
+  ['¿Qué ve el gimnasio de cada socio?', 'Su nombre, su turno, su entrenador, si tiene entreno asignado, sus entradas y si avanza hacia su meta y cumple su plan, en palabras. No ve su peso, sus medidas, sus comidas, sus fotos ni sus mensajes con el entrenador.'],
+  ['¿Cómo sé quién se está yendo?', 'La app mide el ritmo de cada socio: si alguien pasa más días sin venir ni entrenar de lo que es normal para él, aparece en «Por revisar». Cada lunes te llega el resumen, y a fin de mes ves a quiénes recuperaste.'],
+  ['¿Mis socios tienen que descargar una app?', 'No hace falta ninguna tienda: Trainnery funciona en el navegador del teléfono y se puede instalar en la pantalla de inicio. Entran con su huella, su rostro o su cuenta de Google, sin contraseñas.'],
+  ['¿Cómo se paga?', 'Mes a mes, por adelantado, en efectivo, Pago Móvil, Binance o Zinli. No hay contrato ni cobro automático: si no pagas el mes siguiente, el plan se detiene.'],
+  ['¿Quién lo configura?', 'Nosotros. El primer mes es gratis y te lo dejamos montado: cargamos tus socios e invitamos a tus entrenadores.'],
+  ['¿Qué pasa si un socio quiere irse?', 'Puede salir del gimnasio desde Ajustes cuando quiera, o borrar su cuenta con todos sus datos.'],
+]
 const GYM_MAIL = 'mailto:support@trainnery.com?subject=' + encodeURIComponent('Trainnery para mi gimnasio')
 
 const TRAINER = [
@@ -42,7 +51,6 @@ const TRAINER = [
   { icon: Sparkle, title: 'Contenido para tus clientes', text: 'Publica guías, PDFs e imágenes. Tus clientes las ven en su app y reaccionan con emojis.' },
   { icon: ChatCircle, title: 'Chat con cada cliente', text: 'Conversa dentro de la app, con avisos al teléfono y mensajes leídos.' },
   { icon: UserCircle, title: 'Tu perfil público', text: 'Comparte tu perfil con tus clientes para que te conozcan mejor.' },
-  { icon: Target, title: 'Comenta y reacciona', text: 'Reacciona a entrenos, registros y avances. Comenta las comidas de tus clientes.' },
 ]
 
 const CLIENT = [
@@ -147,14 +155,14 @@ export default function Landing() {
 
     <section className="lp-hero" aria-labelledby="lp-h1">
       <motion.div className="lp-hero-copy" variants={stagger} initial="hidden" animate="show">
-        <motion.p className="lp-kicker" variants={rise}>Para gimnasios, entrenadores personales y sus clientes</motion.p>
-        <motion.h1 id="lp-h1" variants={rise}>Entrena, registra y avanza con tu entrenador</motion.h1>
-        <motion.p className="lp-lead" variants={rise}>Entrenos asignados, comidas con calorías calculadas, fotos y gráficas de avance, y un chat con cada cliente, todo en una sola app.</motion.p>
+        <motion.p className="lp-kicker" variants={rise}>Para gimnasios y entrenadores personales</motion.p>
+        <motion.h1 id="lp-h1" variants={rise}>Sabe qué socios se están yendo, antes de perderlos</motion.h1>
+        <motion.p className="lp-lead" variants={rise}>Cada socio recibe el entreno de su entrenador en el teléfono y marca su llegada. Tú ves quién avanza, quién no cumple su plan y quién dejó de venir, sin ver su peso ni sus fotos.</motion.p>
         <motion.div className="lp-cta" variants={rise}>
-          <button type="button" className="lp-btn" onClick={start}>Crear mi perfil <ArrowRight size={18} weight="regular" aria-hidden="true" /></button>
-          <button type="button" className="lp-btn lp-btn-ghost" onClick={start}>Ya tengo cuenta</button>
+          <a className="lp-btn" href={GYM_MAIL}>Quiero Trainnery en mi gimnasio <ArrowRight size={18} weight="regular" aria-hidden="true" /></a>
+          <button type="button" className="lp-btn lp-btn-ghost" onClick={start}>Tengo una invitación</button>
         </motion.div>
-        <motion.p className="lp-fine" variants={rise}>Sin contraseñas: entras con passkey o con tu cuenta de Google.</motion.p>
+        <motion.p className="lp-fine" variants={rise}>Primer mes gratis y sin contrato. Para entrenar con tu entrenador, entra con su invitación.</motion.p>
       </motion.div>
       <HeroPanel />
     </section>
@@ -262,12 +270,25 @@ export default function Landing() {
       </ul>
     </section>
 
+    <section className="lp-sec" aria-labelledby="lp-faq">
+      <div className="lp-sec-head">
+        <p className="lp-eyebrow">Preguntas frecuentes</p>
+        <h2 id="lp-faq">Lo que preguntan los gimnasios</h2>
+      </div>
+      <div className="lp-faq">
+        {FAQ.map(([q, a]) => <details key={q}><summary>{q}</summary><p>{a}</p></details>)}
+      </div>
+    </section>
+
     <section className="lp-final" aria-labelledby="lp-final">
       <div>
-        <h2 id="lp-final">Empieza hoy</h2>
-        <p>Crea tu perfil en un minuto, en el teléfono o en el computador.</p>
+        <h2 id="lp-final">Pruébalo un mes gratis en tu gimnasio</h2>
+        <p>Te lo dejamos montado: cargamos tus socios e invitamos a tus entrenadores. Sin contrato.</p>
       </div>
-      <button type="button" className="lp-btn" onClick={start}>Crear mi perfil <ArrowRight size={18} weight="regular" aria-hidden="true" /></button>
+      <div className="lp-cta">
+        <a className="lp-btn" href={GYM_MAIL}>Quiero Trainnery en mi gimnasio <ArrowRight size={18} weight="regular" aria-hidden="true" /></a>
+        <button type="button" className="lp-btn lp-btn-ghost" onClick={start}>Tengo una invitación</button>
+      </div>
     </section>
 
     <footer className="lp-foot">
@@ -287,7 +308,7 @@ const CSS = `
 .lp-brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
 .lp-word{font-weight:800;font-size:20px}
 .lp-link{background:none;border:0;color:var(--accent);font:inherit;font-weight:600;min-height:44px;padding:0 8px;cursor:pointer}
-.lp-hero{min-height:100dvh;display:grid;align-items:center;gap:40px;max-width:1160px;margin:0 auto;padding:32px max(16px,env(safe-area-inset-right,0px)) 56px max(16px,env(safe-area-inset-left,0px))}
+.lp-hero{min-height:100svh;display:grid;align-items:center;gap:40px;max-width:1160px;margin:0 auto;padding:32px max(16px,env(safe-area-inset-right,0px)) 56px max(16px,env(safe-area-inset-left,0px))}
 .lp-hero-copy{min-width:0}
 .lp-kicker{color:var(--accent);font-weight:600;margin:0 0 14px;font-size:.92rem;letter-spacing:.02em}
 .lp-hero h1{font-weight:800;font-size:clamp(2rem,6.4vw,3rem);line-height:1.08;margin:0 0 18px;letter-spacing:-.02em;text-wrap:balance}
@@ -322,6 +343,8 @@ const CSS = `
 .lp-sub a{color:var(--accent)}
 .lp-nav{display:flex;align-items:center;gap:4px}
 .lp-link-dim{color:#ecebe6}
+.lp-link{white-space:nowrap}
+@media (max-width:420px){.lp-link-dim{display:none}}   /* on a phone the hero already leads to the gyms; keep the sign-in on one line */
 .lp-h3{font-family:"Syne",system-ui,sans-serif;font-weight:800;font-size:1.35rem;margin:0 0 8px}
 .lp-gym-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-bottom:28px}
 @media (min-width:900px){.lp-gym-grid{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:24px}}
@@ -380,6 +403,13 @@ const CSS = `
 .lp-list li svg{margin-top:4px;color:var(--accent);flex:none}
 .lp-final{margin:72px auto 0;max-width:1160px;padding:36px max(16px,env(safe-area-inset-right,0px)) 36px max(16px,env(safe-area-inset-left,0px));display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px;border-top:1px solid var(--line)}
 .lp-final p{color:var(--muted);margin:0}
+.lp-faq{display:grid;gap:8px;max-width:48rem}
+.lp-faq details{background:var(--surface);border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);padding:0 18px}
+.lp-faq summary{cursor:pointer;list-style:none;padding:16px 28px 16px 0;font-weight:600;position:relative}
+.lp-faq summary::-webkit-details-marker{display:none}
+.lp-faq summary::after{content:'+';position:absolute;right:0;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:400;font-size:1.3rem;transition:transform .2s cubic-bezier(.23,1,.32,1)}
+.lp-faq details[open] summary::after{transform:translateY(-50%) rotate(45deg)}
+.lp-faq details p{margin:0 0 16px;color:var(--muted)}
 .lp-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));color:#7f7e78;font-size:.85rem;max-width:1160px;margin:0 auto;border-top:1px solid var(--line)}
 @media (min-width:1080px){.lp-hero{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:56px}.lp-hero h1{font-size:clamp(2.4rem,4.2vw,3.4rem)}}
 @media (max-width:759px){.lp-hero{padding-top:24px}.lp-row{grid-template-columns:minmax(0,1fr);gap:8px}}
