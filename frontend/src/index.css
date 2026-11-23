@@ -138,7 +138,26 @@ button,.chip,.tile,.item,.wday,.cal-d,.swatch,.hm-c,.lrow,.seg button,.stp butto
   stroke-linecap:round;stroke-linejoin:round;
 }
 
-@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+/* Reduced motion means gentler, not nothing (Apple, Designing Fluid Interfaces): movement, scale and
+   loops go; short opacity and colour fades that explain a change stay. Keyframes collapse to their end. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:1ms!important;animation-delay:0s!important;animation-iteration-count:1!important;
+    transition-property:opacity,color,background-color,border-color,box-shadow!important;
+    transition-duration:150ms!important;transition-delay:0s!important;scroll-behavior:auto!important;
+  }
+}
+/* Reduced transparency: frosted surfaces become solid, so text never sits on a moving background */
+@media (prefers-reduced-transparency: reduce){
+  #tabbar,#timer,#toast{background:var(--bg-el)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .mback{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:rgba(0,0,0,.55)}
+}
+/* More contrast: secondary text close to primary, and visible edges on cards and controls */
+@media (prefers-contrast: more){
+  :root{--label-2:rgba(235,235,245,.86);--label-3:rgba(235,235,245,.74)}
+  :root[data-theme="light"]{--label-2:rgba(20,20,24,.9);--label-3:rgba(20,20,24,.78)}
+  .card,.field,.input,.chip,.sheet,.center{box-shadow:inset 0 0 0 1px var(--label-3)}
+}
 
 /* ------------------------------------------------------------ type scale -- */
 .t-large  {font-size:34px;line-height:1.06;font-weight:700;letter-spacing:-.028em}
@@ -152,7 +171,7 @@ button,.chip,.tile,.item,.wday,.cal-d,.swatch,.hm-c,.lrow,.seg button,.stp butto
 .t-cap    {font-size:12px;line-height:1.33;font-weight:400;letter-spacing:0}
 
 .muted{color:var(--label-2)} .dim{color:var(--label-3)}
-.small{font-size:13px;line-height:1.38}
+.small{font-size:13px;line-height:1.38;letter-spacing:-.001em}
 .accent{color:var(--acc)}
 .capitalize{text-transform:capitalize}
 /* exercise names and body-part/equipment terms arrive lowercase from the dataset,

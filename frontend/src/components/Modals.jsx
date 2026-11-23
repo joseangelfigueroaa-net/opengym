@@ -7,6 +7,8 @@ import { useUI } from '../store/useUI.js'
 // height, or flicked down faster than 0.5 px/ms at the end of the gesture) or snaps back fast.
 // The enter is a transition, not a keyframe, so a sheet can be caught while it is still rising.
 const EASE = 'cubic-bezier(.32,.72,0,1)'
+// Past an edge the sheet resists instead of stopping dead: the further you pull, the less it follows.
+const rubberband = (over, dim, c = 0.55) => (over * dim * c) / (dim + c * Math.abs(over))
 function Sheet({ sheet }) {
   const { closeSheet } = useUI()
   const ref = useRef(null)
@@ -46,6 +48,12 @@ function Sheet({ sheet }) {
       el.style.transition = 'none'
       el.style.transform = `translateY(${d.delta}px)`
       if (back.current) { back.current.style.transition = 'none'; back.current.style.opacity = String(Math.max(0, 1 - d.delta / el.offsetHeight)) }
+    } else if (d.delta < 0 && el.scrollHeight <= el.clientHeight + 1) {
+      // pulling up a sheet that has nothing more to show: give a little, with resistance
+      e.preventDefault()
+      el.style.transition = 'none'
+      el.style.transform = `translateY(${rubberband(d.delta, el.offsetHeight)}px)`
+      d.delta = 0
     } else d.delta = 0
   }
   const onTouchEnd = () => {
