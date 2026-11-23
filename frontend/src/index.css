@@ -128,8 +128,8 @@ img{max-width:100%}
 a{color:var(--acc);text-decoration:none}
 :focus{outline:none}
 :focus-visible{outline:2.5px solid var(--acc);outline-offset:2px;border-radius:6px}
-button,.chip,.tile,.item,.wday,.cal-d,.swatch,.hm-c,.lrow,.seg button,.stp button,.sld
-{-webkit-user-select:none;user-select:none}
+button,.chip,.tile,.item,.wday,.cal-d,.swatch,.hm-c,.lrow,.seg button,.stp button,.sld,[role="button"],#tabbar
+{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}   /* long-press on a control: no text selection, no callout */
 
 /* icons inherit colour and optical size from their context */
 .icn{
@@ -189,7 +189,12 @@ body.resting #app{padding-bottom:calc(250px + var(--sab))}
 /* large title, the way a nav bar does it */
 .hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:8px 0 18px}
 .hdr>div{min-width:0}
-.hdr h1{font-size:clamp(26px,8.2vw,34px);line-height:1.08;font-weight:700;letter-spacing:-.028em;overflow-wrap:break-word;hyphens:auto}
+.hdr h1{font-size:clamp(26px,8.2vw,34px);line-height:1.08;font-weight:700;letter-spacing:-.028em;overflow-wrap:break-word;hyphens:auto;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}   /* a long gym or client name stays a title, not a paragraph */
+/* a person's name in a list row: at most two lines, and an unbreakable name (an email, a German compound) breaks
+   instead of pushing into the tags beside it */
+.pname{font-weight:600;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.sheet h3{overflow-wrap:anywhere}
 .hdr>.iconbtn,.hdr>.row,.hdr>svg{margin-top:2px}
 /* on the smallest phones the title needs the room more than the brand mark does */
 @media (max-width:360px){.hdr>svg[aria-hidden]{display:none}}
@@ -293,7 +298,7 @@ h4.sec{
   display:flex;justify-content:space-around;align-items:flex-end;
   padding:7px 6px calc(6px + var(--sab));
   background:color-mix(in srgb,var(--bg-el) 72%,transparent);
-  backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);
+  backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
   border-top:var(--hair) solid var(--sep-op);
 }
 :root[data-theme="light"] #tabbar{background:rgba(249,249,251,.78)}
@@ -634,7 +639,7 @@ h4.sec{
   /* nearly opaque: the set rows underneath were reading through the old 82% and made the
      clock hard to pick out mid-set. The blur stays, so it still sits above the page. */
   background:color-mix(in srgb,var(--surface) 97%,transparent);
-  backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px);
+  backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
   border-radius:var(--r-lg);padding:12px 14px;
   display:flex;align-items:center;gap:12px;
   box-shadow:0 12px 34px -8px rgba(0,0,0,.55);
@@ -674,12 +679,12 @@ h4.sec{
   position:absolute;left:0;right:0;bottom:0;background:var(--bg-el);
   border-radius:var(--r-xl) var(--r-xl) 0 0;
   padding:8px 18px calc(20px + var(--sab));
-  max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  animation:sheetup .34s var(--ease);
+  max-height:90vh;max-height:90dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  transform:translateY(100%);transition:transform .34s var(--ease);   /* .in slides it home (Modals.jsx) */
   overscroll-behavior:contain;touch-action:pan-y;will-change:transform;
 }
 :root[data-theme="light"] .sheet{background:var(--bg)}
-@keyframes sheetup{from{transform:translateY(100%)}to{transform:none}}
+.sheet.in{transform:none}
 .sheet .grab{width:36px;height:5px;border-radius:99px;background:var(--label-4);margin:6px auto 14px}
 .sheet h3{font-size:20px;font-weight:600;letter-spacing:-.021em;margin-bottom:14px}
 .center{
@@ -803,7 +808,7 @@ h4.sec{
   display:flex;gap:6px;justify-content:center;align-items:flex-start;
   --bm-base:color-mix(in srgb,var(--label) 11%,var(--surface));
 }
-.bm-v{flex:1;min-width:0;height:auto;max-height:min(46vh,340px)}
+.bm-v{flex:1;min-width:0;height:auto;max-height:min(46vh,340px);max-height:min(46dvh,340px)}
 .bm-ph{height:200px}                       /* holds the space while the geometry loads */
 .bm-sil{fill:color-mix(in srgb,var(--label) 18%,var(--surface))}
 .bm-m{fill:var(--bm-base);transition:fill var(--med) var(--ease)}

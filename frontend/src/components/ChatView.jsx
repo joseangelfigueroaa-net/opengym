@@ -72,7 +72,7 @@ export default function ChatView({ withId, onOther, base = '/api/chat' }) {
     </div>
     <form className="chat-send" onSubmit={send}>
       <label htmlFor="chat-input" className="sr-only">{t('Message')}</label>
-      <TextArea id="chat-input" rows={1} maxLength={2000} placeholder={t('Write a message…')} value={text}
+      <TextArea id="chat-input" rows={1} enterKeyHint="send" maxLength={2000} placeholder={t('Write a message…')} value={text}
         onChange={e => setText(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) send(e) }} />
       <Button variant="primary" type="submit" disabled={busy || !text.trim()}>{busy ? t('Sending…') : t('Send')}</Button>

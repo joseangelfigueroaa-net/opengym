@@ -92,7 +92,7 @@ function TrainerSheet({ x, d, close, apply, onRemove, navTo }) {
   const [shift, setShift] = useState(x.shift || '')
   const isOwner = x.id === d.me?.ownerId
   return <>
-    <h3 className="capitalize">{x.name}</h3>
+    <h3 className="capitalize" dir="auto">{x.name}</h3>
     <div className="muted small" style={{ marginBottom: 12 }}>{t('{0} of {1} gym members', x.clients, x.limit)}</div>
     {!isOwner && <Button icon="chat" style={{ marginBottom: 12 }} onClick={() => { close(); navTo('/gym/chat/' + x.id) }}>{x.unread ? (x.unread === 1 ? t('1 new message') : t('{0} new messages', x.unread)) : t('Send a message')}</Button>}
     <div className="small muted" style={{ marginBottom: 6 }}>{t('Shift')}</div>
@@ -129,7 +129,7 @@ function ReceptionSheet({ d, apply }) {
     <div className="card" style={{ padding: '4px 14px', marginTop: 10 }}>
       {shown.map((m, n) => <button key={m.id} className="row between" onClick={() => mark(m)} aria-pressed={!!m.inToday}
         style={{ width: '100%', padding: '11px 0', borderTop: n ? '1px solid var(--sep)' : 'none', background: 'none', color: 'inherit', textAlign: 'left', gap: 10 }}>
-        <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600 }} className="capitalize">{m.name}</div>
+        <div style={{ minWidth: 0 }}><div className="pname capitalize" dir="auto">{m.name}</div>
           <div className="dim" style={{ fontSize: '.75rem' }}>{m.visits30 === 1 ? t('1 visit in the last 30 days') : t('{0} visits in the last 30 days', m.visits30 || 0)}</div></div>
         {m.inToday ? <span className="tag ok nocap"><Icon name="checkCircle" /> {t('Here today')}</span> : <span className="tag nocap">{t('Mark as here')}</span>}
       </button>)}
@@ -155,7 +155,7 @@ function RetentionSheet({ d, toast }) {
     <h4 className="sec">{t('Recovered this month')}</h4>
     {!r.recovered.length ? <div className="empty small">{t('Nobody yet this month.')}</div>
       : <div className="card" style={{ padding: '4px 14px' }}>{r.recovered.map((x, n) => <div key={x.userId + x.end} className="row between" style={{ padding: '10px 0', borderTop: n ? '1px solid var(--sep)' : 'none', gap: 10 }}>
-        <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600 }} className="capitalize">{x.name || t('Former member')}</div>
+        <div style={{ minWidth: 0 }}><div className="pname capitalize" dir="auto">{x.name || t('Former member')}</div>
           <div className="dim" style={{ fontSize: '.75rem' }}>{x.trainerName ? t('Trainer: {0}', x.trainerName) : t('No trainer')} · {t('back after {0} days', x.days)}</div></div>
         <span className="tag ok nocap">{t('Came back')}</span>
       </div>)}</div>}
@@ -177,7 +177,7 @@ function AssignSheet({ m, d, close, apply, navTo }) {
   const best = pool[0]?.id
   const rows = [...d.trainers].sort((a, b) => (b.id === best) - (a.id === best) || a.name.localeCompare(b.name))
   return <>
-    <h3 className="capitalize">{m.name}</h3>
+    <h3 className="capitalize" dir="auto">{m.name}</h3>
     <div className="muted small" style={{ marginBottom: 12 }}>
       {t('Trains: {0}', shiftLabel(shift))}{m.trainerName ? ' · ' + t('Trainer: {0}', m.trainerName) : ''}
       {' · '}{m.planned ? t('Has workouts from their trainer') : t('No workouts assigned')}
@@ -205,7 +205,7 @@ function AssignSheet({ m, d, close, apply, navTo }) {
           return <button key={x.id} disabled={full && !cur || m.outside} onClick={() => cur ? close() : apply(post('/api/gym/assign', { member: m.id, trainer: x.id }), t('{0} now trains {1}', x.name, m.name), close)}
             style={{ width: '100%', padding: '11px 0', borderTop: n ? '1px solid var(--sep)' : 'none', background: 'none', textAlign: 'left', color: 'inherit', opacity: full && !cur ? .5 : 1 }}>
             <div className="row between" style={{ gap: 8 }}>
-              <div style={{ fontWeight: 600 }} className="capitalize">{x.name}</div>
+              <div className="pname capitalize" dir="auto">{x.name}</div>
               <div className="row" style={{ gap: 6 }}>
                 {x.id === best && !cur && <span className="tag acc nocap">{t('Suggested')}</span>}
                 {cur && <span className="tag ok nocap">{t('Current')}</span>}
@@ -335,7 +335,7 @@ export default function Gym() {
               const issue = issueOf(m)
               return <button key={m.id} className="row between" onClick={() => openMember(m)}
                 style={{ width: '100%', padding: '11px 0', borderTop: n ? '1px solid var(--sep)' : 'none', background: 'none', textAlign: 'left', color: 'inherit', gap: 10 }}>
-                <div style={{ minWidth: 0, flex: '1 1 40%' }}><div style={{ fontWeight: 600 }} className="capitalize">{m.name}</div>
+                <div style={{ minWidth: 0, flex: '1 1 40%' }}><div className="pname capitalize" dir="auto">{m.name}</div>
                   <div className="dim" style={{ fontSize: '.75rem' }}>
                     {m.trainerName ? t('Trainer: {0}', m.trainerName) : m.outside ? t('Outside trainer') : <span style={{ color: 'var(--orange)' }}>{t('No trainer')}</span>}
                     {' · ' + shiftLabel(m.shift)}
@@ -357,7 +357,7 @@ export default function Gym() {
           {d.trainers.map((x, n) => <button key={x.id} disabled={!isOwner} onClick={() => openTrainer(x)}
             style={{ display: 'block', width: '100%', padding: '11px 0', borderTop: n ? '1px solid var(--sep)' : 'none', background: 'none', textAlign: 'left', color: 'inherit' }}>
             <div className="row between" style={{ gap: 8 }}>
-              <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600 }} className="capitalize">{x.name}</div>
+              <div style={{ minWidth: 0 }}><div className="pname capitalize" dir="auto">{x.name}</div>
                 <div className="dim" style={{ fontSize: '.75rem' }}>{t('{0} of {1} gym members', x.clients, x.limit)} · {shiftLabel(x.shift)}</div>
                 <div className="dim" style={{ fontSize: '.72rem' }}>{x.id === user.id && isOwner ? t('Owner') : permText('trainer', x.perms || [])}</div></div>
               {isOwner && <Icon name="chevronRight" className="dim" />}

@@ -88,7 +88,7 @@ export default function Trainer() {
               const st = statusTag(c.status)
               return <button key={c.id} className="row between" onClick={() => nav('/trainer/c/' + c.id)}
                 style={{ width: '100%', padding: '11px 0', borderTop: n ? '1px solid var(--sep)' : 'none', background: 'none', textAlign: 'left', color: 'inherit', gap: 10 }}>
-                <div style={{ minWidth: 0 }}><div style={{ fontWeight: 600 }} className="capitalize">{c.name}</div>
+                <div style={{ minWidth: 0 }}><div className="pname capitalize" dir="auto">{c.name}</div>
                   <div className="dim" style={{ fontSize: '.75rem' }}>
                     {c.lastWorkout ? t('Last workout {0}', fmtDate(c.lastWorkout)) : t('No workouts yet')}
                     {c.weight != null && ' · ' + fmtNum(c.weight) + ' ' + c.unit}

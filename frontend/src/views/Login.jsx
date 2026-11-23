@@ -32,10 +32,10 @@ function RegisterSheet({ close }) {
   return <>
     <h3>{t('Create your profile')}</h3>
     <div className="muted small" style={{ marginBottom: 14 }}>{t('Pick a name, then confirm with {0}. The passkey is saved in your device — no password needed.', BIO)}</div>
-    <input ref={ref} className="input" placeholder={t('Your name')} maxLength={40} value={name} onChange={e => setName(e.target.value)} />
+    <input ref={ref} className="input" placeholder={t('Your name')} maxLength={40} autoCapitalize="words" autoComplete="name" enterKeyHint="next" value={name} onChange={e => setName(e.target.value)} />
     {inviteOnly && <>
       <div style={{ height: 10 }} />
-      <input className="input" placeholder={t('Invite code')} maxLength={40} value={code}
+      <input className="input" placeholder={t('Invite code')} maxLength={40} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" value={code}
         onChange={e => setCode(e.target.value.toUpperCase())} style={{ letterSpacing: '.14em', fontWeight: 600, textAlign: 'center' }} />
       <div className="dim small" style={{ marginTop: 6 }}>{t('This app is invite-only — enter the code you were given.')}</div>
     </>}
@@ -114,7 +114,7 @@ export default function Login() {
         {t('You were invited to {0}. Create your profile, or sign in if you already have one, to join.', gymName)}
       </div>}
       {google && <>
-        {inviteOnly && <input className="input" placeholder={t('Invite code')} maxLength={40} value={code} aria-label={t('Invite code')}
+        {inviteOnly && <input className="input" placeholder={t('Invite code')} maxLength={40} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off" value={code} aria-label={t('Invite code')}
           onChange={e => setCode(e.target.value.toUpperCase())} style={{ letterSpacing: '.14em', fontWeight: 600, textAlign: 'center', marginBottom: 10 }} />}
         <Button icon="person" onClick={googleSignIn}>{t('Continue with Google')}</Button>
         <div className="dim small" style={{ margin: '6px 0 14px' }}>{t('Google and Gmail accounts work too.')}</div>

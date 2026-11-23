@@ -50,8 +50,8 @@ function Chart({ s }) {
         initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }}
         viewport={{ once: true, amount: 0.5 }} transition={{ duration: 1.6, ease: 'easeOut' }} />
       {pts.map((p, i) => <motion.circle key={i} cx={p.x} cy={p.y} r="3.5" style={{ fill: 'var(--green)' }}
-        initial={{ opacity: 0, scale: 0 }} whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true, amount: 0.5 }} transition={{ delay: 0.12 * i, duration: 0.3 }} />)}
+        initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true, amount: 0.5 }} transition={{ delay: 0.12 * i, duration: 0.3, ease: [0.23, 1, 0.32, 1] }} />)}
       {[0, 5, 11].map(i => <text key={i} x={pts[i].x} y={H - 6} textAnchor={i === 0 ? 'start' : i === WEEKS - 1 ? 'end' : 'middle'}
         style={{ fill: 'var(--label-3, #8e8e93)', fontSize: 10 }}>{`Sem ${i + 1}`}</text>)}
     </svg>
